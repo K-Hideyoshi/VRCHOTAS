@@ -1,0 +1,251 @@
+{
+  "jsonid": "input_profile",
+  "controller_type": "vrchotas_virtual",
+  "input_bindingui_mode": "controller_handed",
+  "input_source": {
+    "/input/vrchotas/btn00": {
+      "type": "button",
+      "click": true,
+      "order": 0
+    },
+    "/input/vrchotas/btn01": {
+      "type": "button",
+      "click": true,
+      "order": 1
+    },
+    "/input/vrchotas/btn02": {
+      "type": "button",
+      "click": true,
+      "order": 2
+    },
+    "/input/vrchotas/btn03": {
+      "type": "button",
+      "click": true,
+      "order": 3
+    },
+    "/input/vrchotas/btn04": {
+      "type": "button",
+      "click": true,
+      "order": 4
+    },
+    "/input/vrchotas/btn05": {
+      "type": "button",
+      "click": true,
+      "order": 5
+    },
+    "/input/vrchotas/btn06": {
+      "type": "button",
+      "click": true,
+      "order": 6
+    },
+    "/input/vrchotas/btn07": {
+      "type": "button",
+      "click": true,
+      "order": 7
+    },
+    "/input/vrchotas/btn08": {
+      "type": "button",
+      "click": true,
+      "order": 8
+    },
+    "/input/vrchotas/btn09": {
+      "type": "button",
+      "click": true,
+      "order": 9
+    },
+    "/input/vrchotas/btn10": {
+      "type": "button",
+      "click": true,
+      "order": 10
+    },
+    "/input/vrchotas/btn11": {
+      "type": "button",
+      "click": true,
+      "order": 11
+    },
+    "/input/vrchotas/btn12": {
+      "type": "button",
+      "click": true,
+      "order": 12
+    },
+    "/input/vrchotas/btn13": {
+      "type": "button",
+      "click": true,
+      "order": 13
+    },
+    "/input/vrchotas/btn14": {
+      "type": "button",
+      "click": true,
+      "order": 14
+    },
+    "/input/vrchotas/btn15": {
+      "type": "button",
+      "click": true,
+      "order": 15
+    },
+    "/input/vrchotas/btn16": {
+      "type": "button",
+      "click": true,
+      "order": 16
+    },
+    "/input/vrchotas/btn17": {
+      "type": "button",
+      "click": true,
+      "order": 17
+    },
+    "/input/vrchotas/btn18": {
+      "type": "button",
+      "click": true,
+      "order": 18
+    },
+    "/input/vrchotas/btn19": {
+      "type": "button",
+      "click": true,
+      "order": 19
+    },
+    "/input/vrchotas/btn20": {
+      "type": "button",
+      "click": true,
+      "order": 20
+    },
+    "/input/vrchotas/btn21": {
+      "type": "button",
+      "click": true,
+      "order": 21
+    },
+    "/input/vrchotas/btn22": {
+      "type": "button",
+      "click": true,
+      "order": 22
+    },
+    "/input/vrchotas/btn23": {
+      "type": "button",
+      "click": true,
+      "order": 23
+    },
+    "/input/vrchotas/btn24": {
+      "type": "button",
+      "click": true,
+      "order": 24
+    },
+    "/input/vrchotas/btn25": {
+      "type": "button",
+      "click": true,
+      "order": 25
+    },
+    "/input/vrchotas/btn26": {
+      "type": "button",
+      "click": true,
+      "order": 26
+    },
+    "/input/vrchotas/btn27": {
+      "type": "button",
+      "click": true,
+      "order": 27
+    },
+    "/input/vrchotas/btn28": {
+      "type": "button",
+      "click": true,
+      "order": 28
+    },
+    "/input/vrchotas/btn29": {
+      "type": "button",
+      "click": true,
+      "order": 29
+    },
+    "/input/vrchotas/btn30": {
+      "type": "button",
+      "click": true,
+      "order": 30
+    },
+    "/input/vrchotas/btn31": {
+      "type": "button",
+      "click": true,
+      "order": 31
+    },
+    "/input/vrchotas/axis00": {
+      "type": "joystick",
+      "x": true,
+      "order": 32
+    },
+    "/input/vrchotas/axis01": {
+      "type": "joystick",
+      "x": true,
+      "order": 33
+    },
+    "/input/vrchotas/axis02": {
+      "type": "joystick",
+      "x": true,
+      "order": 34
+    },
+    "/input/vrchotas/axis03": {
+      "type": "joystick",
+      "x": true,
+      "order": 35
+    },
+    "/input/vrchotas/axis04": {
+      "type": "joystick",
+      "x": true,
+      "order": 36
+    },
+    "/input/vrchotas/axis05": {
+      "type": "joystick",
+      "x": true,
+      "order": 37
+    },
+    "/input/vrchotas/axis06": {
+      "type": "joystick",
+      "x": true,
+      "order": 38
+    },
+    "/input/vrchotas/axis07": {
+      "type": "joystick",
+      "x": true,
+      "order": 39
+    },
+    "/input/vrchotas/axis08": {
+      "type": "joystick",
+      "x": true,
+      "order": 40
+    },
+    "/input/vrchotas/axis09": {
+      "type": "joystick",
+      "x": true,
+      "order": 41
+    },
+    "/input/vrchotas/axis10": {
+      "type": "joystick",
+      "x": true,
+      "order": 42
+    },
+    "/input/vrchotas/axis11": {
+      "type": "joystick",
+      "x": true,
+      "order": 43
+    },
+    "/input/vrchotas/axis12": {
+      "type": "joystick",
+      "x": true,
+      "order": 44
+    },
+    "/input/vrchotas/axis13": {
+      "type": "joystick",
+      "x": true,
+      "order": 45
+    },
+    "/input/vrchotas/axis14": {
+      "type": "joystick",
+      "x": true,
+      "order": 46
+    },
+    "/input/vrchotas/axis15": {
+      "type": "joystick",
+      "x": true,
+      "order": 47
+    },
+    "/pose/raw": {
+      "type": "pose",
+      "order": 48
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "interface_version": "1",
+  "name": "vrchotas",
+  "directory": ".",
+  "resource_only": false,
+  "hmd_presence": false
+}
