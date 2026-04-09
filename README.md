@@ -3,6 +3,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-blue)](#prerequisites)
 [![Runtime](https://img.shields.io/badge/.NET-10-purple)](#tech-stack)
 [![UI](https://img.shields.io/badge/UI-WPF-512BD4)](#tech-stack)
+[![License](https://img.shields.io/badge/license-GPLv3-green)](#license)
 
 VRCHOTAS is a Windows desktop mapper for HOTAS/joystick devices. It reads physical controller input, applies configurable mapping curves, and writes a virtual controller state to shared memory for a VR driver to consume.
 
