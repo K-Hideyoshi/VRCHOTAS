@@ -29,6 +29,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _deviceStatusSummary = "No device discovered.";
     private string _currentConfigurationFileName = string.Empty;
     private bool _isConfigurationDirty;
+    private bool _isMappingEnabled = true;
+    private bool _suppressConfigurationChangeTracking;
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -46,6 +48,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public IRelayCommand OpenAddMappingDialogCommand { get; }
     public IRelayCommand OpenEditMappingDialogCommand { get; }
     public IRelayCommand DeleteSelectedMappingCommand { get; }
+    public IRelayCommand ToggleMappingEnabledCommand { get; }
     public IRelayCommand<string> LoadConfigByNameCommand { get; }
     public IRelayCommand<string> SetDefaultConfigByNameCommand { get; }
 
@@ -93,6 +96,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public string CurrentLogFilePath => _logger.CurrentLogFilePath;
 
+    public bool IsMappingEnabled
+    {
+        get => _isMappingEnabled;
+        set
+        {
+            if (!SetProperty(ref _isMappingEnabled, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(MappingEnabledStatusText));
+
+            if (_suppressConfigurationChangeTracking)
+            {
+                return;
+            }
+
+            MarkConfigurationDirty();
+            _logger.Info(nameof(MainViewModel), $"Mapping master switch {(value ? "enabled" : "disabled")}.");
+        }
+    }
+
+    public string MappingEnabledStatusText => IsMappingEnabled ? "Enabled" : "Disabled";
+
     public MainViewModel()
     {
         _logger = LogManager.Logger;
@@ -121,6 +148,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OpenAddMappingDialogCommand = new RelayCommand(() => MappingEditorRequested?.Invoke(this, new MappingEditorRequestEventArgs(null)));
         OpenEditMappingDialogCommand = new RelayCommand(OpenEditMappingDialog);
         DeleteSelectedMappingCommand = new RelayCommand(DeleteSelectedMapping);
+        ToggleMappingEnabledCommand = new RelayCommand(() => IsMappingEnabled = !IsMappingEnabled);
         LoadConfigByNameCommand = new RelayCommand<string>(LoadConfigurationByName);
         SetDefaultConfigByNameCommand = new RelayCommand<string>(SetDefaultConfigurationByName);
 
@@ -299,6 +327,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var normalizedFileName = EnsureJsonFileName(fileName);
         _configurationService.SaveByFileName(normalizedFileName, new AppConfiguration
         {
+            IsMappingEnabled = IsMappingEnabled,
             Mappings = Mappings.ToList()
         });
 
@@ -318,6 +347,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _configurationService.SaveByFileName(CurrentConfigurationFileName, new AppConfiguration
         {
+            IsMappingEnabled = IsMappingEnabled,
             Mappings = Mappings.ToList()
         });
 
@@ -342,10 +372,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         var normalized = EnsureJsonFileName(fileName);
         var config = _configurationService.LoadByFileName(normalized);
-        Mappings.Clear();
-        foreach (var mapping in config.Mappings)
+        _suppressConfigurationChangeTracking = true;
+        try
         {
-            Mappings.Add(mapping);
+            IsMappingEnabled = config.IsMappingEnabled;
+            Mappings.Clear();
+            foreach (var mapping in config.Mappings)
+            {
+                Mappings.Add(mapping);
+            }
+        }
+        finally
+        {
+            _suppressConfigurationChangeTracking = false;
         }
 
         CurrentConfigurationFileName = normalized;
@@ -418,7 +457,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             UpdateDeviceGroups(_latestState);
             UpdateDeviceStatusSummary();
 
-            var mapped = _mappingEngine.Map(_latestState, Mappings);
+            var mapped = IsMappingEnabled
+                ? _mappingEngine.Map(_latestState, Mappings)
+                : VirtualControllerState.CreateDefault();
             _ipc?.Write(mapped);
         }
         catch (Exception ex)

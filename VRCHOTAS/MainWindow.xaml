@@ -8,6 +8,42 @@
         Title="{Binding WindowTitle}" Height="760" Width="1280">
     <Window.Resources>
         <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter" />
+        <Style x:Key="MasterSwitchButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="MinWidth" Value="170" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#33000000" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="18"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.9" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="12">
@@ -60,9 +96,21 @@
             </MenuItem>
         </Menu>
 
-        <DockPanel Grid.Row="1" Margin="0,8,0,12">
-            <TextBlock Text="Discovered Device Status:" VerticalAlignment="Top" FontWeight="Bold" />
-            <TextBlock Text="{Binding DeviceStatusSummary}" Margin="8,0,0,0" VerticalAlignment="Top" TextWrapping="Wrap" />
+        <DockPanel Grid.Row="1" Margin="0,8,0,12" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                <TextBlock Text="Master Switch:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0" />
+                <Button Style="{StaticResource MasterSwitchButtonStyle}"
+                        Command="{Binding ToggleMappingEnabledCommand}"
+                        Background="{Binding IsMappingEnabled, Converter={StaticResource BooleanToBrushConverter}}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Mapping" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding MappingEnabledStatusText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <TextBlock DockPanel.Dock="Left" Text="Discovered Device Status:" VerticalAlignment="Top" FontWeight="Bold" />
+            <TextBlock DockPanel.Dock="Left" Text="{Binding DeviceStatusSummary}" Margin="8,0,16,0" VerticalAlignment="Top" TextWrapping="Wrap" />
         </DockPanel>
 
         <Grid Grid.Row="2">

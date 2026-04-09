@@ -90,5 +90,6 @@ public sealed class MappingEntry
 
 public sealed class AppConfiguration
 {
+    public bool IsMappingEnabled { get; set; } = true;
     public List<MappingEntry> Mappings { get; set; } = new();
 }
