@@ -11,6 +11,7 @@ using VRCHOTAS.Interop;
 using VRCHOTAS.Logging;
 using VRCHOTAS.Models;
 using VRCHOTAS.Services;
+using WpfApplication = System.Windows.Application;
 
 namespace VRCHOTAS.ViewModels;
 
@@ -381,6 +382,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 Mappings.Add(mapping);
             }
+
+            UpdateMappingSourceDeviceStates(_joystickService.GetDeviceStatesSnapshot());
         }
         finally
         {
@@ -416,7 +419,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnDevicesChanged(object? sender, EventArgs e)
     {
-        Application.Current.Dispatcher.Invoke(RefreshDeviceGroupShells);
+        WpfApplication.Current.Dispatcher.Invoke(RefreshDeviceGroupShells);
     }
 
     private void RefreshDeviceGroupShells()
@@ -446,6 +449,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             group.IsConnected = state.IsConnected;
         }
 
+        UpdateMappingSourceDeviceStates(states);
         UpdateDeviceStatusSummary();
     }
 
@@ -487,6 +491,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             group.IsConnected = device.IsConnected;
             group.UpdateFrom(device);
         }
+
+        UpdateMappingSourceDeviceStates(state.Devices);
+    }
+
+    private void UpdateMappingSourceDeviceStates(IEnumerable<JoystickDeviceState> states)
+    {
+        var connectedDeviceIds = states
+            .Where(state => state.IsConnected)
+            .Select(state => state.DeviceId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var mapping in Mappings)
+        {
+            mapping.IsSourceDeviceConnected =
+                !string.IsNullOrWhiteSpace(mapping.SourceDeviceId)
+                && connectedDeviceIds.Contains(mapping.SourceDeviceId);
+        }
     }
 
     private void UpdateDeviceStatusSummary()
@@ -504,7 +525,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnLogWritten(LogEntry entry)
     {
-        var dispatcher = Application.Current?.Dispatcher;
+        var dispatcher = WpfApplication.Current?.Dispatcher;
         if (dispatcher is null)
         {
             return;

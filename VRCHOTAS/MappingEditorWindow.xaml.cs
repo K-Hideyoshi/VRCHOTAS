@@ -55,7 +55,7 @@ public partial class MappingEditorWindow : Window
         catch (Exception ex)
         {
             _logger.Warning(nameof(MappingEditorWindow), "Mapping save validation failed.");
-            MessageBox.Show(this, ex.Message, "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(this, ex.Message, "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

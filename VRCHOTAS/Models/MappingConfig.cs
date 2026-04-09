@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 
 namespace VRCHOTAS.Models;
@@ -32,8 +33,12 @@ public enum MappingTargetKind
     AngularVelocityZ = 13
 }
 
-public sealed class MappingEntry
+public sealed partial class MappingEntry : ObservableObject
 {
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private bool _isSourceDeviceConnected;
+
     /// <summary>
     /// When null (legacy configs), derived from <see cref="IsAxisMapping"/>.
     /// </summary>
@@ -57,15 +62,16 @@ public sealed class MappingEntry
     public MappingTargetKind ResolvedTargetKind =>
         TargetKind ?? (IsAxisMapping ? MappingTargetKind.AxisInput : MappingTargetKind.Button);
 
-    public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex}";
+    [JsonIgnore]
+    public string SourceControlDisplay => IsAxisMapping ? $"Axis {SourceAxis}" : $"Button {SourceButtonIndex}";
 
-    public string TargetDisplay
+    [JsonIgnore]
+    public string TargetControlDisplay
     {
         get
         {
-            var hand = TargetHand == VirtualTargetHand.Right ? "Right" : "Left";
             var k = ResolvedTargetKind;
-            var label = k switch
+            return k switch
             {
                 MappingTargetKind.AxisInput => $"VR Axis {TargetAxisIndex}",
                 MappingTargetKind.Button => $"VR Button {TargetButtonIndex}",
@@ -83,7 +89,18 @@ public sealed class MappingEntry
                 MappingTargetKind.AngularVelocityZ => "AngVel Z (rad/s)",
                 _ => k.ToString()
             };
-            return $"{hand} / {label}";
+        }
+    }
+
+    public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex}";
+
+    public string TargetDisplay
+    {
+        get
+        {
+            var hand = TargetHand == VirtualTargetHand.Right ? "Right" : "Left";
+            var k = ResolvedTargetKind;
+            return $"{hand} / {TargetControlDisplay}";
         }
     }
 }

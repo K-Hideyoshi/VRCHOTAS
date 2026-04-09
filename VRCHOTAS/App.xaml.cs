@@ -1,9 +1,10 @@
 ﻿using System.Windows;
 using VRCHOTAS.Logging;
+using WpfApplication = System.Windows.Application;
 
 namespace VRCHOTAS
 {
-    public partial class App : Application
+    public partial class App : WpfApplication
     {
         public App()
         {

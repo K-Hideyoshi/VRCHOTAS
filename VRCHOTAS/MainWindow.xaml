@@ -94,6 +94,9 @@
             <MenuItem Header="View">
                 <MenuItem Header="Open Log Window" Command="{Binding OpenLogWindowCommand}" />
             </MenuItem>
+            <MenuItem Header="Application">
+                <MenuItem Header="Exit" Click="ExitApplicationClick" />
+            </MenuItem>
         </Menu>
 
         <DockPanel Grid.Row="1" Margin="0,8,0,12" LastChildFill="False">
@@ -176,9 +179,23 @@
                       CanUserAddRows="False"
                       IsReadOnly="True">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Source" Binding="{Binding SourceDisplay}" Width="*" />
-                    <DataGridTextColumn Header="Target" Binding="{Binding TargetDisplay}" Width="160" />
-                    <DataGridCheckBoxColumn Header="Invert" Binding="{Binding Invert}" Width="65" />
+                    <DataGridTemplateColumn Header="" Width="34">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Ellipse Width="12"
+                                         Height="12"
+                                         Fill="{Binding IsSourceDeviceConnected, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=RedGreen}"
+                                         Stroke="Black"
+                                         StrokeThickness="0.8"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*" />
+                    <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140" />
+                    <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90" />
+                    <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="160" />
                     <DataGridTemplateColumn Header="Actions" Width="140">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
