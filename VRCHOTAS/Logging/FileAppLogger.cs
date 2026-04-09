@@ -13,7 +13,8 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
 
     public FileAppLogger()
     {
-        var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        var appDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VRCHOTAS");
+        var logDir = Path.Combine(appDataDirectory, "logs");
         Directory.CreateDirectory(logDir);
 
         CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");

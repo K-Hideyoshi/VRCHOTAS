@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -40,6 +42,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public IRelayCommand SaveAsConfigCommand { get; }
     public IRelayCommand RefreshConfigListCommand { get; }
     public IRelayCommand OpenLogWindowCommand { get; }
+    public IRelayCommand OpenCurrentLogFileLocationCommand { get; }
     public IRelayCommand OpenAddMappingDialogCommand { get; }
     public IRelayCommand OpenEditMappingDialogCommand { get; }
     public IRelayCommand DeleteSelectedMappingCommand { get; }
@@ -88,6 +91,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _selectedMapping, value);
     }
 
+    public string CurrentLogFilePath => _logger.CurrentLogFilePath;
+
     public MainViewModel()
     {
         _logger = LogManager.Logger;
@@ -112,6 +117,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveAsConfigCommand = new RelayCommand(() => SaveAsRequested?.Invoke(this, EventArgs.Empty));
         RefreshConfigListCommand = new RelayCommand(RefreshAvailableConfigurations);
         OpenLogWindowCommand = new RelayCommand(() => LogWindowRequested?.Invoke(this, EventArgs.Empty));
+        OpenCurrentLogFileLocationCommand = new RelayCommand(OpenCurrentLogFileLocation);
         OpenAddMappingDialogCommand = new RelayCommand(() => MappingEditorRequested?.Invoke(this, new MappingEditorRequestEventArgs(null)));
         OpenEditMappingDialogCommand = new RelayCommand(OpenEditMappingDialog);
         DeleteSelectedMappingCommand = new RelayCommand(DeleteSelectedMapping);
@@ -470,6 +476,48 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         dispatcher.Invoke(() => LogEntries.Add(entry));
+    }
+
+    private void OpenCurrentLogFileLocation()
+    {
+        try
+        {
+            var logFilePath = _logger.CurrentLogFilePath;
+            if (string.IsNullOrWhiteSpace(logFilePath))
+            {
+                _logger.Warning(nameof(MainViewModel), "Current log file path is empty.");
+                return;
+            }
+
+            if (File.Exists(logFilePath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{logFilePath}\"",
+                    UseShellExecute = true
+                });
+                return;
+            }
+
+            var logDirectory = Path.GetDirectoryName(logFilePath);
+            if (!string.IsNullOrWhiteSpace(logDirectory) && Directory.Exists(logDirectory))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{logDirectory}\"",
+                    UseShellExecute = true
+                });
+                return;
+            }
+
+            _logger.Warning(nameof(MainViewModel), $"Log file and directory are missing: {logFilePath}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(nameof(MainViewModel), "Failed to open log file location.", ex);
+        }
     }
 
     public void Dispose()

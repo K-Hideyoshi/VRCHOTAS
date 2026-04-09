@@ -8,7 +8,8 @@ namespace VRCHOTAS.Services;
 public sealed class ConfigurationService
 {
     private readonly IAppLogger _logger;
-    private static readonly string ConfigDirectory = Path.Combine(AppContext.BaseDirectory, "configs");
+    private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VRCHOTAS");
+    private static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
     private static readonly string AppStatePath = Path.Combine(ConfigDirectory, "app-state.json");
     private const string DefaultConfigFileName = "default-config.json";
 
@@ -24,22 +25,36 @@ public sealed class ConfigurationService
             Directory.CreateDirectory(ConfigDirectory);
 
             var state = LoadAppState();
-            var fileName = string.IsNullOrWhiteSpace(state.DefaultConfigurationFileName)
+            var selectedFileName = string.IsNullOrWhiteSpace(state.DefaultConfigurationFileName)
                 ? DefaultConfigFileName
                 : state.DefaultConfigurationFileName;
 
-            fileName = EnsureJsonExtension(fileName);
-            state.DefaultConfigurationFileName = fileName;
-            SaveAppState(state);
+            selectedFileName = EnsureJsonExtension(selectedFileName);
+            var selectedPath = GetConfigurationPath(selectedFileName);
 
-            var fullPath = GetConfigurationPath(fileName);
-            if (!File.Exists(fullPath))
+            if (!File.Exists(selectedPath))
             {
-                SaveByFileName(fileName, new AppConfiguration());
-                _logger.Warning(nameof(ConfigurationService), $"Default configuration was missing and has been created: {fileName}");
+                if (!selectedFileName.Equals(DefaultConfigFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.Warning(nameof(ConfigurationService), $"Selected default configuration is missing: {selectedFileName}. Falling back to {DefaultConfigFileName}.");
+                }
+
+                state.DefaultConfigurationFileName = DefaultConfigFileName;
+                SaveAppState(state);
+
+                var defaultPath = GetConfigurationPath(DefaultConfigFileName);
+                if (!File.Exists(defaultPath))
+                {
+                    SaveByFileName(DefaultConfigFileName, new AppConfiguration());
+                    _logger.Warning(nameof(ConfigurationService), $"Default configuration was missing and has been created: {DefaultConfigFileName}");
+                }
+
+                return DefaultConfigFileName;
             }
 
-            return fileName;
+            state.DefaultConfigurationFileName = selectedFileName;
+            SaveAppState(state);
+            return selectedFileName;
         }
         catch (Exception ex)
         {

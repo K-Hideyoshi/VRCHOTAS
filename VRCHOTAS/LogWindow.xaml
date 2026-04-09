@@ -27,6 +27,11 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <Button Margin="12,0,0,0"
+                    Padding="12,4"
+                    Content="Locate Current Log File"
+                    Command="{Binding OpenCurrentLogFileLocationCommand}"
+                    ToolTip="{Binding CurrentLogFilePath}" />
         </StackPanel>
 
         <DataGrid Grid.Row="1"
