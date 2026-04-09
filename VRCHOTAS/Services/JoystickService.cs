@@ -6,6 +6,8 @@ namespace VRCHOTAS.Services;
 
 public sealed class JoystickService : IDisposable
 {
+    private const int MaxButtonsPerDevice = 64;
+
     private sealed class DeviceRuntime
     {
         public required Guid InstanceGuid { get; init; }
@@ -153,7 +155,7 @@ public sealed class JoystickService : IDisposable
                             ["SL0"] = Normalize(current.Sliders.Length > 0 ? current.Sliders[0] : 0),
                             ["SL1"] = Normalize(current.Sliders.Length > 1 ? current.Sliders[1] : 0)
                         },
-                        Buttons = current.Buttons.Select(button => button).ToArray()
+                        Buttons = current.Buttons.Take(MaxButtonsPerDevice).ToArray()
                     });
                 }
                 catch (Exception ex)

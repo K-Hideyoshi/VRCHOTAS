@@ -134,7 +134,14 @@ namespace VRCHOTAS
                 return;
             }
 
-            _viewModel.SaveMappingFromDialog(dialog.MappingResult, e.MappingToEdit);
+            try
+            {
+                _viewModel.SaveMappingFromDialog(dialog.MappingResult, e.MappingToEdit);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void DeleteMappingClick(object sender, RoutedEventArgs e)

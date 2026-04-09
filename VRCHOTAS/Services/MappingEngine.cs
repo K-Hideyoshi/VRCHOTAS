@@ -6,6 +6,8 @@ namespace VRCHOTAS.Services;
 
 public sealed class MappingEngine
 {
+    private const double DegreesPerRotation = 360.0;
+
     private readonly IAppLogger _logger;
 
     public MappingEngine(IAppLogger logger)
@@ -41,16 +43,21 @@ public sealed class MappingEngine
 
             if (kind == MappingTargetKind.Button)
             {
+                if (mapping.IsAxisMapping)
+                {
+                    _logger.Debug(nameof(MappingEngine), "Skipped mapping: axis source cannot drive a button target.");
+                    continue;
+                }
+
                 if (!ApplyButtonMapping(mapping, sourceDevice, ref hand))
                 {
                     continue;
                 }
             }
-            else if (mapping.IsAxisMapping)
+            else
             {
-                if (!sourceDevice.Axes.TryGetValue(mapping.SourceAxis.ToUpperInvariant(), out var axisValue))
+                if (!TryGetAxisLikeInput(mapping, sourceDevice, out var axisValue))
                 {
-                    _logger.Debug(nameof(MappingEngine), $"Skipped mapping: source axis not found: {mapping.SourceAxis}.");
                     continue;
                 }
 
@@ -69,7 +76,7 @@ public sealed class MappingEngine
                     }
                     default:
                     {
-                        // Saturation scales world units (meters, degrees, rad/s) after normalized shaping.
+                        // Saturation scales world units (meters, rotation, rad/s) after normalized shaping.
                         var shaped = MapAxisValue(axisValue, mapping.Deadzone, mapping.Curve, 1.0, mapping.Invert);
                         var scaled = shaped * mapping.Saturation;
                         switch (kind)
@@ -84,13 +91,13 @@ public sealed class MappingEngine
                                 poseScratch.Pz = scaled;
                                 break;
                             case MappingTargetKind.PoseOrientationX:
-                                poseScratch.PitchDeg = scaled;
+                                poseScratch.PitchDeg = scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.PoseOrientationY:
-                                poseScratch.YawDeg = scaled;
+                                poseScratch.YawDeg = scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.PoseOrientationZ:
-                                poseScratch.RollDeg = scaled;
+                                poseScratch.RollDeg = scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.LinearVelocityX:
                                 poseScratch.Vx = scaled;
@@ -119,10 +126,6 @@ public sealed class MappingEngine
                     }
                 }
             }
-            else
-            {
-                _logger.Debug(nameof(MappingEngine), $"Skipped mapping: target {kind} requires an axis source.");
-            }
         }
 
         FinalizeHandPose(ref output.Left, leftPose);
@@ -144,6 +147,30 @@ public sealed class MappingEngine
             hand.Buttons[mapping.TargetButtonIndex] = sourceDevice.Buttons[mapping.SourceButtonIndex];
         }
 
+        return true;
+    }
+
+    private bool TryGetAxisLikeInput(MappingEntry mapping, JoystickDeviceState sourceDevice, out double value)
+    {
+        value = 0;
+        if (mapping.IsAxisMapping)
+        {
+            if (sourceDevice.Axes.TryGetValue(mapping.SourceAxis.ToUpperInvariant(), out value))
+            {
+                return true;
+            }
+
+            _logger.Debug(nameof(MappingEngine), $"Skipped mapping: source axis not found: {mapping.SourceAxis}.");
+            return false;
+        }
+
+        if (mapping.SourceButtonIndex < 0 || mapping.SourceButtonIndex >= sourceDevice.Buttons.Count)
+        {
+            _logger.Debug(nameof(MappingEngine), $"Skipped mapping: source button out of range: {mapping.SourceButtonIndex}.");
+            return false;
+        }
+
+        value = sourceDevice.Buttons[mapping.SourceButtonIndex] ? 1.0 : 0.0;
         return true;
     }
 
@@ -179,7 +206,7 @@ public sealed class MappingEngine
     {
         var clampedDeadzone = Math.Clamp(deadzone, 0.0, 0.8);
         var clampedCurve = Math.Clamp(curve, -1.0, 1.0);
-        var clampedSaturation = Math.Clamp(saturation, 0.0, 1.0);
+        var clampedSaturation = Math.Clamp(saturation, 0.0, 5.0);
 
         var sign = Math.Sign(value);
         var abs = Math.Abs(value);

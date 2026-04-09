@@ -18,7 +18,6 @@ public partial class MappingEditorWindow : Window
         _logger = logger;
         _viewModel = new MappingEditorViewModel(stateProvider, existing);
         DataContext = _viewModel;
-        _viewModel.IsListening = true;
         _logger.Info(nameof(MappingEditorWindow), "Source detection started automatically.");
 
         _detectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
@@ -58,5 +57,11 @@ public partial class MappingEditorWindow : Window
             _logger.Warning(nameof(MappingEditorWindow), "Mapping save validation failed.");
             MessageBox.Show(this, ex.Message, "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private void ClearDetectionClick(object sender, RoutedEventArgs e)
+    {
+        _viewModel.StartAutoDetect(clearDetectedSource: true);
+        _logger.Info(nameof(MappingEditorWindow), "Source detection cleared and restarted.");
     }
 }

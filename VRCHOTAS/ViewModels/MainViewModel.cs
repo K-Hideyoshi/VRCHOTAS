@@ -215,6 +215,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(mapping);
 
+        if (!CanUseTarget(mapping, original, out var errorMessage))
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+
         if (original is null)
         {
             Mappings.Add(mapping);
@@ -235,6 +240,44 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Mappings[index] = mapping;
         MarkConfigurationDirty();
         _logger.Info(nameof(MainViewModel), $"Mapping updated: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
+    }
+
+    private bool CanUseTarget(MappingEntry candidate, MappingEntry? original, out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        var kind = candidate.ResolvedTargetKind;
+        if (kind != MappingTargetKind.Button && kind != MappingTargetKind.AxisInput)
+        {
+            return true;
+        }
+
+        foreach (var existing in Mappings)
+        {
+            if (ReferenceEquals(existing, original))
+            {
+                continue;
+            }
+
+            if (existing.TargetHand != candidate.TargetHand)
+            {
+                continue;
+            }
+
+            var existingKind = existing.ResolvedTargetKind;
+            if (kind == MappingTargetKind.Button && existingKind == MappingTargetKind.Button && existing.TargetButtonIndex == candidate.TargetButtonIndex)
+            {
+                errorMessage = $"Target button {candidate.TargetButtonIndex} on {candidate.TargetHand} hand is already mapped.";
+                return false;
+            }
+
+            if (kind == MappingTargetKind.AxisInput && existingKind == MappingTargetKind.AxisInput && existing.TargetAxisIndex == candidate.TargetAxisIndex)
+            {
+                errorMessage = $"Target axis {candidate.TargetAxisIndex} on {candidate.TargetHand} hand is already mapped.";
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public RawJoystickState GetLatestStateSnapshot() => _latestState;

@@ -25,13 +25,14 @@
         <TextBlock Grid.Row="0" Text="Source Detection" FontWeight="Bold" />
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
-            <TextBlock Margin="0,3,0,0" Text="Auto detect is active. Move an axis or press a button on the source device." />
+            <TextBlock Margin="0,3,12,0" Text="Auto detect is active. Change a button state or move an axis quickly on the source device." />
+            <Button Width="90" Content="Clear" Click="ClearDetectionClick" />
         </StackPanel>
 
         <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Detected Source:" FontWeight="Bold" />
         <TextBlock Grid.Row="3" Margin="0,4,0,0" Text="{Binding SourceSummary}" />
 
-        <GroupBox Grid.Row="4" Header="Target" Margin="0,12,0,0">
+        <GroupBox Grid.Row="4" Header="Target" Margin="0,12,0,0" IsEnabled="{Binding CanEditTarget}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -46,7 +47,7 @@
 
                 <TextBlock Grid.Row="0" Text="Target:" VerticalAlignment="Center" />
                 <ComboBox Grid.Row="0" Grid.Column="1" Width="300" Margin="10,0,0,6" HorizontalAlignment="Left"
-                          ItemsSource="{Binding TargetKindOptions}"
+                          ItemsSource="{Binding AvailableTargetKindOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedTargetKind}" />
@@ -95,7 +96,7 @@
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
                     <TextBlock Width="90" Text="Saturation" VerticalAlignment="Center" />
-                    <Slider Width="300" Minimum="0.0" Maximum="1.0" Value="{Binding Saturation}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <Slider Width="300" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
                     <TextBlock Width="50" Margin="10,0,0,0" Text="{Binding Saturation, StringFormat=F2}" VerticalAlignment="Center" />
                 </StackPanel>
 
@@ -103,6 +104,8 @@
 
                 <Border Grid.Row="5" BorderBrush="Gray" BorderThickness="1" Width="210" Height="210" HorizontalAlignment="Left">
                     <Canvas Width="200" Height="200" Margin="4">
+                        <TextBlock Canvas.Left="2" Canvas.Top="2" Text="{Binding PlotYMaxLabel}" FontSize="10" Foreground="Gray" />
+                        <TextBlock Canvas.Left="2" Canvas.Top="188" Text="{Binding PlotYMinLabel}" FontSize="10" Foreground="Gray" />
                         <Line X1="0" Y1="100" X2="200" Y2="100" Stroke="Gray" StrokeThickness="1" />
                         <Line X1="100" Y1="0" X2="100" Y2="200" Stroke="Gray" StrokeThickness="1" />
                         <Polyline Points="{Binding CurvePlotPoints}" Stroke="DeepSkyBlue" StrokeThickness="2" />

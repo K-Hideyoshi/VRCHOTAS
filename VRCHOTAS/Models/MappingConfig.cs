@@ -15,11 +15,11 @@ public enum MappingTargetKind
     PosePositionX = 2,
     PosePositionY = 3,
     PosePositionZ = 4,
-    /// <summary>Pitch about +X axis (degrees).</summary>
+    /// <summary>Pitch about +X axis (rotation).</summary>
     PoseOrientationX = 5,
-    /// <summary>Yaw about +Y axis (degrees).</summary>
+    /// <summary>Yaw about +Y axis (rotation).</summary>
     PoseOrientationY = 6,
-    /// <summary>Roll about +Z axis (degrees).</summary>
+    /// <summary>Roll about +Z axis (rotation).</summary>
     PoseOrientationZ = 7,
     LinearVelocityX = 8,
     LinearVelocityY = 9,
@@ -72,9 +72,9 @@ public sealed class MappingEntry
                 MappingTargetKind.PosePositionX => "Pose X (m)",
                 MappingTargetKind.PosePositionY => "Pose Y (m)",
                 MappingTargetKind.PosePositionZ => "Pose Z (m)",
-                MappingTargetKind.PoseOrientationX => "Orient Pitch X (deg)",
-                MappingTargetKind.PoseOrientationY => "Orient Yaw Y (deg)",
-                MappingTargetKind.PoseOrientationZ => "Orient Roll Z (deg)",
+                MappingTargetKind.PoseOrientationX => "Orient Pitch X (rotation)",
+                MappingTargetKind.PoseOrientationY => "Orient Yaw Y (rotation)",
+                MappingTargetKind.PoseOrientationZ => "Orient Roll Z (rotation)",
                 MappingTargetKind.LinearVelocityX => "LinVel X (m/s)",
                 MappingTargetKind.LinearVelocityY => "LinVel Y (m/s)",
                 MappingTargetKind.LinearVelocityZ => "LinVel Z (m/s)",
