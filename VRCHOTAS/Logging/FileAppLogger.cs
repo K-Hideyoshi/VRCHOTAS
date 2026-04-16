@@ -15,10 +15,34 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
     {
         var appDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VRCHOTAS");
         var logDir = Path.Combine(appDataDirectory, "logs");
-        Directory.CreateDirectory(logDir);
 
-        CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
-        _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
+        // If a file exists where we expect a directory, or creating the directory fails,
+        // fall back to the system temp path to avoid FileNotFoundException when opening the log file.
+        try
+        {
+            if (File.Exists(logDir) || File.Exists(appDataDirectory))
+            {
+                // fallback to temp folder if a file collides with the expected directory path
+                logDir = Path.Combine(Path.GetTempPath(), "VRCHOTAS", "logs");
+                Directory.CreateDirectory(logDir);
+            }
+            else
+            {
+                Directory.CreateDirectory(logDir);
+            }
+
+            CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
+        }
+        catch
+        {
+            // Last resort: use temp path so the application can continue running even if
+            // Documents folder is not writable or a file blocks the expected directory.
+            logDir = Path.Combine(Path.GetTempPath(), "VRCHOTAS", "logs");
+            Directory.CreateDirectory(logDir);
+            CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
+        }
     }
 
     public void Log(AppLogLevel level, string source, string message, Exception? ex = null)

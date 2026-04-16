@@ -21,21 +21,25 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Source Detection" FontWeight="Bold" />
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Source Detection" FontWeight="Bold" />
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
-            <TextBlock Margin="0,3,12,0" Text="Auto detect is active. Change a button state or move an axis quickly on the source device." />
-            <Button Width="90" Content="Clear" Click="ClearDetectionClick" />
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Text="Auto detect is active. Change a button state or move an axis quickly on the source device." />
+
+        <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Detected Source:" />
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+            <TextBlock VerticalAlignment="Center" Text="{Binding SourceSummary}" />
+            <Button Width="90" Margin="12,0,0,0" Content="Re-detect" Click="ClearDetectionClick" Visibility="{Binding HasDetectedSource, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </StackPanel>
 
-        <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Detected Source:" FontWeight="Bold" />
-        <TextBlock Grid.Row="3" Margin="0,4,0,0" Text="{Binding SourceSummary}" />
-
-        <GroupBox Grid.Row="4" Header="Target" Margin="0,12,0,0" IsEnabled="{Binding CanEditTarget}">
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Target" Margin="0,12,0,0" IsEnabled="{Binding CanEditTarget}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="140" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
@@ -45,64 +49,80 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Target:" VerticalAlignment="Center" />
-                <ComboBox Grid.Row="0" Grid.Column="1" Width="300" Margin="10,0,0,6" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Target:" />
+                <ComboBox Grid.Row="0" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding AvailableTargetKindOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedTargetKind}" />
 
-                <TextBlock Grid.Row="1" Text="Virtual Hand:" VerticalAlignment="Center" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Width="120" Margin="10,0,0,6" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Virtual Hand:" />
+                <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
 
-                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="VR Axis Index:" VerticalAlignment="Center" />
-                    <ComboBox Width="80" Margin="10,0,0,0" ItemsSource="{Binding AxisTargets}" SelectedItem="{Binding TargetAxisIndex}" />
-                </StackPanel>
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="VR Axis Index:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left"
+                          Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          ItemsSource="{Binding AxisTargets}" SelectedItem="{Binding TargetAxisIndex}" />
 
-                <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="VR Button Index:" VerticalAlignment="Center" />
-                    <ComboBox Width="80" Margin="10,0,0,0" ItemsSource="{Binding ButtonTargets}" SelectedItem="{Binding TargetButtonIndex}" />
-                </StackPanel>
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="VR Button Index:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="3" Grid.Column="1" Width="300" HorizontalAlignment="Left"
+                          Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          ItemsSource="{Binding ButtonTargets}" SelectedItem="{Binding TargetButtonIndex}" />
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="5" Header="Curves" Margin="0,10,0,0" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <GroupBox Grid.Row="4" Grid.RowSpan="2" Grid.ColumnSpan="2" Header="Curves" Margin="0,10,0,0" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <CheckBox Grid.Row="0" Content="Invert Input" IsChecked="{Binding Invert}" />
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Invert:" />
+                <CheckBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" IsChecked="{Binding Invert}" />
 
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
-                    <TextBlock Width="90" Text="Deadzone" VerticalAlignment="Center" />
-                    <Slider Width="300" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Width="50" Margin="10,0,0,0" Text="{Binding Deadzone, StringFormat=F2}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Deadzone:" />
+                <Grid Grid.Row="1" Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Deadzone, StringFormat=F2}" VerticalAlignment="Center" />
+                </Grid>
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                    <TextBlock Width="90" Text="Curve" VerticalAlignment="Center" />
-                    <Slider Width="300" Minimum="-1.0" Maximum="1.0" Value="{Binding Curve}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Width="50" Margin="10,0,0,0" Text="{Binding Curve, StringFormat=F2}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Curve:" />
+                <Grid Grid.Row="2" Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="-1.0" Maximum="1.0" Value="{Binding Curve}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Curve, StringFormat=F2}" VerticalAlignment="Center" />
+                </Grid>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                    <TextBlock Width="90" Text="Saturation" VerticalAlignment="Center" />
-                    <Slider Width="300" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Width="50" Margin="10,0,0,0" Text="{Binding Saturation, StringFormat=F2}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Saturation:" />
+                <Grid Grid.Row="3" Grid.Column="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Saturation, StringFormat=F2}" VerticalAlignment="Center" />
+                </Grid>
 
-                <TextBlock Grid.Row="4" Margin="0,8,0,4" Text="Curve Preview (x -> y)" FontWeight="Bold" />
-
-                <Border Grid.Row="5" BorderBrush="Gray" BorderThickness="1" Width="210" Height="210" HorizontalAlignment="Left">
+                <TextBlock Grid.Row="4" VerticalAlignment="Top" Text="Curve Preview (x -> y):" />
+                <Border Grid.Row="4" Grid.Column="1" Grid.RowSpan="2" BorderBrush="Gray" BorderThickness="1" Width="210" Height="210" HorizontalAlignment="Left">
                     <Canvas Width="200" Height="200" Margin="4">
                         <TextBlock Canvas.Left="2" Canvas.Top="2" Text="{Binding PlotYMaxLabel}" FontSize="10" Foreground="Gray" />
                         <TextBlock Canvas.Left="2" Canvas.Top="188" Text="{Binding PlotYMinLabel}" FontSize="10" Foreground="Gray" />
@@ -124,7 +144,8 @@
                     </Canvas>
                 </Border>
 
-                <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Grid.Row="6" VerticalAlignment="Center" Text="Input / Mapped Output:" />
+                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
                     <TextBlock Text="Input:" />
                     <TextBlock Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />
                     <TextBlock Text="Mapped Output:" />
@@ -133,7 +154,7 @@
             </Grid>
         </GroupBox>
 
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Width="90" Margin="0,0,8,0" Content="Save" Click="SaveClick" />
             <Button Width="90" Content="Cancel" IsCancel="True" />
         </StackPanel>
