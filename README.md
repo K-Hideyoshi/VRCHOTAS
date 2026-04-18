@@ -147,22 +147,29 @@ Recommended build checklist:
    - Visual Studio with C++ Desktop workload
    - OpenVR SDK
    - CMake (if your driver project is CMake-based)
-2. Build and run this ControllerApp first (to validate writer side):
+2. Open a Visual Studio Developer Command Prompt or Developer PowerShell.
+3. Change to the directory that contains your CMake project.
+4. Configure the project and pass the OpenVR SDK path on the command line:
+
+```powershell
+cmake -S . -B .\build -A x64 -DOPENVR_SDK_PATH="D:/path/to/openvr-sdk"
+```
+
+5. Build the project:
+
+```powershell
+cmake --build .\build --config Release
+```
+
+6. Build and run this ControllerApp first (to validate the writer side):
 
 ```powershell
 dotnet restore .\VRCHOTAS\VRCHOTAS.csproj
 dotnet build .\VRCHOTAS\VRCHOTAS.csproj -c Release
 ```
 
-3. Configure x64 build for VirtualDriver (example):
-
-```powershell
-cmake -S . -B .\build -A x64
-cmake --build .\build --config Release
-```
-
-4. Ensure output contains a valid OpenVR driver structure (for example `bin\\win64\\driver_*.dll` and `driver.vrdrivermanifest`).
-5. Verify your C++ side struct definitions match `VirtualControllerState` exactly before runtime testing.
+7. Ensure output contains a valid OpenVR driver structure (for example `bin\\win64\\driver_*.dll` and `driver.vrdrivermanifest`).
+8. Verify your C++ side struct definitions match `VirtualControllerState` exactly before runtime testing.
 
 ### Deploy
 
