@@ -1,202 +1,327 @@
 # VRCHOTAS
 
-[![Platform](https://img.shields.io/badge/platform-Windows-blue)](#prerequisites)
-[![Runtime](https://img.shields.io/badge/.NET-10-purple)](#tech-stack)
-[![UI](https://img.shields.io/badge/UI-WPF-512BD4)](#tech-stack)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue)](#requirements)
+[![.NET](https://img.shields.io/badge/.NET-10-purple)](#net-app)
+[![C++](https://img.shields.io/badge/C%2B%2B-20-00599C)](#c-driver)
+[![UI](https://img.shields.io/badge/UI-WPF-512BD4)](#net-app)
 [![License](https://img.shields.io/badge/license-GPLv3-green)](#license)
 
-VRCHOTAS is a Windows desktop mapper for HOTAS/joystick devices. It reads physical controller input, applies configurable mapping curves, and writes a virtual controller state to shared memory for a VR driver to consume.
+VRCHOTAS is a Windows + SteamVR HOTAS / joystick mapping project composed of **two fully equal and cooperating implementations**:
+
+- **C++ Driver**: an OpenVR / SteamVR driver that converts shared state into SteamVR-visible virtual controller input and pose data.
+- **.NET App**: a Windows desktop mapper that discovers physical devices, reads DirectInput input, applies mapping logic, and continuously publishes shared state.
+
+These two parts form one complete system: **without either part, the full VRCHOTAS workflow does not exist**.
 
 ## Table of Contents
 
 - [Architecture](#architecture)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [VirtualDriver](#virtualdriver)
-  - [Principle](#principle)
-  - [Data Contract Notes](#data-contract-notes)
-  - [Build](#build)
-  - [Deploy](#deploy)
-  - [Runtime Verification Checklist](#runtime-verification-checklist)
-- [Prerequisites](#prerequisites)
-- [Build and Run (ControllerApp)](#build-and-run-controllerapp)
-- [Usage](#usage)
-- [Configuration](#configuration)
+- [Repository Structure](#repository-structure)
+- [Implementation Overview](#implementation-overview)
+  - [C++ Driver](#c-driver)
+  - [.NET App](#net-app)
+- [Shared Contract and Runtime Modes](#shared-contract-and-runtime-modes)
+- [Requirements](#requirements)
+- [Build Guide](#build-guide)
+  - [Build the C++ Driver](#build-the-c-driver)
+  - [Build the .NET App](#build-the-net-app)
+- [Deployment and Startup Order](#deployment-and-startup-order)
+- [Usage Flow](#usage-flow)
+- [Configuration and Data Locations](#configuration-and-data-locations)
 - [Troubleshooting](#troubleshooting)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Security](#security)
+- [Development Notes](#development-notes)
 - [License](#license)
 
 ## Architecture
 
-The solution follows a hybrid two-process design:
+VRCHOTAS uses a dual-implementation design:
 
-1. **ControllerApp (this repository, `VRCHOTAS` WPF app)**
-   - Polls DirectInput joystick/HOTAS devices
-   - Applies mapping rules (deadzone, curve, saturation, invert)
-   - Writes mapped state into a shared memory block
+1. **.NET App**
+   - Uses `SharpDX.DirectInput` to enumerate and poll physical HOTAS / joystick devices.
+   - Maps physical input to virtual controller buttons, axes, position, orientation, linear velocity, and angular velocity.
+   - Writes the result into named shared memory with a fixed binary layout.
+   - Provides the WPF UI, logging, configuration management, and mapping editor.
 
-2. **VirtualDriver (OpenVR driver, C++ module)**
-   - Reads the same shared memory block each frame
-   - Converts mapped data to OpenVR input/pose updates
-   - Exposes virtual left/right controller behavior to SteamVR
+2. **C++ Driver**
+   - Loads as a SteamVR OpenVR driver.
+   - Reads a shared memory snapshot every frame.
+   - Converts shared state into virtual left and right controller input and pose updates.
+   - Can mirror real VR controller poses in a specific runtime mode while still participating in the overall VRCHOTAS pipeline.
 
-## Features
+In short:
 
-- Device discovery and polling via DirectInput
-- Real-time axis and button monitoring
-- Mapping editor with automatic source detection
-- Button-to-axis style mapping (press = synthetic axis input)
-- Axis shaping controls (deadzone, curve, saturation, invert)
-- Configuration save/load
-- Shared-memory IPC output for downstream consumers
+- **.NET App handles input acquisition, mapping, and state publishing**
+- **C++ Driver handles shared state consumption and SteamVR injection**
 
-## Tech Stack
-
-- .NET 10 (`net10.0-windows`)
-- WPF + MVVM (`CommunityToolkit.Mvvm`)
-- `SharpDX.DirectInput`
-- `Newtonsoft.Json`
-
-## Project Structure
+## Repository Structure
 
 ```text
 VRCHOTAS/
-  Interop/      # Shared memory contracts and writer channel
-  Logging/      # Logging abstractions and implementations
-  Models/       # Mapping and runtime state models
-  Services/     # Joystick polling, mapping engine, configuration service
-  ViewModels/   # WPF view models
-  *.xaml        # WPF windows and views
+├─ README.md
+├─ VRCHOTAS.sln
+├─ VRCHOTAS.slnx
+├─ VRCHOTAS/                         # .NET App
+│  ├─ Interop/                       # Shared memory contract and writer channel
+│  ├─ Logging/                       # Logging system
+│  ├─ Models/                        # Mapping configuration and runtime models
+│  ├─ Services/                      # DirectInput, mapping, and configuration services
+│  ├─ ViewModels/                    # WPF MVVM view models
+│  ├─ Converters/
+│  ├─ *.xaml / *.xaml.cs             # Main windows and views
+│  └─ VRCHOTAS.csproj
+└─ VirtualDriver/                    # C++ Driver
+   ├─ CMakeLists.txt
+   ├─ include/
+   │  └─ virtual_controller_state.h  # Data structure aligned with .NET
+   ├─ src/
+   │  └─ driver_hotas.cpp            # Main OpenVR driver implementation
+   ├─ resources/
+   │  ├─ driver.vrchotas.vrdrivermanifest
+   │  └─ input/
+   │     └─ vrchotas_virtual_profile.json
+   ├─ deploy_driver.bat              # Driver deployment script
+   └─ README.md
 ```
 
-## VirtualDriver
+## Implementation Overview
 
-### Principle
+### C++ Driver
 
-The **ControllerApp is the writer** and VirtualDriver is the reader.
+Location: `VirtualDriver/`
 
-Writer-side contracts used by this repository:
+Responsibilities:
 
-- Shared memory name: `Local\\VRCHOTAS.VirtualController.State`
-- Mutex name: `Local\\VRCHOTAS.VirtualController.State.Mutex`
-- Structs: `VirtualControllerState` -> `Left`/`Right` `ControllerHandState`
-- Layout attributes: `StructLayout(LayoutKind.Sequential, Pack = 1)`
-- Fixed array lengths:
-  - `Buttons`: 32 (`bool`)
-  - `Axes`: 16 (`double`)
-  - `Position`: 3 (`double`)
-  - `Quaternion`: 4 (`double`) (default identity `[1,0,0,0]`)
-  - `LinearVelocity`: 3 (`double`)
-  - `AngularVelocity`: 3 (`double`)
+- Exposes virtual left and right controllers as an OpenVR driver.
+- Reads `VirtualControllerState` from named shared memory.
+- Pushes button, axis, and pose state into SteamVR.
+- Exposes controller capabilities through the driver manifest and input profile.
+- Produces driver-side logs for runtime and resource diagnostics.
 
-VirtualDriver should mirror this exact binary contract in C++ (packing, field order, array sizes, and element types), then read the state in `RunFrame()`:
+Current implementation characteristics:
 
-1. Open the named file mapping and named mutex.
-2. In each frame, lock mutex, copy one full state snapshot, unlock mutex.
-3. Convert snapshot into OpenVR input updates:
-   - button components from `Buttons[]`
-   - scalar/vector components from `Axes[]`, `Position[]`, `LinearVelocity[]`, `AngularVelocity[]`
-   - orientation from `Quaternion[]`
+- Built with **CMake + MSVC**.
+- Uses **C++20**.
+- Depends on the **OpenVR SDK**.
+- Reads shared state and updates devices in `RunFrame()`.
+- Supports two pose source modes:
+  - `Mapped`
+  - `MirrorRealControllers`
+- Includes `deploy_driver.bat` to copy runtime files and attempt `vrpathreg.exe adddriver` registration.
 
-Because the writer uses a short mutex wait (5 ms), the reader should keep lock duration minimal (copy-then-process pattern).
+Key files:
 
-### Data Contract Notes
+- `VirtualDriver/CMakeLists.txt`
+- `VirtualDriver/include/virtual_controller_state.h`
+- `VirtualDriver/src/driver_hotas.cpp`
+- `VirtualDriver/resources/driver.vrchotas.vrdrivermanifest`
+- `VirtualDriver/resources/input/vrchotas_virtual_profile.json`
+- `VirtualDriver/deploy_driver.bat`
 
-To avoid ABI mismatches between C# and C++:
+### .NET App
 
-- Use **1-byte bool** for button arrays in C++ (`uint8_t` is recommended).
-- Use `double` for all numeric arrays (`Axes`, pose, velocities).
-- Use explicit packing (`#pragma pack(push, 1)` / `#pragma pack(pop)`).
-- Keep exact field order and fixed lengths.
-- Assume little-endian Windows runtime.
+Location: `VRCHOTAS/`
 
-Recommended C++ struct sketch:
+Responsibilities:
 
-```cpp
-#pragma pack(push, 1)
-struct ControllerHandState
-{
-    uint8_t buttons[32];
-    double axes[16];
-    double position[3];
-    double quaternion[4];
-    double linearVelocity[3];
-    double angularVelocity[3];
-};
+- Enumerates and acquires DirectInput game controllers.
+- Reads axis and button state in real time.
+- Provides mapping editing, input auto-detection, configuration save/load, and desktop UI features.
+- Writes final virtual controller state into shared memory for the C++ Driver.
 
-struct VirtualControllerState
-{
-    ControllerHandState left;
-    ControllerHandState right;
-};
-#pragma pack(pop)
-```
+Current implementation characteristics:
 
-### Build
+- Targets **`.NET 10`** with `net10.0-windows`.
+- Uses **WPF + MVVM**.
+- Core dependencies:
+  - `CommunityToolkit.Mvvm`
+  - `SharpDX.DirectInput`
+  - `Newtonsoft.Json`
+- Runs a main loop roughly every **16 ms** to:
+  - poll devices
+  - refresh monitoring UI
+  - execute mappings
+  - write shared memory
+- Stores configuration as JSON under the user profile.
+- When the global mapping switch is disabled, the app writes a default virtual state and switches pose mode to `MirrorRealControllers`.
 
-The C++ VirtualDriver source is not part of this .NET solution, so this repository does not provide a direct build target for it.
+Key files:
 
-Use the same ABI contract documented above when building your driver project.
+- `VRCHOTAS/VRCHOTAS.csproj`
+- `VRCHOTAS/ViewModels/MainViewModel.cs`
+- `VRCHOTAS/Services/JoystickService.cs`
+- `VRCHOTAS/Services/MappingEngine.cs`
+- `VRCHOTAS/Services/ConfigurationService.cs`
+- `VRCHOTAS/Interop/VirtualControllerState.cs`
+- `VRCHOTAS/Interop/SharedMemoryStateChannel.cs`
 
-Recommended build checklist:
+## Shared Contract and Runtime Modes
 
-1. Install prerequisites:
-   - Visual Studio with C++ Desktop workload
-   - OpenVR SDK
-   - CMake (if your driver project is CMake-based)
-2. Open a Visual Studio Developer Command Prompt or Developer PowerShell.
-3. Change to the directory that contains your CMake project.
-4. Configure the project and pass the OpenVR SDK path on the command line:
+The C++ Driver and .NET App communicate through named shared memory plus a named mutex. Both sides must obey the exact same binary layout.
+
+### Named Objects
+
+- Shared memory name: `Local\VRCHOTAS.VirtualController.State`
+- Mutex name: `Local\VRCHOTAS.VirtualController.State.Mutex`
+
+### Data Structure
+
+The current contract includes a top-level pose source field plus left and right hand state:
+
+- `VirtualPoseSource PoseSource`
+- `ControllerHandState Left`
+- `ControllerHandState Right`
+
+Where:
+
+- `VirtualPoseSource.Mapped = 0`
+- `VirtualPoseSource.MirrorRealControllers = 1`
+
+Each `ControllerHandState` contains:
+
+- `Buttons[32]`: button array using 1-byte boolean representation
+- `Axes[16]`: scalar axis input values
+- `Position[3]`: position in meters
+- `Quaternion[4]`: quaternion ordered as `w, x, y, z`
+- `LinearVelocity[3]`: linear velocity in m/s
+- `AngularVelocity[3]`: angular velocity in rad/s
+
+### Layout Requirements
+
+Both sides use **Pack = 1 / `#pragma pack(push, 1)`**, and field order must match exactly.
+
+C# side:
+
+- `[StructLayout(LayoutKind.Sequential, Pack = 1)]`
+- `Buttons` uses `UnmanagedType.I1`
+
+C++ side:
+
+- `#pragma pack(push, 1)` / `#pragma pack(pop)`
+- `bool buttons[32]`
+- `double` arrays matching the .NET definitions
+
+### Runtime Modes
+
+`PoseSource` determines how the driver interprets pose data:
+
+- **Mapped**
+  - The driver uses position, quaternion, and velocity directly from shared memory.
+  - This is suitable when HOTAS mappings are intended to drive the virtual controller pose directly.
+
+- **MirrorRealControllers**
+  - The driver tries to read real left and right controller poses and mirror them onto the virtual controllers.
+  - Shared-memory input is kept on a neutral input path for this mode.
+  - This is suitable when HOTAS input should drive controls while spatial pose should come from real VR controllers.
+
+## Requirements
+
+For the complete VRCHOTAS workflow, prepare the following environment.
+
+### General
+
+- Windows 10 / 11
+- SteamVR
+- At least one DirectInput-compatible HOTAS, joystick, or game controller
+
+### C++ Driver
+
+- Visual Studio 2022 / 2026 with the C++ Desktop workload
+- CMake 3.20+
+- OpenVR SDK
+
+### .NET App
+
+- .NET 10 SDK
+- Visual Studio 2026 or another environment capable of building `net10.0-windows`
+
+## Build Guide
+
+### Build the C++ Driver
+
+You can run these commands from the repository root or from `VirtualDriver/`. The examples below use the repository root.
+
+1. Prepare an OpenVR SDK path, for example: `D:/sdk/openvr`
+2. Configure the project:
 
 ```powershell
-cmake -S . -B .\build -A x64 -DOPENVR_SDK_PATH="D:/path/to/openvr-sdk"
+cmake -S .\VirtualDriver -B .\VirtualDriver\build -G "Visual Studio 18 2026" -A x64 -DOPENVR_SDK_PATH=D:/sdk/openvr
 ```
 
-The `OPENVR_SDK_PATH` value should point to the OpenVR SDK root that contains `headers\openvr_driver.h` and `lib\win64\openvr_api.lib`.
-
-5. Build the project:
+If you do not want to specify a generator, you can also run CMake from a properly initialized Native Tools / Developer PowerShell session:
 
 ```powershell
-cmake --build .\build --config Release
+cmake -S .\VirtualDriver -B .\VirtualDriver\build -A x64 -DOPENVR_SDK_PATH=D:/sdk/openvr
 ```
 
-6. After a successful build, confirm these files exist:
+3. Build:
 
-   - `build\Release\driver_vrchotas.dll` or `build\Debug\driver_vrchotas.dll`
-   - `resources\driver.vrchotas.vrdrivermanifest`
-   - `build\resources\input\vrchotas_virtual_profile.json`
+```powershell
+cmake --build .\VirtualDriver\build --config Release
+```
 
-7. Build and run this ControllerApp first (to validate the writer side):
+4. Expected output:
+
+- `VirtualDriver\build\Release\driver_vrchotas.dll`
+- `VirtualDriver\resources\driver.vrchotas.vrdrivermanifest`
+- `VirtualDriver\build\resources\input\vrchotas_virtual_profile.json`
+
+Note: the build includes a post-build copy step that places `resources/input` into the expected build-relative SteamVR layout.
+
+### Build the .NET App
+
+From the repository root:
+
+```powershell
+dotnet restore .\VRCHOTAS.sln
+dotnet build .\VRCHOTAS.sln -c Release
+```
+
+Or directly by project:
 
 ```powershell
 dotnet restore .\VRCHOTAS\VRCHOTAS.csproj
 dotnet build .\VRCHOTAS\VRCHOTAS.csproj -c Release
 ```
 
-8. Verify your C++ side struct definitions match `VirtualControllerState` exactly before runtime testing.
+Run:
 
-### Deploy
+```powershell
+dotnet run --project .\VRCHOTAS\VRCHOTAS.csproj
+```
 
-1. A deployment helper script is provided at `VirtualDriver\deploy_driver.bat`.
+## Deployment and Startup Order
 
-2. Run it from the `VirtualDriver` folder after the build completes:
+For end-to-end validation, use the following sequence.
+
+### 1. Build both parts
+
+- Build `VirtualDriver`
+- Build `VRCHOTAS`
+
+The order is not a strict technical dependency, but both parts must be built successfully before validating the full pipeline.
+
+### 2. Deploy the C++ Driver to SteamVR
+
+From `VirtualDriver/`:
 
 ```powershell
 .\deploy_driver.bat Release
 ```
 
-Use `Debug` instead of `Release` if you want to deploy the Debug build output.
+For Debug:
 
-3. The script uses relative source paths inside `VirtualDriver` and copies the required files into this SteamVR driver folder:
-
-```text
-%LOCALAPPDATA%\openvr\drivers\vrchotas
+```powershell
+.\deploy_driver.bat Debug
 ```
 
-4. The deployed layout is:
+The script will:
+
+- verify that the DLL, manifest, and input profile exist
+- copy files into `%LOCALAPPDATA%\openvr\drivers\vrchotas`
+- try to locate `vrpathreg.exe`
+- call `adddriver` if registration tooling is found
+
+Target layout:
 
 ```text
 %LOCALAPPDATA%\openvr\drivers\vrchotas\
@@ -205,110 +330,123 @@ Use `Debug` instead of `Release` if you want to deploy the Debug build output.
 └─ resources\input\vrchotas_virtual_profile.json
 ```
 
-5. Deployment source files are:
-   - `build\Release\driver_vrchotas.dll` or `build\Debug\driver_vrchotas.dll`
-   - `resources\driver.vrchotas.vrdrivermanifest` (copied as `driver.vrdrivermanifest`)
-   - `build\resources\input\vrchotas_virtual_profile.json`
+### 3. Start the .NET App
 
-6. The script tries to detect SteamVR automatically by checking:
-   - `STEAMVR_PATH` if it is defined
-   - the Steam registry path
-   - common default Steam installation folders
+Start `VRCHOTAS` first and confirm that:
 
-   If SteamVR is installed in the default location, the script also runs:
+- physical devices are discovered
+- a mapping configuration is loaded
+- shared memory writing is active
 
-```powershell
-& "$env:ProgramFiles(x86)\Steam\steamapps\common\SteamVR\bin\win64\vrpathreg.exe" adddriver "$env:LOCALAPPDATA\openvr\drivers\vrchotas"
+### 4. Start or restart SteamVR
+
+Once SteamVR starts, it loads the registered VRCHOTAS driver. The C++ Driver then begins reading shared memory and driving the virtual controllers.
+
+## Usage Flow
+
+1. Start the `.NET App`.
+2. Confirm that your DirectInput device appears in the device list.
+3. Create or edit mappings:
+   - choose a source device
+   - choose a source axis or button
+   - choose the target hand (`Left` / `Right`)
+   - choose a target type (button, axis, position, pose, or velocity)
+   - adjust `Deadzone`, `Curve`, `Saturation`, and `Invert`
+4. Save the configuration.
+5. Deploy and load the `C++ Driver`.
+6. In SteamVR, verify that the virtual controllers appear and react as expected.
+
+## Configuration and Data Locations
+
+### .NET App configuration files
+
+Configuration is stored in:
+
+```text
+%APPDATA%\VRCHOTAS\configs
 ```
 
-7. If auto-detection fails, set `STEAMVR_PATH` to the SteamVR root folder before running the script.
-8. Start `VRCHOTAS` first so the shared memory writer is active.
-9. Start or restart SteamVR so VirtualDriver can attach and read.
-9. Validate behavior:
-   - Input changes in VRCHOTAS monitor should be reflected in VR runtime.
-   - If not, check struct packing/field alignment and shared memory names first.
+This includes:
 
-### Runtime Verification Checklist
+- mapping configuration JSON files
+- `app-state.json` for the selected default configuration
 
-1. In VRCHOTAS, confirm joystick data updates in the monitor panel.
-2. Create at least one mapping and verify output changes in preview.
-3. Launch SteamVR and confirm the driver is loaded (no manifest/load errors).
-4. Confirm virtual controller button/axis/pose values react to HOTAS input.
-5. If values are incorrect, check in this order:
-   - shared memory name and mutex name
-   - struct packing and bool size
-   - field order and array lengths
-   - coordinate and quaternion interpretation in driver code
+Default configuration filename:
 
-## Prerequisites
-
-- Windows 10/11
-- .NET 10 SDK
-- A DirectInput-compatible joystick/HOTAS device
-- SteamVR (for end-to-end VirtualDriver validation)
-
-## Build and Run (ControllerApp)
-
-```powershell
-dotnet restore
-dotnet build
-dotnet run --project .\VRCHOTAS\VRCHOTAS.csproj
+```text
+default-config.json
 ```
 
-## Usage
+### C++ Driver runtime resources
 
-1. Launch the app and verify devices are discovered.
-2. Add or edit a mapping.
-3. Use auto-detect to capture source input.
-4. Select target and adjust mapping parameters.
-5. Save configuration and validate preview output.
+After deployment, the main runtime resources are:
 
-## Configuration
+- `driver.vrdrivermanifest`
+- `driver_vrchotas.dll`
+- `resources/input/vrchotas_virtual_profile.json`
 
-- Configurations are stored as JSON files.
-- The app supports save, save-as, load, and default configuration selection.
+### Logs
+
+- The .NET App uses the repository logging system for application logs.
+- The C++ Driver writes driver-side logs for runtime resources, pose mode, mutex wait behavior, and related diagnostics.
 
 ## Troubleshooting
 
-- **No device input shown**
-  - Reconnect the joystick/HOTAS and refresh devices.
-  - Check whether another app exclusively owns the device.
-- **Driver does not react**
-  - Validate shared memory names and struct layout compatibility.
-  - Confirm the driver reads the latest mapped values each frame.
-- **SteamVR driver load failure**
-  - Re-check manifest path and driver folder structure.
-  - Inspect SteamVR/OpenVR logs.
-- **Deployment script reports missing files**
-  - Build `VirtualDriver` in the selected configuration before running `VirtualDriver\deploy_driver.bat`.
-  - Confirm `build\Release\driver_vrchotas.dll` exists for `Release`, or `build\Debug\driver_vrchotas.dll` exists for `Debug`.
-  - Confirm `resources\driver.vrchotas.vrdrivermanifest` exists.
-  - Confirm `build\resources\input\vrchotas_virtual_profile.json` exists.
-- **Values are scrambled or offset in VirtualDriver**
-  - Verify C++ struct packing is `1` and bool array uses 1-byte elements.
-  - Verify struct field order exactly matches `VirtualControllerState`.
-- **`openvr_driver.h` cannot be found while building VirtualDriver**
-  - Re-run CMake configure with `-DOPENVR_SDK_PATH="D:/path/to/openvr-sdk"`.
-  - Make sure the path points to the OpenVR SDK root, not to `headers` or `lib` directly.
-  - Confirm the SDK folder contains `headers\openvr_driver.h` and `lib\win64\openvr_api.lib`.
+### The .NET App does not detect devices
 
-## Roadmap
+- Confirm that the device is DirectInput-compatible.
+- Reconnect the device and refresh.
+- Check whether another application has exclusive ownership.
+- Review the application logs for device acquisition failures.
 
-- Expand virtual input profile coverage
-- Improve reconnect and fault-handling behavior
-- Add configuration schema versioning and migration
-- Add automated tests for mapping validation
+### SteamVR does not show the virtual controllers
 
-## Contributing
+- Confirm that `deploy_driver.bat` completed successfully.
+- Confirm that the driver directory was registered through `vrpathreg.exe adddriver`.
+- Confirm that `driver.vrdrivermanifest` and the DLL were copied to the correct location.
+- Restart SteamVR and test again.
 
-1. Fork the repository.
-2. Create a focused feature branch.
-3. Keep changes small and reviewable.
-4. Open a pull request with rationale and test notes.
+### The driver loads, but input does not react
 
-## Security
+- Confirm that the `.NET App` is running.
+- Confirm that the `.NET App` detects devices and the monitor values are changing.
+- Confirm that mappings are enabled.
+- Check that the shared memory and mutex names match exactly.
+- Check that `VirtualControllerState` layout and field order match exactly.
 
-Do not include secrets, tokens, or private credentials in code, commits, or configuration files.
+### Pose data is incorrect, scrambled, or offset
+
+- Confirm that both sides use Pack=1.
+- Confirm that the boolean array uses 1-byte representation.
+- Confirm quaternion order is `w, x, y, z`.
+- Confirm that position is in meters and angular velocity is in rad/s.
+- If using `MirrorRealControllers`, confirm that real VR controllers are actively tracked.
+
+### The C++ Driver build cannot find OpenVR headers or libraries
+
+- Re-run CMake configuration with the correct `OPENVR_SDK_PATH`.
+- Confirm that the path contains:
+  - `headers\openvr_driver.h`
+  - `lib\win64\openvr_api.lib`
+
+### The deployment script reports missing files
+
+Verify all of the following:
+
+- `VirtualDriver\build\Release\driver_vrchotas.dll` or the Debug equivalent exists
+- `VirtualDriver\resources\driver.vrchotas.vrdrivermanifest` exists
+- `VirtualDriver\build\resources\input\vrchotas_virtual_profile.json` was produced by the post-build copy step
+
+## Development Notes
+
+- This repository contains both the **C++ Driver** and the **.NET App** as equal parts of one system. They should not be described as “external/internal” or “primary/secondary”.
+- If you change the shared contract, update all of the following together:
+  - `VRCHOTAS/Interop/VirtualControllerState.cs`
+  - `VirtualDriver/include/virtual_controller_state.h`
+  - all corresponding read/write logic
+- If you add new input semantics, also verify:
+  - `.NET App` mapping editor and output logic
+  - `C++ Driver` component registration, state update logic, and input profile
 
 ## License
 
