@@ -2,6 +2,12 @@ using System.Runtime.InteropServices;
 
 namespace VRCHOTAS.Interop;
 
+public enum VirtualPoseSource : byte
+{
+    Mapped = 0,
+    MirrorRealControllers = 1
+}
+
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct ControllerHandState
 {
@@ -62,6 +68,7 @@ public struct ControllerHandState
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct VirtualControllerState
 {
+    public VirtualPoseSource PoseSource;
     public ControllerHandState Left;
     public ControllerHandState Right;
 
@@ -69,6 +76,7 @@ public struct VirtualControllerState
     {
         var state = new VirtualControllerState
         {
+            PoseSource = VirtualPoseSource.Mapped,
             Left = CreateDefaultHand(),
             Right = CreateDefaultHand()
         };

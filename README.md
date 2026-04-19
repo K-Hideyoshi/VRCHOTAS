@@ -155,45 +155,76 @@ Recommended build checklist:
 cmake -S . -B .\build -A x64 -DOPENVR_SDK_PATH="D:/path/to/openvr-sdk"
 ```
 
+The `OPENVR_SDK_PATH` value should point to the OpenVR SDK root that contains `headers\openvr_driver.h` and `lib\win64\openvr_api.lib`.
+
 5. Build the project:
 
 ```powershell
 cmake --build .\build --config Release
 ```
 
-6. Build and run this ControllerApp first (to validate the writer side):
+6. After a successful build, confirm these files exist:
+
+   - `build\Release\driver_vrchotas.dll` or `build\Debug\driver_vrchotas.dll`
+   - `resources\driver.vrchotas.vrdrivermanifest`
+   - `build\resources\input\vrchotas_virtual_profile.json`
+
+7. Build and run this ControllerApp first (to validate the writer side):
 
 ```powershell
 dotnet restore .\VRCHOTAS\VRCHOTAS.csproj
 dotnet build .\VRCHOTAS\VRCHOTAS.csproj -c Release
 ```
 
-7. Ensure output contains a valid OpenVR driver structure (for example `bin\\win64\\driver_*.dll` and `driver.vrdrivermanifest`).
 8. Verify your C++ side struct definitions match `VirtualControllerState` exactly before runtime testing.
 
 ### Deploy
 
-1. Deploy VirtualDriver to SteamVR, either by copying files or registering a driver folder.
+1. A deployment helper script is provided at `VirtualDriver\deploy_driver.bat`.
 
-Option A (copy):
-
-```text
-%LOCALAPPDATA%\openvr\drivers\<your_driver_name>
-```
-
-Option B (register folder):
+2. Run it from the `VirtualDriver` folder after the build completes:
 
 ```powershell
-& "$env:ProgramFiles(x86)\Steam\steamapps\common\SteamVR\bin\win64\vrpathreg.exe" adddriver "<absolute-driver-folder>"
+.\deploy_driver.bat Release
 ```
 
-2. Confirm required files exist in deployed location:
-   - `driver.vrdrivermanifest`
-   - `bin\win64\<driver dll>`
-   - resource/input profile files (if used)
-3. Start `VRCHOTAS` first so shared memory writer is active.
-4. Start/restart SteamVR so VirtualDriver can attach and read.
-5. Validate behavior:
+Use `Debug` instead of `Release` if you want to deploy the Debug build output.
+
+3. The script uses relative source paths inside `VirtualDriver` and copies the required files into this SteamVR driver folder:
+
+```text
+%LOCALAPPDATA%\openvr\drivers\vrchotas
+```
+
+4. The deployed layout is:
+
+```text
+%LOCALAPPDATA%\openvr\drivers\vrchotas\
+├─ driver.vrdrivermanifest
+├─ bin\win64\driver_vrchotas.dll
+└─ resources\input\vrchotas_virtual_profile.json
+```
+
+5. Deployment source files are:
+   - `build\Release\driver_vrchotas.dll` or `build\Debug\driver_vrchotas.dll`
+   - `resources\driver.vrchotas.vrdrivermanifest` (copied as `driver.vrdrivermanifest`)
+   - `build\resources\input\vrchotas_virtual_profile.json`
+
+6. The script tries to detect SteamVR automatically by checking:
+   - `STEAMVR_PATH` if it is defined
+   - the Steam registry path
+   - common default Steam installation folders
+
+   If SteamVR is installed in the default location, the script also runs:
+
+```powershell
+& "$env:ProgramFiles(x86)\Steam\steamapps\common\SteamVR\bin\win64\vrpathreg.exe" adddriver "$env:LOCALAPPDATA\openvr\drivers\vrchotas"
+```
+
+7. If auto-detection fails, set `STEAMVR_PATH` to the SteamVR root folder before running the script.
+8. Start `VRCHOTAS` first so the shared memory writer is active.
+9. Start or restart SteamVR so VirtualDriver can attach and read.
+9. Validate behavior:
    - Input changes in VRCHOTAS monitor should be reflected in VR runtime.
    - If not, check struct packing/field alignment and shared memory names first.
 
@@ -248,9 +279,18 @@ dotnet run --project .\VRCHOTAS\VRCHOTAS.csproj
 - **SteamVR driver load failure**
   - Re-check manifest path and driver folder structure.
   - Inspect SteamVR/OpenVR logs.
+- **Deployment script reports missing files**
+  - Build `VirtualDriver` in the selected configuration before running `VirtualDriver\deploy_driver.bat`.
+  - Confirm `build\Release\driver_vrchotas.dll` exists for `Release`, or `build\Debug\driver_vrchotas.dll` exists for `Debug`.
+  - Confirm `resources\driver.vrchotas.vrdrivermanifest` exists.
+  - Confirm `build\resources\input\vrchotas_virtual_profile.json` exists.
 - **Values are scrambled or offset in VirtualDriver**
   - Verify C++ struct packing is `1` and bool array uses 1-byte elements.
   - Verify struct field order exactly matches `VirtualControllerState`.
+- **`openvr_driver.h` cannot be found while building VirtualDriver**
+  - Re-run CMake configure with `-DOPENVR_SDK_PATH="D:/path/to/openvr-sdk"`.
+  - Make sure the path points to the OpenVR SDK root, not to `headers` or `lib` directly.
+  - Confirm the SDK folder contains `headers\openvr_driver.h` and `lib\win64\openvr_api.lib`.
 
 ## Roadmap
 

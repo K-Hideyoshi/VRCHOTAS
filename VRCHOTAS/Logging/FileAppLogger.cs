@@ -13,7 +13,7 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
 
     public FileAppLogger()
     {
-        var appDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VRCHOTAS");
+        var appDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
         var logDir = Path.Combine(appDataDirectory, "logs");
 
         // If a file exists where we expect a directory, or creating the directory fails,
@@ -37,7 +37,7 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
         catch
         {
             // Last resort: use temp path so the application can continue running even if
-            // Documents folder is not writable or a file blocks the expected directory.
+            // AppData folder is not writable or a file blocks the expected directory.
             logDir = Path.Combine(Path.GetTempPath(), "VRCHOTAS", "logs");
             Directory.CreateDirectory(logDir);
             CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");

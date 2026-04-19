@@ -464,6 +464,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var mapped = IsMappingEnabled
                 ? _mappingEngine.Map(_latestState, Mappings)
                 : VirtualControllerState.CreateDefault();
+            mapped.PoseSource = IsMappingEnabled
+                ? VirtualPoseSource.Mapped
+                : VirtualPoseSource.MirrorRealControllers;
             _ipc?.Write(mapped);
         }
         catch (Exception ex)

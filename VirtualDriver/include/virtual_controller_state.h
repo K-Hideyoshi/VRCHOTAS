@@ -9,6 +9,12 @@ namespace vrchotas
     inline constexpr int kVec3 = 3;
     inline constexpr int kQuat = 4;
 
+    enum class VirtualPoseSource : std::uint8_t
+    {
+        Mapped = 0,
+        MirrorRealControllers = 1
+    };
+
 #pragma pack(push, 1)
     struct ControllerHandState
     {
@@ -25,6 +31,7 @@ namespace vrchotas
 
     struct VirtualControllerState
     {
+        VirtualPoseSource pose_source;
         ControllerHandState left;
         ControllerHandState right;
     };

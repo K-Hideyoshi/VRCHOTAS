@@ -8,7 +8,7 @@ namespace VRCHOTAS.Services;
 public sealed class ConfigurationService
 {
     private readonly IAppLogger _logger;
-    private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VRCHOTAS");
+    private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
     private static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
     private static readonly string AppStatePath = Path.Combine(ConfigDirectory, "app-state.json");
     private const string DefaultConfigFileName = "default-config.json";
