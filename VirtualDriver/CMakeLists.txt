@@ -10,6 +10,11 @@ endif()
 
 add_library(driver_vrchotas SHARED
     src/driver_hotas.cpp
+    src/driver_logging.cpp
+    src/driver_openvr_helpers.cpp
+    src/hotas_controller_device.cpp
+    src/hotas_server_driver.cpp
+    src/hotas_watchdog_driver.cpp
 )
 
 target_include_directories(driver_vrchotas PRIVATE

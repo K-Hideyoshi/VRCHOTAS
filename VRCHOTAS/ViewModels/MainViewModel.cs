@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -15,23 +14,28 @@ using WpfApplication = System.Windows.Application;
 
 namespace VRCHOTAS.ViewModels;
 
-public sealed class MainViewModel : ObservableObject, IDisposable
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly IAppLogger _logger;
     private readonly JoystickService _joystickService;
     private readonly MappingEngine _mappingEngine;
     private readonly ConfigurationService _configurationService;
     private readonly SharedMemoryStateChannel? _ipc;
-    private readonly DispatcherTimer _frameTimer;
+    private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _deviceRefreshTimer;
+    private readonly CancellationTokenSource _frameLoopCancellation = new();
+    private readonly Task _frameLoopTask;
 
     private RawJoystickState _latestState = new();
+    private MappingEntry[] _mappingSnapshot = [];
     private MappingEntry? _selectedMapping;
     private string _deviceStatusSummary = "No device discovered.";
     private string _currentConfigurationFileName = string.Empty;
     private bool _isConfigurationDirty;
     private bool _isMappingEnabled = true;
     private bool _suppressConfigurationChangeTracking;
+    private int _deviceShellRefreshQueued;
+    private int _deviceMonitorRefreshQueued;
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -123,6 +127,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
+        _dispatcher = WpfApplication.Current?.Dispatcher ?? throw new InvalidOperationException("A WPF dispatcher is required.");
         _logger = LogManager.Logger;
         _logger.EntryWritten += OnLogWritten;
         _logger.Info(nameof(MainViewModel), "Application started.");
@@ -157,7 +162,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FilteredLogs = CollectionViewSource.GetDefaultView(LogEntries);
         FilteredLogs.Filter = FilterLogEntry;
 
+        Mappings.CollectionChanged += OnMappingsCollectionChanged;
+
         InitializeConfigurationOnStartup();
+        RefreshMappingSnapshot();
 
         _joystickService.DevicesChanged += OnDevicesChanged;
         _joystickService.RefreshDevices();
@@ -170,80 +178,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
         _deviceRefreshTimer.Start();
 
-        _frameTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _frameTimer.Tick += (_, _) => RunFrame();
-        _frameTimer.Start();
-    }
-
-    private void InitializeConfigurationOnStartup()
-    {
-        var defaultFileName = _configurationService.EnsureDefaultConfigurationFileName();
-        RefreshAvailableConfigurations();
-        LoadConfigurationByName(defaultFileName);
-    }
-
-    private void InitializeLogFilters()
-    {
-        LogLevelFilters.Clear();
-        foreach (var level in Enum.GetValues<AppLogLevel>())
-        {
-            var item = new LogLevelFilterItem(level)
-            {
-                IsSelected = true
-            };
-
-            item.PropertyChanged += OnLogLevelFilterChanged;
-            LogLevelFilters.Add(item);
-        }
-    }
-
-    private void OnLogLevelFilterChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(LogLevelFilterItem.IsSelected))
-        {
-            FilteredLogs.Refresh();
-        }
-    }
-
-    private bool FilterLogEntry(object value)
-    {
-        if (value is not LogEntry entry)
-        {
-            return false;
-        }
-
-        var selectedLevels = LogLevelFilters.Where(item => item.IsSelected).Select(item => item.Level).ToHashSet();
-        if (selectedLevels.Count == 0)
-        {
-            return true;
-        }
-
-        return selectedLevels.Contains(entry.Level);
-    }
-
-    private void OpenEditMappingDialog()
-    {
-        if (SelectedMapping is null)
-        {
-            _logger.Warning(nameof(MainViewModel), "Edit mapping requested with no selected item.");
-            return;
-        }
-
-        MappingEditorRequested?.Invoke(this, new MappingEditorRequestEventArgs(SelectedMapping));
-    }
-
-    private void DeleteSelectedMapping()
-    {
-        if (SelectedMapping is null)
-        {
-            _logger.Warning(nameof(MainViewModel), "Delete mapping requested with no selected item.");
-            return;
-        }
-
-        var removed = SelectedMapping;
-        Mappings.Remove(removed);
-        MarkConfigurationDirty();
-        _logger.Info(nameof(MainViewModel), $"Mapping deleted: {removed.SourceDisplay} -> {removed.TargetDisplay}");
+        _frameLoopTask = Task.Run(() => RunFrameLoopAsync(_frameLoopCancellation.Token));
     }
 
     public void SaveMappingFromDialog(MappingEntry mapping, MappingEntry? original)
@@ -315,281 +250,58 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    public RawJoystickState GetLatestStateSnapshot() => _latestState;
+    public RawJoystickState GetLatestStateSnapshot() => Volatile.Read(ref _latestState);
 
-    public void SaveAsConfiguration(string fileName)
+    private void OpenEditMappingDialog()
     {
-        if (string.IsNullOrWhiteSpace(fileName))
+        if (SelectedMapping is null)
         {
-            _logger.Warning(nameof(MainViewModel), "Save As canceled because file name is empty.");
+            _logger.Warning(nameof(MainViewModel), "Edit mapping requested with no selected item.");
             return;
         }
 
-        var normalizedFileName = EnsureJsonFileName(fileName);
-        _configurationService.SaveByFileName(normalizedFileName, new AppConfiguration
-        {
-            IsMappingEnabled = IsMappingEnabled,
-            Mappings = Mappings.ToList()
-        });
-
-        CurrentConfigurationFileName = normalizedFileName;
-        IsConfigurationDirty = false;
-        RefreshAvailableConfigurations();
+        MappingEditorRequested?.Invoke(this, new MappingEditorRequestEventArgs(SelectedMapping));
     }
 
-    private void SaveCurrentConfiguration()
+    private void DeleteSelectedMapping()
     {
-        if (string.IsNullOrWhiteSpace(CurrentConfigurationFileName))
+        if (SelectedMapping is null)
         {
-            _logger.Warning(nameof(MainViewModel), "Save requested without an active configuration. Falling back to Save As.");
-            SaveAsRequested?.Invoke(this, EventArgs.Empty);
+            _logger.Warning(nameof(MainViewModel), "Delete mapping requested with no selected item.");
             return;
         }
 
-        _configurationService.SaveByFileName(CurrentConfigurationFileName, new AppConfiguration
-        {
-            IsMappingEnabled = IsMappingEnabled,
-            Mappings = Mappings.ToList()
-        });
-
-        IsConfigurationDirty = false;
+        var removed = SelectedMapping;
+        Mappings.Remove(removed);
+        MarkConfigurationDirty();
+        _logger.Info(nameof(MainViewModel), $"Mapping deleted: {removed.SourceDisplay} -> {removed.TargetDisplay}");
     }
 
-    private void RefreshAvailableConfigurations()
+    private void OnMappingsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        AvailableConfigurationFiles.Clear();
-        foreach (var fileName in _configurationService.GetConfigurationFileNames())
-        {
-            AvailableConfigurationFiles.Add(fileName);
-        }
+        RefreshMappingSnapshot();
     }
 
-    private void LoadConfigurationByName(string? fileName)
+    private void RefreshMappingSnapshot()
     {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return;
-        }
-
-        var normalized = EnsureJsonFileName(fileName);
-        var config = _configurationService.LoadByFileName(normalized);
-        _suppressConfigurationChangeTracking = true;
-        try
-        {
-            IsMappingEnabled = config.IsMappingEnabled;
-            Mappings.Clear();
-            foreach (var mapping in config.Mappings)
-            {
-                Mappings.Add(mapping);
-            }
-
-            UpdateMappingSourceDeviceStates(_joystickService.GetDeviceStatesSnapshot());
-        }
-        finally
-        {
-            _suppressConfigurationChangeTracking = false;
-        }
-
-        CurrentConfigurationFileName = normalized;
-        IsConfigurationDirty = false;
-        _logger.Info(nameof(MainViewModel), $"Configuration switched to: {CurrentConfigurationFileName}");
-    }
-
-    private void SetDefaultConfigurationByName(string? fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return;
-        }
-
-        var normalized = EnsureJsonFileName(fileName);
-        _configurationService.SetDefaultConfigurationFileName(normalized);
-        _logger.Info(nameof(MainViewModel), $"Default configuration set to: {normalized}");
-    }
-
-    private static string EnsureJsonFileName(string fileName)
-    {
-        return fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";
-    }
-
-    private void MarkConfigurationDirty()
-    {
-        IsConfigurationDirty = true;
-    }
-
-    private void OnDevicesChanged(object? sender, EventArgs e)
-    {
-        WpfApplication.Current.Dispatcher.Invoke(RefreshDeviceGroupShells);
-    }
-
-    private void RefreshDeviceGroupShells()
-    {
-        var states = _joystickService.GetDeviceStatesSnapshot();
-
-        var knownIds = states.Select(item => item.DeviceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var stale in DeviceGroups.Where(group => !knownIds.Contains(group.DeviceId)).ToArray())
-        {
-            DeviceGroups.Remove(stale);
-        }
-
-        foreach (var state in states)
-        {
-            var group = DeviceGroups.FirstOrDefault(item => item.DeviceId.Equals(state.DeviceId, StringComparison.OrdinalIgnoreCase));
-            if (group is null)
-            {
-                group = new DeviceMonitorGroup
-                {
-                    DeviceId = state.DeviceId,
-                    DeviceName = state.DeviceName
-                };
-                DeviceGroups.Add(group);
-            }
-
-            group.DeviceName = state.DeviceName;
-            group.IsConnected = state.IsConnected;
-        }
-
-        UpdateMappingSourceDeviceStates(states);
-        UpdateDeviceStatusSummary();
-    }
-
-    private void RunFrame()
-    {
-        try
-        {
-            _latestState = _joystickService.PollStates();
-            UpdateDeviceGroups(_latestState);
-            UpdateDeviceStatusSummary();
-
-            var mapped = IsMappingEnabled
-                ? _mappingEngine.Map(_latestState, Mappings)
-                : VirtualControllerState.CreateDefault();
-            mapped.PoseSource = IsMappingEnabled
-                ? VirtualPoseSource.Mapped
-                : VirtualPoseSource.MirrorRealControllers;
-            _ipc?.Write(mapped);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(nameof(MainViewModel), "Frame update failed.", ex);
-        }
-    }
-
-    private void UpdateDeviceGroups(RawJoystickState state)
-    {
-        foreach (var device in state.Devices)
-        {
-            var group = DeviceGroups.FirstOrDefault(item => item.DeviceId.Equals(device.DeviceId, StringComparison.OrdinalIgnoreCase));
-            if (group is null)
-            {
-                group = new DeviceMonitorGroup
-                {
-                    DeviceId = device.DeviceId,
-                    DeviceName = device.DeviceName
-                };
-                DeviceGroups.Add(group);
-            }
-
-            group.DeviceName = device.DeviceName;
-            group.IsConnected = device.IsConnected;
-            group.UpdateFrom(device);
-        }
-
-        UpdateMappingSourceDeviceStates(state.Devices);
-    }
-
-    private void UpdateMappingSourceDeviceStates(IEnumerable<JoystickDeviceState> states)
-    {
-        var connectedDeviceIds = states
-            .Where(state => state.IsConnected)
-            .Select(state => state.DeviceId)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var mapping in Mappings)
-        {
-            mapping.IsSourceDeviceConnected =
-                !string.IsNullOrWhiteSpace(mapping.SourceDeviceId)
-                && connectedDeviceIds.Contains(mapping.SourceDeviceId);
-        }
-    }
-
-    private void UpdateDeviceStatusSummary()
-    {
-        if (DeviceGroups.Count == 0)
-        {
-            DeviceStatusSummary = "No device discovered.";
-            return;
-        }
-
-        DeviceStatusSummary = string.Join(Environment.NewLine,
-            DeviceGroups.Select(group =>
-                $"{group.DeviceName} ({group.DeviceId[..Math.Min(8, group.DeviceId.Length)]}) - {(group.IsConnected ? "Connected" : "Disconnected")}"));
-    }
-
-    private void OnLogWritten(LogEntry entry)
-    {
-        var dispatcher = WpfApplication.Current?.Dispatcher;
-        if (dispatcher is null)
-        {
-            return;
-        }
-
-        if (dispatcher.CheckAccess())
-        {
-            LogEntries.Add(entry);
-            return;
-        }
-
-        dispatcher.Invoke(() => LogEntries.Add(entry));
-    }
-
-    private void OpenCurrentLogFileLocation()
-    {
-        try
-        {
-            var logFilePath = _logger.CurrentLogFilePath;
-            if (string.IsNullOrWhiteSpace(logFilePath))
-            {
-                _logger.Warning(nameof(MainViewModel), "Current log file path is empty.");
-                return;
-            }
-
-            if (File.Exists(logFilePath))
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "explorer.exe",
-                    Arguments = $"/select,\"{logFilePath}\"",
-                    UseShellExecute = true
-                });
-                return;
-            }
-
-            var logDirectory = Path.GetDirectoryName(logFilePath);
-            if (!string.IsNullOrWhiteSpace(logDirectory) && Directory.Exists(logDirectory))
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "explorer.exe",
-                    Arguments = $"\"{logDirectory}\"",
-                    UseShellExecute = true
-                });
-                return;
-            }
-
-            _logger.Warning(nameof(MainViewModel), $"Log file and directory are missing: {logFilePath}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(nameof(MainViewModel), "Failed to open log file location.", ex);
-        }
+        Volatile.Write(ref _mappingSnapshot, Mappings.ToArray());
     }
 
     public void Dispose()
     {
-        _frameTimer.Stop();
         _deviceRefreshTimer.Stop();
+        _frameLoopCancellation.Cancel();
+
+        try
+        {
+            _frameLoopTask.GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
         _joystickService.DevicesChanged -= OnDevicesChanged;
+        Mappings.CollectionChanged -= OnMappingsCollectionChanged;
         _logger.EntryWritten -= OnLogWritten;
 
         foreach (var filter in LogLevelFilters)
@@ -597,139 +309,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             filter.PropertyChanged -= OnLogLevelFilterChanged;
         }
 
+        _frameLoopCancellation.Dispose();
         _joystickService.Dispose();
         _ipc?.Dispose();
         _logger.Info(nameof(MainViewModel), "Application stopped.");
-    }
-}
-
-public sealed class LogLevelFilterItem : ObservableObject
-{
-    private bool _isSelected;
-
-    public LogLevelFilterItem(AppLogLevel level)
-    {
-        Level = level;
-        DisplayName = level.ToString();
-    }
-
-    public AppLogLevel Level { get; }
-    public string DisplayName { get; }
-
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
-    }
-}
-
-public sealed class MappingEditorRequestEventArgs : EventArgs
-{
-    public MappingEditorRequestEventArgs(MappingEntry? mappingToEdit)
-    {
-        MappingToEdit = mappingToEdit;
-    }
-
-    public MappingEntry? MappingToEdit { get; }
-}
-
-public sealed class DeviceMonitorGroup : ObservableObject
-{
-    private string _deviceId = string.Empty;
-    private string _deviceName = string.Empty;
-    private bool _isConnected;
-
-    public string DeviceId
-    {
-        get => _deviceId;
-        set => SetProperty(ref _deviceId, value);
-    }
-
-    public string DeviceName
-    {
-        get => _deviceName;
-        set => SetProperty(ref _deviceName, value);
-    }
-
-    public bool IsConnected
-    {
-        get => _isConnected;
-        set => SetProperty(ref _isConnected, value);
-    }
-
-    public ObservableCollection<AxisMonitorItem> Axes { get; } = new();
-    public ObservableCollection<ButtonMonitorItem> Buttons { get; } = new();
-
-    public void UpdateFrom(JoystickDeviceState state)
-    {
-        var axisKeys = state.Axes.Keys.ToList();
-        while (Axes.Count < axisKeys.Count)
-        {
-            Axes.Add(new AxisMonitorItem());
-        }
-
-        while (Axes.Count > axisKeys.Count)
-        {
-            Axes.RemoveAt(Axes.Count - 1);
-        }
-
-        for (var index = 0; index < axisKeys.Count; index++)
-        {
-            var key = axisKeys[index];
-            Axes[index].Name = key;
-            Axes[index].Value = state.Axes[key];
-        }
-
-        while (Buttons.Count < state.Buttons.Count)
-        {
-            Buttons.Add(new ButtonMonitorItem());
-        }
-
-        while (Buttons.Count > state.Buttons.Count)
-        {
-            Buttons.RemoveAt(Buttons.Count - 1);
-        }
-
-        for (var index = 0; index < state.Buttons.Count; index++)
-        {
-            Buttons[index].Name = index.ToString();
-            Buttons[index].IsPressed = state.Buttons[index];
-        }
-    }
-}
-
-public sealed class AxisMonitorItem : ObservableObject
-{
-    private string _name = string.Empty;
-    private double _value;
-
-    public string Name
-    {
-        get => _name;
-        set => SetProperty(ref _name, value);
-    }
-
-    public double Value
-    {
-        get => _value;
-        set => SetProperty(ref _value, value);
-    }
-}
-
-public sealed class ButtonMonitorItem : ObservableObject
-{
-    private string _name = string.Empty;
-    private bool _isPressed;
-
-    public string Name
-    {
-        get => _name;
-        set => SetProperty(ref _name, value);
-    }
-
-    public bool IsPressed
-    {
-        get => _isPressed;
-        set => SetProperty(ref _isPressed, value);
     }
 }
