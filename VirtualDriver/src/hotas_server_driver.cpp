@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include <array>
 #include <cstdint>
 #include <openvr_driver.h>
@@ -145,6 +146,7 @@ void HotasServerDriver::RunFrame()
     if (waitResult == WAIT_OBJECT_0)
     {
         const auto snapshot = *_view;
+        _view->driver_heartbeat_tick_ms = GetTickCount64();
         ReleaseMutex(_mutex);
 
         if (!_loggedButtonAxisMirrorLimitation)

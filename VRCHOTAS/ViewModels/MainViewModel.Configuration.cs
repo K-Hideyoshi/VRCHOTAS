@@ -6,7 +6,8 @@ public sealed partial class MainViewModel
 {
     private void InitializeConfigurationOnStartup()
     {
-        var defaultFileName = _configurationService.EnsureDefaultConfigurationFileName();
+        var defaultFileName = _preferencesService.GetDefaultConfigurationFileName();
+        _configurationService.EnsureConfigurationFileExistsOrCreate(defaultFileName);
         RefreshAvailableConfigurations();
         LoadConfigurationByName(defaultFileName);
     }
@@ -22,7 +23,6 @@ public sealed partial class MainViewModel
         var normalizedFileName = EnsureJsonFileName(fileName);
         _configurationService.SaveByFileName(normalizedFileName, new AppConfiguration
         {
-            IsMappingEnabled = IsMappingEnabled,
             Mappings = Mappings.ToList()
         });
 
@@ -42,7 +42,6 @@ public sealed partial class MainViewModel
 
         _configurationService.SaveByFileName(CurrentConfigurationFileName, new AppConfiguration
         {
-            IsMappingEnabled = IsMappingEnabled,
             Mappings = Mappings.ToList()
         });
 
@@ -56,6 +55,38 @@ public sealed partial class MainViewModel
         {
             AvailableConfigurationFiles.Add(fileName);
         }
+
+        RebuildConfigurationMenuItems();
+    }
+
+    private void RebuildConfigurationMenuItems()
+    {
+        ConfigurationMenuItems.Clear();
+        var defaultFile = _preferencesService.GetDefaultConfigurationFileName();
+        foreach (var fileName in AvailableConfigurationFiles)
+        {
+            var isCurrent = string.Equals(fileName, CurrentConfigurationFileName, StringComparison.OrdinalIgnoreCase);
+            var isDefault = string.Equals(fileName, defaultFile, StringComparison.OrdinalIgnoreCase);
+            ConfigurationMenuItems.Add(new ConfigurationMenuItem(fileName, isCurrent, isDefault));
+        }
+    }
+
+    private void CycleConfiguration(int delta)
+    {
+        if (AvailableConfigurationFiles.Count == 0)
+        {
+            return;
+        }
+
+        var files = AvailableConfigurationFiles.ToList();
+        var idx = files.FindIndex(f => string.Equals(f, CurrentConfigurationFileName, StringComparison.OrdinalIgnoreCase));
+        if (idx < 0)
+        {
+            idx = 0;
+        }
+
+        var next = (idx + delta + files.Count) % files.Count;
+        LoadConfigurationByName(files[next]);
     }
 
     private void LoadConfigurationByName(string? fileName)
@@ -67,25 +98,17 @@ public sealed partial class MainViewModel
 
         var normalized = EnsureJsonFileName(fileName);
         var config = _configurationService.LoadByFileName(normalized);
-        _suppressConfigurationChangeTracking = true;
-        try
+        Mappings.Clear();
+        foreach (var mapping in config.Mappings)
         {
-            IsMappingEnabled = config.IsMappingEnabled;
-            Mappings.Clear();
-            foreach (var mapping in config.Mappings)
-            {
-                Mappings.Add(mapping);
-            }
+            Mappings.Add(mapping);
+        }
 
-            UpdateMappingSourceDeviceStates(_joystickService.GetDeviceStatesSnapshot());
-        }
-        finally
-        {
-            _suppressConfigurationChangeTracking = false;
-        }
+        UpdateMappingSourceDeviceStates(_joystickService.GetDeviceStatesSnapshot());
 
         CurrentConfigurationFileName = normalized;
         IsConfigurationDirty = false;
+        RebuildConfigurationMenuItems();
         _logger.Info(nameof(MainViewModel), $"Configuration switched to: {CurrentConfigurationFileName}");
     }
 
@@ -97,8 +120,14 @@ public sealed partial class MainViewModel
         }
 
         var normalized = EnsureJsonFileName(fileName);
-        _configurationService.SetDefaultConfigurationFileName(normalized);
+        _preferencesService.SetDefaultConfigurationFileName(normalized);
+        RebuildConfigurationMenuItems();
         _logger.Info(nameof(MainViewModel), $"Default configuration set to: {normalized}");
+    }
+
+    public void ApplyHotkeyPreferences(HotkeyPreferences preferences)
+    {
+        _hotkeyPreferences = preferences ?? new HotkeyPreferences();
     }
 
     private static string EnsureJsonFileName(string fileName)

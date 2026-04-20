@@ -34,6 +34,8 @@ namespace vrchotas
         VirtualPoseSource pose_source;
         ControllerHandState left;
         ControllerHandState right;
+        // Written by OpenVR driver each RunFrame while holding the shared mutex (GetTickCount64 ms).
+        std::uint64_t driver_heartbeat_tick_ms;
     };
 #pragma pack(pop)
 

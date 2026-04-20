@@ -8,6 +8,7 @@
         Title="{Binding WindowTitle}" Height="760" Width="1280">
     <Window.Resources>
         <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter" />
+        <converters:MappingSourceIndicatorConverter x:Key="MappingSourceIndicatorConverter" />
         <Style x:Key="MasterSwitchButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="Bold" />
@@ -54,11 +55,6 @@
         </Grid.RowDefinitions>
 
         <Menu Grid.Row="0">
-            <MenuItem Header="Mapping">
-                <MenuItem Header="Add Mapping" Command="{Binding OpenAddMappingDialogCommand}" />
-                <MenuItem Header="Edit Selected Mapping" Command="{Binding OpenEditMappingDialogCommand}" />
-                <MenuItem Header="Delete Selected Mapping" Command="{Binding DeleteSelectedMappingCommand}" />
-            </MenuItem>
             <MenuItem Header="Configuration">
                 <MenuItem Header="Save" Command="{Binding SaveConfigCommand}" />
                 <MenuItem Header="Save As..." Click="SaveAsConfigurationClick" />
@@ -67,28 +63,32 @@
 
                 <MenuItem Header="Load Configuration">
                     <MenuItem.ItemsSource>
-                        <Binding Path="AvailableConfigurationFiles" />
+                        <Binding Path="ConfigurationMenuItems" />
                     </MenuItem.ItemsSource>
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding}" />
+                            <Setter Property="Header" Value="{Binding MenuHeader}" />
                             <Setter Property="Command" Value="{Binding DataContext.LoadConfigByNameCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                            <Setter Property="CommandParameter" Value="{Binding}" />
+                            <Setter Property="CommandParameter" Value="{Binding FileName}" />
                         </Style>
                     </MenuItem.ItemContainerStyle>
                 </MenuItem>
 
                 <MenuItem Header="Set Default Configuration">
                     <MenuItem.ItemsSource>
-                        <Binding Path="AvailableConfigurationFiles" />
+                        <Binding Path="ConfigurationMenuItems" />
                     </MenuItem.ItemsSource>
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding}" />
+                            <Setter Property="Header" Value="{Binding MenuHeader}" />
                             <Setter Property="Command" Value="{Binding DataContext.SetDefaultConfigByNameCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                            <Setter Property="CommandParameter" Value="{Binding}" />
+                            <Setter Property="CommandParameter" Value="{Binding FileName}" />
                         </Style>
                     </MenuItem.ItemContainerStyle>
+                </MenuItem>
+
+                <MenuItem Header="Preference">
+                    <MenuItem Header="Hotkeys" Click="OnHotkeysMenuClick" />
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="View">
@@ -99,9 +99,30 @@
             </MenuItem>
         </Menu>
 
-        <DockPanel Grid.Row="1" Margin="0,8,0,12" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-                <TextBlock Text="Master Switch:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0" />
+        <Grid Grid.Row="1" Margin="0,8,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Top">
+                <TextBlock Text="Discovered Device:" VerticalAlignment="Top" FontWeight="Bold" />
+                <TextBlock Text="{Binding DeviceStatusSummary}" Margin="8,0,16,0" VerticalAlignment="Top" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,24,0">
+                <TextBlock Text="Driver heartbeat:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding DriverHeartbeatStatusDisplay}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,24,0">
+                <TextBlock Text="Refresh rate:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding JoystickRefreshRateDisplay}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top">
                 <Button Style="{StaticResource MasterSwitchButtonStyle}"
                         Command="{Binding ToggleMappingEnabledCommand}"
                         Background="{Binding IsMappingEnabled, Converter={StaticResource BooleanToBrushConverter}}">
@@ -111,10 +132,7 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-
-            <TextBlock DockPanel.Dock="Left" Text="Discovered Device Status:" VerticalAlignment="Top" FontWeight="Bold" />
-            <TextBlock DockPanel.Dock="Left" Text="{Binding DeviceStatusSummary}" Margin="8,0,16,0" VerticalAlignment="Top" TextWrapping="Wrap" />
-        </DockPanel>
+        </Grid>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
@@ -172,42 +190,71 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <DataGrid Grid.Column="1"
-                      ItemsSource="{Binding Mappings}"
-                      SelectedItem="{Binding SelectedMapping}"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      IsReadOnly="True">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="" Width="34">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Ellipse Width="12"
-                                         Height="12"
-                                         Fill="{Binding IsSourceDeviceConnected, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=RedGreen}"
-                                         Stroke="Black"
-                                         StrokeThickness="0.8"
-                                         HorizontalAlignment="Center"
-                                         VerticalAlignment="Center" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*" />
-                    <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140" />
-                    <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90" />
-                    <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="160" />
-                    <DataGridTemplateColumn Header="Actions" Width="140">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="Edit" Width="55" Margin="0,0,6,0" Click="EditMappingClick" />
-                                    <Button Content="Delete" Width="60" Click="DeleteMappingClick" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Content="Add Mapping" MinWidth="100" Margin="0,0,8,0" Command="{Binding OpenAddMappingDialogCommand}" />
+                    <Button Content="Edit Selected" MinWidth="100" Margin="0,0,8,0" Command="{Binding OpenEditMappingDialogCommand}" />
+                    <Button Content="Delete Selected" MinWidth="110" Command="{Binding DeleteSelectedMappingCommand}" />
+                </StackPanel>
+
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding Mappings}"
+                          SelectedItem="{Binding SelectedMapping}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="34">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Ellipse Width="12"
+                                             Height="12"
+                                             Stroke="Black"
+                                             StrokeThickness="0.8"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                        <Ellipse.Fill>
+                                            <MultiBinding Converter="{StaticResource MappingSourceIndicatorConverter}">
+                                                <Binding Path="IsTemporarilyDisabled" />
+                                                <Binding Path="IsSourceDeviceConnected" />
+                                            </MultiBinding>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*" />
+                        <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140" />
+                        <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90" />
+                        <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="160" />
+                        <DataGridTemplateColumn Header="Toggle" Width="64">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Toggle"
+                                            Padding="6,2"
+                                            Command="{Binding DataContext.ToggleMappingTempDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Actions" Width="150">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Edit" Width="55" Margin="0,0,6,0" Click="EditMappingClick" />
+                                        <Button Content="Delete" Width="60" Click="DeleteMappingClick" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

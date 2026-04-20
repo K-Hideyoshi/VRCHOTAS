@@ -10,7 +10,6 @@ public sealed class ConfigurationService
     private readonly IAppLogger _logger;
     private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
     private static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
-    private static readonly string AppStatePath = Path.Combine(ConfigDirectory, "app-state.json");
     private const string DefaultConfigFileName = "default-config.json";
 
     public ConfigurationService(IAppLogger logger)
@@ -18,48 +17,29 @@ public sealed class ConfigurationService
         _logger = logger;
     }
 
-    public string EnsureDefaultConfigurationFileName()
+    public void EnsureConfigurationFileExistsOrCreate(string fileName)
     {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(ConfigDirectory);
-
-            var state = LoadAppState();
-            var selectedFileName = string.IsNullOrWhiteSpace(state.DefaultConfigurationFileName)
-                ? DefaultConfigFileName
-                : state.DefaultConfigurationFileName;
-
-            selectedFileName = EnsureJsonExtension(selectedFileName);
-            var selectedPath = GetConfigurationPath(selectedFileName);
-
-            if (!File.Exists(selectedPath))
+            var normalized = EnsureJsonExtension(fileName);
+            var path = GetConfigurationPath(normalized);
+            if (File.Exists(path))
             {
-                if (!selectedFileName.Equals(DefaultConfigFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.Warning(nameof(ConfigurationService), $"Selected default configuration is missing: {selectedFileName}. Falling back to {DefaultConfigFileName}.");
-                }
-
-                state.DefaultConfigurationFileName = DefaultConfigFileName;
-                SaveAppState(state);
-
-                var defaultPath = GetConfigurationPath(DefaultConfigFileName);
-                if (!File.Exists(defaultPath))
-                {
-                    SaveByFileName(DefaultConfigFileName, new AppConfiguration());
-                    _logger.Warning(nameof(ConfigurationService), $"Default configuration was missing and has been created: {DefaultConfigFileName}");
-                }
-
-                return DefaultConfigFileName;
+                return;
             }
 
-            state.DefaultConfigurationFileName = selectedFileName;
-            SaveAppState(state);
-            return selectedFileName;
+            SaveByFileName(normalized, new AppConfiguration());
+            _logger.Info(nameof(ConfigurationService), $"Created missing configuration file: {normalized}");
         }
         catch (Exception ex)
         {
-            _logger.Error(nameof(ConfigurationService), "Failed to ensure default configuration.", ex);
-            return DefaultConfigFileName;
+            _logger.Error(nameof(ConfigurationService), "Failed to ensure configuration file exists.", ex);
         }
     }
 
@@ -71,7 +51,7 @@ public sealed class ConfigurationService
             return Directory
                 .EnumerateFiles(ConfigDirectory, "*.json", SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName)
-                .Where(name => !string.IsNullOrWhiteSpace(name) && !name.Equals(Path.GetFileName(AppStatePath), StringComparison.OrdinalIgnoreCase))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(name => name!)
                 .OrderBy(name => name)
                 .ToArray();
@@ -136,18 +116,6 @@ public sealed class ConfigurationService
         }
     }
 
-    public void SetDefaultConfigurationFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            throw new ArgumentException("Configuration file name cannot be empty.", nameof(fileName));
-        }
-
-        var state = LoadAppState();
-        state.DefaultConfigurationFileName = EnsureJsonExtension(fileName);
-        SaveAppState(state);
-    }
-
     private static string EnsureJsonExtension(string fileName)
     {
         return fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";
@@ -156,52 +124,5 @@ public sealed class ConfigurationService
     private static string GetConfigurationPath(string fileName)
     {
         return Path.Combine(ConfigDirectory, Path.GetFileName(fileName));
-    }
-
-    private AppStateModel LoadAppState()
-    {
-        try
-        {
-            if (!File.Exists(AppStatePath))
-            {
-                return new AppStateModel
-                {
-                    DefaultConfigurationFileName = DefaultConfigFileName
-                };
-            }
-
-            var content = File.ReadAllText(AppStatePath);
-            return JsonConvert.DeserializeObject<AppStateModel>(content) ?? new AppStateModel
-            {
-                DefaultConfigurationFileName = DefaultConfigFileName
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(nameof(ConfigurationService), "Failed to read app state file.", ex);
-            return new AppStateModel
-            {
-                DefaultConfigurationFileName = DefaultConfigFileName
-            };
-        }
-    }
-
-    private void SaveAppState(AppStateModel state)
-    {
-        try
-        {
-            Directory.CreateDirectory(ConfigDirectory);
-            var content = JsonConvert.SerializeObject(state, Formatting.Indented);
-            File.WriteAllText(AppStatePath, content);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(nameof(ConfigurationService), "Failed to write app state file.", ex);
-        }
-    }
-
-    private sealed class AppStateModel
-    {
-        public string DefaultConfigurationFileName { get; set; } = DefaultConfigFileName;
     }
 }

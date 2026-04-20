@@ -64,7 +64,7 @@ VRCHOTAS/
 │  ├─ Interop/                       # Shared memory contract and writer channel
 │  ├─ Logging/                       # Logging system
 │  ├─ Models/                        # Mapping configuration and runtime models
-│  ├─ Services/                      # DirectInput, mapping, and configuration services
+│  ├─ Services/                      # DirectInput, mapping, configuration, preferences, hotkeys
 │  ├─ ViewModels/                    # WPF MVVM view models
 │  ├─ Converters/
 │  ├─ *.xaml / *.xaml.cs             # Main windows and views
@@ -131,26 +131,28 @@ Responsibilities:
 Current implementation characteristics:
 
 - Targets **`.NET 10`** with `net10.0-windows`.
-- Uses **WPF + MVVM**.
+- Uses **WPF + MVVM** (main view model split across partial files such as `MainViewModel.FrameLoop.cs` and `MainViewModel.Configuration.cs`).
 - Core dependencies:
   - `CommunityToolkit.Mvvm`
   - `SharpDX.DirectInput`
   - `Newtonsoft.Json`
-- Runs a main loop roughly every **16 ms** to:
-  - poll devices
-  - refresh monitoring UI
-  - execute mappings
-  - write shared memory
-- Stores configuration as JSON under the user profile.
-- When the global mapping switch is disabled, the app writes a default virtual state and switches pose mode to `MirrorRealControllers`.
+- Runs a **background frame loop** (`PeriodicTimer`) that adapts between **~20 ms** and **~5 ms** per tick when mapping is enabled, shared memory is available, and a recent **driver heartbeat** is seen in shared memory; otherwise it stays on the slower interval.
+- On each tick the app polls DirectInput, evaluates **global hotkeys** (keyboard via `GetAsyncKeyState` and joystick buttons from the same poll), applies mappings, queues UI refresh on the WPF dispatcher, and writes shared memory.
+- Hotkeys are processed on that background loop so they keep working while the main window is **hidden in the system tray**.
+- **Preferences** (`preferences.json`): default mapping configuration filename and hotkey bindings.
+- **Mapping configurations** (`%APPDATA%\VRCHOTAS\configs\*.json`): list of mappings only. Per-row **Toggle** temporarily disables a mapping at runtime (not persisted); the grid status light is **gray** while toggled off.
+- **Master mapping switch** is **runtime-only** (not saved in configuration JSON). When it is off, the app writes a default virtual state and sets pose mode to `MirrorRealControllers`.
 
 Key files:
 
 - `VRCHOTAS/VRCHOTAS.csproj`
-- `VRCHOTAS/ViewModels/MainViewModel.cs`
+- `VRCHOTAS/ViewModels/MainViewModel.cs` (and related partials)
 - `VRCHOTAS/Services/JoystickService.cs`
 - `VRCHOTAS/Services/MappingEngine.cs`
 - `VRCHOTAS/Services/ConfigurationService.cs`
+- `VRCHOTAS/Services/PreferencesService.cs`
+- `VRCHOTAS/Services/HotkeyRuntime.cs`
+- `VRCHOTAS/Models/PreferencesDocument.cs`
 - `VRCHOTAS/Interop/VirtualControllerState.cs`
 - `VRCHOTAS/Interop/SharedMemoryStateChannel.cs`
 
@@ -345,37 +347,55 @@ Once SteamVR starts, it loads the registered VRCHOTAS driver. The C++ Driver the
 ## Usage Flow
 
 1. Start the `.NET App`.
-2. Confirm that your DirectInput device appears in the device list.
+2. Confirm that your DirectInput device appears under **Discovered Device** and in the device monitor list.
 3. Create or edit mappings:
    - choose a source device
    - choose a source axis or button
    - choose the target hand (`Left` / `Right`)
    - choose a target type (button, axis, position, pose, or velocity)
    - adjust `Deadzone`, `Curve`, `Saturation`, and `Invert`
-4. Save the configuration.
-5. Deploy and load the `C++ Driver`.
-6. In SteamVR, verify that the virtual controllers appear and react as expected.
+4. Save the configuration (**Configuration → Save / Save As**). Use **Set Default Configuration** so the chosen file becomes the startup default (stored in `preferences.json`).
+5. Optional: **Configuration → Preference → Hotkeys** to bind previous/next configuration and the master mapping toggle (keyboard or joystick).
+6. Use the **Mapping** button for the master switch (on/off is not written to disk). Use per-row **Toggle** to skip a mapping until toggled back (also not persisted).
+7. Deploy and load the `C++ Driver`. Watch **Driver heartbeat** (OK when the driver is updating shared memory within the expected window) and **Refresh rate** on the main window.
+8. In SteamVR, verify that the virtual controllers appear and react as expected.
+
+Closing the main window sends the app to the **system tray**; the process keeps running so polling, hotkeys, and shared memory updates continue until you exit from the tray menu.
 
 ## Configuration and Data Locations
 
-### .NET App configuration files
-
-Configuration is stored in:
+### Application data root
 
 ```text
-%APPDATA%\VRCHOTAS\configs
+%APPDATA%\VRCHOTAS\
 ```
 
-This includes:
+### Preferences (`preferences.json`)
 
-- mapping configuration JSON files
-- `app-state.json` for the selected default configuration
-
-Default configuration filename:
+Path:
 
 ```text
-default-config.json
+%APPDATA%\VRCHOTAS\preferences.json
 ```
+
+Contains:
+
+- **`defaultConfigurationFileName`**: which file under `configs\` loads on startup (default: `default-config.json` when the file is first created).
+- **`hotkeys`**: bindings for previous configuration, next configuration, and toggle master mapping (keyboard chord and/or joystick button per slot).
+
+There is **no** separate `app-state.json`; older documentation referring to it does not apply to the current tree.
+
+### Mapping configuration files (`configs`)
+
+Directory:
+
+```text
+%APPDATA%\VRCHOTAS\configs\
+```
+
+Contains one JSON file per saved mapping set. Each file stores an `AppConfiguration` with a **`Mappings`** array only (no master switch, no per-row temporary toggle state).
+
+If the configured default file is missing on disk, the app creates an empty configuration file with that name on startup.
 
 ### C++ Driver runtime resources
 
@@ -444,6 +464,7 @@ Verify all of the following:
   - `VRCHOTAS/Interop/VirtualControllerState.cs`
   - `VirtualDriver/include/virtual_controller_state.h`
   - all corresponding read/write logic
+- If you change **preferences** shape or default configuration resolution, keep `PreferencesDocument`, `PreferencesService`, and the README “Configuration and Data Locations” section aligned.
 - If you add new input semantics, also verify:
   - `.NET App` mapping editor and output logic
   - `C++ Driver` component registration, state update logic, and input profile

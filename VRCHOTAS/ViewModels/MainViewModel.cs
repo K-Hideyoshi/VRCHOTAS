@@ -20,6 +20,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly JoystickService _joystickService;
     private readonly MappingEngine _mappingEngine;
     private readonly ConfigurationService _configurationService;
+    private readonly PreferencesService _preferencesService;
+    private readonly HotkeyRuntime _hotkeyRuntime = new();
+    private HotkeyPreferences _hotkeyPreferences = new();
     private readonly SharedMemoryStateChannel? _ipc;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _deviceRefreshTimer;
@@ -33,9 +36,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _currentConfigurationFileName = string.Empty;
     private bool _isConfigurationDirty;
     private bool _isMappingEnabled = true;
-    private bool _suppressConfigurationChangeTracking;
     private int _deviceShellRefreshQueued;
     private int _deviceMonitorRefreshQueued;
+    private int _joystickPollCountInWindow;
+    private long _rateWindowStartTicks = Environment.TickCount64;
+    private string _joystickRefreshRateDisplay = "—";
+    private string _driverHeartbeatStatusDisplay = "No signal";
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -44,6 +50,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<string> AvailableConfigurationFiles { get; } = new();
 
     public ICollectionView FilteredLogs { get; }
+
+    public ObservableCollection<ConfigurationMenuItem> ConfigurationMenuItems { get; } = new();
+
+    public PreferencesService Preferences => _preferencesService;
 
     public IRelayCommand SaveConfigCommand { get; }
     public IRelayCommand SaveAsConfigCommand { get; }
@@ -56,6 +66,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public IRelayCommand ToggleMappingEnabledCommand { get; }
     public IRelayCommand<string> LoadConfigByNameCommand { get; }
     public IRelayCommand<string> SetDefaultConfigByNameCommand { get; }
+    public IRelayCommand<MappingEntry?> ToggleMappingTempDisabledCommand { get; }
 
     public event EventHandler? LogWindowRequested;
     public event EventHandler<MappingEditorRequestEventArgs>? MappingEditorRequested;
@@ -112,18 +123,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             OnPropertyChanged(nameof(MappingEnabledStatusText));
-
-            if (_suppressConfigurationChangeTracking)
-            {
-                return;
-            }
-
-            MarkConfigurationDirty();
             _logger.Info(nameof(MainViewModel), $"Mapping master switch {(value ? "enabled" : "disabled")}.");
         }
     }
 
     public string MappingEnabledStatusText => IsMappingEnabled ? "Enabled" : "Disabled";
+
+    /// <summary>Joystick poll rate averaged over the last 5 seconds (updated every 5s).</summary>
+    public string JoystickRefreshRateDisplay
+    {
+        get => _joystickRefreshRateDisplay;
+        private set => SetProperty(ref _joystickRefreshRateDisplay, value);
+    }
+
+    /// <summary>Driver shared-memory heartbeat status (OK when recent tick from OpenVR driver).</summary>
+    public string DriverHeartbeatStatusDisplay
+    {
+        get => _driverHeartbeatStatusDisplay;
+        private set => SetProperty(ref _driverHeartbeatStatusDisplay, value);
+    }
 
     public MainViewModel()
     {
@@ -135,6 +153,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _joystickService = new JoystickService(_logger);
         _mappingEngine = new MappingEngine(_logger);
         _configurationService = new ConfigurationService(_logger);
+        _preferencesService = new PreferencesService(_logger);
+        _preferencesService.EnsurePreferencesFileReady();
+        _hotkeyPreferences = _preferencesService.LoadHotkeys();
 
         try
         {
@@ -157,6 +178,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ToggleMappingEnabledCommand = new RelayCommand(() => IsMappingEnabled = !IsMappingEnabled);
         LoadConfigByNameCommand = new RelayCommand<string>(LoadConfigurationByName);
         SetDefaultConfigByNameCommand = new RelayCommand<string>(SetDefaultConfigurationByName);
+        ToggleMappingTempDisabledCommand = new RelayCommand<MappingEntry?>(entry =>
+        {
+            if (entry is null)
+            {
+                return;
+            }
+
+            entry.IsTemporarilyDisabled = !entry.IsTemporarilyDisabled;
+        });
 
         InitializeLogFilters();
         FilteredLogs = CollectionViewSource.GetDefaultView(LogEntries);
@@ -180,6 +210,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _frameLoopTask = Task.Run(() => RunFrameLoopAsync(_frameLoopCancellation.Token));
     }
+
+    public HashSet<string> GetJoystickHotkeyConflictKeysForCapture() => BuildJoystickHotkeyConflictSet();
 
     public void SaveMappingFromDialog(MappingEntry mapping, MappingEntry? original)
     {

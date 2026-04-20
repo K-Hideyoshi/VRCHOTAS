@@ -190,6 +190,15 @@ namespace VRCHOTAS
             _viewModel.OpenEditMappingDialogCommand.Execute(null);
         }
 
+        private void OnHotkeysMenuClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new HotkeysWindow(_viewModel, _viewModel.Preferences)
+            {
+                Owner = this
+            };
+            dialog.ShowDialog();
+        }
+
         private void ExitApplicationClick(object sender, RoutedEventArgs e)
         {
             ExitApplication();

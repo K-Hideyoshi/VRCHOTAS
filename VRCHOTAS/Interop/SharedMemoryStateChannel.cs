@@ -39,6 +39,8 @@ public sealed class SharedMemoryStateChannel : IDisposable
 
         try
         {
+            var existing = ReadStructFromView();
+            copy.DriverHeartbeatTickMs = existing.DriverHeartbeatTickMs;
             var bytes = StructureToBytes(copy);
             _view.WriteArray(0, bytes, 0, bytes.Length);
             _view.Flush();
@@ -51,6 +53,44 @@ public sealed class SharedMemoryStateChannel : IDisposable
         finally
         {
             _mutex.ReleaseMutex();
+        }
+    }
+
+    public bool TryReadDriverHeartbeat(out ulong tickMs)
+    {
+        tickMs = 0;
+        ThrowIfDisposed();
+
+        if (!_mutex.WaitOne(5))
+        {
+            return false;
+        }
+
+        try
+        {
+            var state = ReadStructFromView();
+            tickMs = state.DriverHeartbeatTickMs;
+            return true;
+        }
+        finally
+        {
+            _mutex.ReleaseMutex();
+        }
+    }
+
+    private VirtualControllerState ReadStructFromView()
+    {
+        var bytes = new byte[_stateSize];
+        _view.ReadArray(0, bytes, 0, _stateSize);
+        var ptr = Marshal.AllocHGlobal(_stateSize);
+        try
+        {
+            Marshal.Copy(bytes, 0, ptr, _stateSize);
+            return Marshal.PtrToStructure<VirtualControllerState>(ptr);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
         }
     }
 

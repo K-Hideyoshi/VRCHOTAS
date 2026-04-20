@@ -29,6 +29,11 @@ public sealed class MappingEngine
 
         foreach (var mapping in mappings)
         {
+            if (mapping.IsTemporarilyDisabled)
+            {
+                continue;
+            }
+
             var sourceDevice = raw.Devices.FirstOrDefault(device =>
                 device.DeviceId.Equals(mapping.SourceDeviceId, StringComparison.OrdinalIgnoreCase));
 

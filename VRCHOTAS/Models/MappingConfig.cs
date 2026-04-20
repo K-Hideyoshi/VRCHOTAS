@@ -39,6 +39,11 @@ public sealed partial class MappingEntry : ObservableObject
     [property: JsonIgnore]
     private bool _isSourceDeviceConnected;
 
+    /// <summary>Runtime-only: when true, this mapping is skipped until toggled back (not saved to configuration).</summary>
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private bool _isTemporarilyDisabled;
+
     /// <summary>
     /// When null (legacy configs), derived from <see cref="IsAxisMapping"/>.
     /// </summary>
@@ -107,6 +112,5 @@ public sealed partial class MappingEntry : ObservableObject
 
 public sealed class AppConfiguration
 {
-    public bool IsMappingEnabled { get; set; } = true;
     public List<MappingEntry> Mappings { get; set; } = new();
 }
