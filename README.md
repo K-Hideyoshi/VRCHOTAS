@@ -57,38 +57,41 @@ In short:
 ## Repository Structure
 
 ```text
-VRCHOTAS/
-├─ README.md
-├─ VRCHOTAS.sln
-├─ VRCHOTAS.slnx
-├─ VRCHOTAS/                         # .NET 10 WPF mapper app
-│  ├─ Converters/
-│  ├─ Interop/                       # Shared-memory contract and writer
-│  ├─ Logging/
-│  ├─ Models/
-│  ├─ Services/                      # DirectInput, mapping, config, preferences, hotkeys
-│  ├─ ViewModels/
-│  ├─ MainWindow.xaml                # Main UI
-│  ├─ MappingEditorWindow.xaml       # Mapping editor
-│  ├─ HotkeysWindow.xaml             # Hotkey settings UI
-│  └─ VRCHOTAS.csproj
-└─ VirtualDriver/                    # SteamVR OpenVR driver
-   ├─ CMakeLists.txt
-   ├─ README.md
-   ├─ deploy_driver.bat
-   ├─ include/
-   │  ├─ hotas_controller_device.h
-   │  └─ virtual_controller_state.h
-   ├─ resources/
-   │  ├─ driver.vrchotas.vrdrivermanifest
-   │  └─ input/
-   │     ├─ vrchotas_virtual_profile.json
-   │     └─ vrcompositor_bindings_touch.json
-   └─ src/
-      ├─ driver_hotas.cpp
-      ├─ hotas_controller_device.cpp
-      ├─ hotas_server_driver.cpp
-      └─ hotas_watchdog_driver.cpp
+VRCHOTAS/                                   # Repository root
+├─ README.md                                # Main project documentation for architecture, build, deployment, and usage
+├─ VRCHOTAS.sln                             # Visual Studio solution file
+├─ VRCHOTAS.slnx                            # Alternate solution metadata used by newer Visual Studio tooling
+├─ VRCHOTAS/                                # .NET 10 WPF mapper app
+│  ├─ Converters/                           # WPF value converters used by the main UI
+│  ├─ Interop/                              # Shared-memory contract, layout constants, and IPC writer channel
+│  ├─ Logging/                              # App-side logging infrastructure and log window models
+│  ├─ Models/                               # Mapping, hotkey, preferences, and runtime data models
+│  ├─ Services/                             # DirectInput polling, mapping engine, config, preferences, and hotkey services
+│  ├─ ViewModels/                           # MVVM view models for main window, mapping editor, device monitor, and dialogs
+│  ├─ MainWindow.xaml                       # Main dashboard UI for device monitor, mapping list, and status area
+│  ├─ MainWindow.xaml.cs                    # Main window events, tray behavior, and dialog launching
+│  ├─ MappingEditorWindow.xaml              # Mapping editor UI for source detection and target selection
+│  ├─ MappingEditorWindow.xaml.cs           # Mapping editor dialog control and auto-detect timer wiring
+│  ├─ HotkeysWindow.xaml                    # Hotkey settings dialog UI
+│  ├─ HotkeysWindow.xaml.cs                 # Keyboard/joystick hotkey capture and persistence logic
+│  └─ VRCHOTAS.csproj                       # .NET project file and package references
+└─ VirtualDriver/                           # SteamVR OpenVR driver
+   ├─ CMakeLists.txt                        # CMake build definition for the native driver
+   ├─ README.md                             # Driver-specific notes and usage details
+   ├─ deploy_driver.bat                     # Copies build output into the SteamVR driver folder and registers it
+   ├─ include/                              # Native headers shared across driver components
+   │  ├─ hotas_controller_device.h          # Virtual controller device class declaration
+   │  └─ virtual_controller_state.h         # Native copy of the shared-memory contract and semantic slot constants
+   ├─ resources/                            # SteamVR driver manifest and input profile resources
+   │  ├─ driver.vrchotas.vrdrivermanifest   # SteamVR driver manifest file
+   │  └─ input/                             # SteamVR input profile and compositor binding files
+   │     ├─ vrchotas_virtual_profile.json   # Oculus Touch-style virtual controller profile
+   │     └─ vrcompositor_bindings_touch.json# Dashboard pointer and system bindings for vrcompositor
+   └─ src/                                  # Native driver source files
+      ├─ driver_hotas.cpp                   # Driver entry points and factory exports
+      ├─ hotas_controller_device.cpp        # Virtual controller creation, input component registration, and state updates
+      ├─ hotas_server_driver.cpp            # OpenVR server driver orchestration and shared-memory polling
+      └─ hotas_watchdog_driver.cpp          # Minimal watchdog driver implementation
 ```
 
 ## Implementation Overview
@@ -128,15 +131,6 @@ Current implementation characteristics:
 - Includes alias paths for `joystick` / `thumbstick` naming expected by SteamVR bindings.
 - Uses `vrcompositor_bindings_touch.json` for dashboard pointer and system toggle bindings.
 
-Key files:
-
-- `VirtualDriver/CMakeLists.txt`
-- `VirtualDriver/include/virtual_controller_state.h`
-- `VirtualDriver/src/hotas_controller_device.cpp`
-- `VirtualDriver/resources/driver.vrchotas.vrdrivermanifest`
-- `VirtualDriver/resources/input/vrchotas_virtual_profile.json`
-- `VirtualDriver/resources/input/vrcompositor_bindings_touch.json`
-- `VirtualDriver/deploy_driver.bat`
 
 ### .NET App
 
@@ -184,20 +178,6 @@ Current implementation characteristics:
   - Edit
   - Delete
 
-Key files:
-
-- `VRCHOTAS/VRCHOTAS.csproj`
-- `VRCHOTAS/MainWindow.xaml`
-- `VRCHOTAS/MainWindow.xaml.cs`
-- `VRCHOTAS/HotkeysWindow.xaml.cs`
-- `VRCHOTAS/ViewModels/MainViewModel.cs`
-- `VRCHOTAS/ViewModels/MainViewModel.FrameLoop.cs`
-- `VRCHOTAS/Services/JoystickService.cs`
-- `VRCHOTAS/Services/MappingEngine.cs`
-- `VRCHOTAS/Services/HotkeyRuntime.cs`
-- `VRCHOTAS/Services/ConfigurationService.cs`
-- `VRCHOTAS/Services/PreferencesService.cs`
-- `VRCHOTAS/Interop/VirtualControllerState.cs`
 
 ## Current Feature Summary
 
