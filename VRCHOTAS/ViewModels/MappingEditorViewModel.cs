@@ -23,11 +23,13 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private string _sourceAxis = "X";
     private int _sourceButtonIndex;
     private VirtualTargetHand _targetHand = VirtualTargetHand.Left;
-    private int _targetAxisIndex;
-    private int _targetButtonIndex;
+    private AxisRangeKind _axisRange = AxisRangeKind.Bidirectional;
+    private VirtualAxisTarget _targetAxis = VirtualAxisTarget.ThumbstickX;
+    private VirtualButtonTarget _targetButton = VirtualButtonTarget.ThumbstickClick;
     private double _deadzone;
     private double _curve;
     private double _saturation = 1.0;
+    private double _fullPressThreshold = 0.95;
     private bool _invert;
     private double _currentInputValue;
     private double _currentOutputValue;
@@ -42,6 +44,8 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     {
         _stateProvider = stateProvider;
         TargetKindOptions = BuildTargetKindOptions();
+        AxisTargetOptions = BuildAxisTargetOptions();
+        ButtonTargetOptions = BuildButtonTargetOptions();
 
         if (existing is null)
         {
@@ -58,19 +62,21 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         SourceAxis = existing.SourceAxis;
         SourceButtonIndex = existing.SourceButtonIndex;
         TargetHand = existing.TargetHand;
-        TargetAxisIndex = existing.TargetAxisIndex;
-        TargetButtonIndex = existing.TargetButtonIndex;
+        AxisRange = existing.AxisRange;
+        TargetAxis = existing.TargetAxis;
+        TargetButton = existing.TargetButton;
+        FullPressThreshold = existing.FullPressThreshold;
         Deadzone = existing.Deadzone;
         Curve = existing.Curve;
         Saturation = existing.Saturation;
         Invert = existing.Invert;
 
         RebuildCurvePlot();
-        StartAutoDetect(clearDetectedSource: false);
     }
 
     public IReadOnlyList<TargetKindOption> TargetKindOptions { get; }
-
+    public IReadOnlyList<AxisTargetOption> AxisTargetOptions { get; }
+    public IReadOnlyList<ButtonTargetOption> ButtonTargetOptions { get; }
     public IReadOnlyList<TargetKindOption> AvailableTargetKindOptions =>
         IsSourceButtonDetected
             ? TargetKindOptions
@@ -92,6 +98,11 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowAxisPicker));
                 OnPropertyChanged(nameof(ShowButtonPicker));
                 OnPropertyChanged(nameof(SourceSummary));
+
+                if (value == MappingTargetKind.AxisInput)
+                {
+                    SyncAxisRangeWithTarget();
+                }
             }
         }
     }
@@ -103,8 +114,6 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public bool ShowButtonPicker => SelectedTargetKind == MappingTargetKind.Button;
 
-    public IReadOnlyList<int> AxisTargets { get; } = Enumerable.Range(0, 16).ToArray();
-    public IReadOnlyList<int> ButtonTargets { get; } = Enumerable.Range(0, 32).ToArray();
     public IReadOnlyList<VirtualTargetHand> HandTargets { get; } = new[] { VirtualTargetHand.Left, VirtualTargetHand.Right };
 
     public VirtualTargetHand TargetHand
@@ -192,23 +201,46 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         }
     }
 
-    public int TargetAxisIndex
+    public AxisRangeKind AxisRange
     {
-        get => _targetAxisIndex;
+        get => _axisRange;
         set
         {
-            if (SetProperty(ref _targetAxisIndex, value) && SelectedTargetKind == MappingTargetKind.AxisInput)
+            if (SetProperty(ref _axisRange, value))
             {
+                OnPropertyChanged(nameof(PlotYMinLabel));
+                RebuildCurvePlot();
+            }
+        }
+    }
+
+    public VirtualAxisTarget TargetAxis
+    {
+        get => _targetAxis;
+        set
+        {
+            if (SetProperty(ref _targetAxis, value) && SelectedTargetKind == MappingTargetKind.AxisInput)
+            {
+                SyncAxisRangeWithTarget();
                 ResetAxisShapingParameters();
             }
         }
     }
 
-    public int TargetButtonIndex
+    public VirtualButtonTarget TargetButton
     {
-        get => _targetButtonIndex;
-        set => SetProperty(ref _targetButtonIndex, value);
+        get => _targetButton;
+        set => SetProperty(ref _targetButton, value);
     }
+
+    public double FullPressThreshold
+    {
+        get => _fullPressThreshold;
+        set => SetProperty(ref _fullPressThreshold, Math.Clamp(value, 0.0, 1.0));
+    }
+
+    public bool ShowFullPressThreshold => SelectedTargetKind == MappingTargetKind.AxisInput
+        && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip;
 
     public double Deadzone
     {
@@ -309,7 +341,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public string PlotYMaxLabel => PlotYRangeMax.ToString("F2");
 
-    public string PlotYMinLabel => (-PlotYRangeMax).ToString("F2");
+    public string PlotYMinLabel => AxisRange == AxisRangeKind.Unidirectional ? "0.00" : (-PlotYRangeMax).ToString("F2");
 
     public string CurvePlotPoints
     {
@@ -324,4 +356,11 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             : $"{SourceDeviceName} / Axis {SourceAxis}";
 
     public bool CanEditTarget => HasDetectedSource;
+
+    private void SyncAxisRangeWithTarget()
+    {
+        AxisRange = TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip
+            ? AxisRangeKind.Unidirectional
+            : AxisRangeKind.Bidirectional;
+    }
 }

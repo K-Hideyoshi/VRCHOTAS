@@ -190,6 +190,26 @@ namespace VRCHOTAS
             _viewModel.OpenEditMappingDialogCommand.Execute(null);
         }
 
+        private void MoveMappingUpClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Controls.Button button || button.DataContext is not MappingEntry mapping)
+            {
+                return;
+            }
+
+            _viewModel.MoveMappingUp(mapping);
+        }
+
+        private void MoveMappingDownClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Controls.Button button || button.DataContext is not MappingEntry mapping)
+            {
+                return;
+            }
+
+            _viewModel.MoveMappingDown(mapping);
+        }
+
         private void OnHotkeysMenuClick(object sender, RoutedEventArgs e)
         {
             var dialog = new HotkeysWindow(_viewModel, _viewModel.Preferences)

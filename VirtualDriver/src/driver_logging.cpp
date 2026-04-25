@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <cstdlib>
 #include <openvr_driver.h>
 #include "driver_logging.h"
 
@@ -12,6 +13,11 @@ namespace
 {
     std::filesystem::path ResolveDriverLogFilePath()
     {
+        if (const char* localAppData = std::getenv("LOCALAPPDATA"); localAppData && *localAppData)
+        {
+            return std::filesystem::path(localAppData) / "openvr" / "drivers" / "vrchotas" / "vrchotas-driver.log";
+        }
+
         HMODULE moduleHandle = nullptr;
         if (!GetModuleHandleExW(
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

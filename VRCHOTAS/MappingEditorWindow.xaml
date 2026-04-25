@@ -28,7 +28,7 @@
 
         <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Source Detection" FontWeight="Bold" />
 
-        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Text="Auto detect is active. Change a button state or move an axis quickly on the source device." />
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Text="Use Re-detect to listen for a source input. Change a button state or move an axis quickly on the source device while detection is active." />
 
         <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Detected Source:" />
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
@@ -47,6 +47,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Target:" />
@@ -60,15 +61,26 @@
                 <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
 
-                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="VR Axis Index:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left"
                           Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
-                          ItemsSource="{Binding AxisTargets}" SelectedItem="{Binding TargetAxisIndex}" />
+                           ItemsSource="{Binding AxisTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetAxis}" />
 
-                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="VR Button Index:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="VR Button Target:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="3" Grid.Column="1" Width="300" HorizontalAlignment="Left"
                           Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
-                          ItemsSource="{Binding ButtonTargets}" SelectedItem="{Binding TargetButtonIndex}" />
+                           ItemsSource="{Binding ButtonTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetButton}" />
+
+                <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Grid Grid.Row="4" Grid.Column="1" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="1.0" Value="{Binding FullPressThreshold}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding FullPressThreshold, StringFormat=F2}" VerticalAlignment="Center" />
+                </Grid>
+
             </Grid>
         </GroupBox>
 

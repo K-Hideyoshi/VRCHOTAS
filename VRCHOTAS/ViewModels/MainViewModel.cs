@@ -11,6 +11,10 @@ using VRCHOTAS.Logging;
 using VRCHOTAS.Models;
 using VRCHOTAS.Services;
 using WpfApplication = System.Windows.Application;
+using MediaBrush = System.Windows.Media.Brush;
+using MediaBrushes = System.Windows.Media.Brushes;
+using MediaColor = System.Windows.Media.Color;
+using MediaSolidColorBrush = System.Windows.Media.SolidColorBrush;
 
 namespace VRCHOTAS.ViewModels;
 
@@ -30,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Task _frameLoopTask;
 
     private RawJoystickState _latestState = new();
+    private VirtualControllerState _lastMappedState = VirtualControllerState.CreateDefault();
     private MappingEntry[] _mappingSnapshot = [];
     private MappingEntry? _selectedMapping;
     private string _deviceStatusSummary = "No device discovered.";
@@ -42,6 +47,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private long _rateWindowStartTicks = Environment.TickCount64;
     private string _joystickRefreshRateDisplay = "—";
     private string _driverHeartbeatStatusDisplay = "No signal";
+    private MappingEntry? _lastAutoSelectedMapping;
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -247,42 +253,44 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool CanUseTarget(MappingEntry candidate, MappingEntry? original, out string errorMessage)
     {
         errorMessage = string.Empty;
-        var kind = candidate.ResolvedTargetKind;
-        if (kind != MappingTargetKind.Button && kind != MappingTargetKind.AxisInput)
-        {
-            return true;
-        }
-
-        foreach (var existing in Mappings)
-        {
-            if (ReferenceEquals(existing, original))
-            {
-                continue;
-            }
-
-            if (existing.TargetHand != candidate.TargetHand)
-            {
-                continue;
-            }
-
-            var existingKind = existing.ResolvedTargetKind;
-            if (kind == MappingTargetKind.Button && existingKind == MappingTargetKind.Button && existing.TargetButtonIndex == candidate.TargetButtonIndex)
-            {
-                errorMessage = $"Target button {candidate.TargetButtonIndex} on {candidate.TargetHand} hand is already mapped.";
-                return false;
-            }
-
-            if (kind == MappingTargetKind.AxisInput && existingKind == MappingTargetKind.AxisInput && existing.TargetAxisIndex == candidate.TargetAxisIndex)
-            {
-                errorMessage = $"Target axis {candidate.TargetAxisIndex} on {candidate.TargetHand} hand is already mapped.";
-                return false;
-            }
-        }
-
         return true;
     }
 
     public RawJoystickState GetLatestStateSnapshot() => Volatile.Read(ref _latestState);
+
+    public void MoveMappingUp(MappingEntry mapping)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+
+        var index = Mappings.IndexOf(mapping);
+        if (index <= 0)
+        {
+            SelectedMapping = mapping;
+            return;
+        }
+
+        Mappings.Move(index, index - 1);
+        SelectedMapping = mapping;
+        MarkConfigurationDirty();
+        _logger.Info(nameof(MainViewModel), $"Mapping moved up: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
+    }
+
+    public void MoveMappingDown(MappingEntry mapping)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+
+        var index = Mappings.IndexOf(mapping);
+        if (index < 0 || index >= Mappings.Count - 1)
+        {
+            SelectedMapping = mapping;
+            return;
+        }
+
+        Mappings.Move(index, index + 1);
+        SelectedMapping = mapping;
+        MarkConfigurationDirty();
+        _logger.Info(nameof(MainViewModel), $"Mapping moved down: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
+    }
 
     private void OpenEditMappingDialog()
     {
@@ -311,12 +319,73 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMappingsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        RefreshMappingDuplicateBackgrounds();
         RefreshMappingSnapshot();
     }
 
     private void RefreshMappingSnapshot()
     {
         Volatile.Write(ref _mappingSnapshot, Mappings.ToArray());
+    }
+
+    private void RefreshMappingDuplicateBackgrounds()
+    {
+        foreach (var mapping in Mappings)
+        {
+            mapping.SourceDuplicateBackground = MediaBrushes.Transparent;
+            mapping.TargetDuplicateBackground = MediaBrushes.Transparent;
+        }
+
+        var indexedMappings = Mappings.Select((mapping, index) => new { mapping, index }).ToArray();
+
+        var sourceGroups = indexedMappings
+            .GroupBy(item => item.mapping.SourceGroupingKey, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Min(item => item.index))
+            .ToArray();
+
+        for (var index = 0; index < sourceGroups.Length; index++)
+        {
+            var brush = CreateSourceDuplicateBrush(index);
+            foreach (var item in sourceGroups[index])
+            {
+                item.mapping.SourceDuplicateBackground = brush;
+            }
+        }
+
+        var targetGroups = indexedMappings
+            .GroupBy(item => item.mapping.TargetGroupingKey, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Min(item => item.index))
+            .ToArray();
+
+        for (var index = 0; index < targetGroups.Length; index++)
+        {
+            var brush = CreateTargetDuplicateBrush(index);
+            foreach (var item in targetGroups[index])
+            {
+                item.mapping.TargetDuplicateBackground = brush;
+            }
+        }
+    }
+
+    private static MediaBrush CreateSourceDuplicateBrush(int index)
+    {
+        var depth = (byte)Math.Max(88, 228 - ((index * 29) % 150));
+        return CreateFrozenBrush(MediaColor.FromArgb(0x66, 0xFF, depth, depth));
+    }
+
+    private static MediaBrush CreateTargetDuplicateBrush(int index)
+    {
+        var depth = (byte)Math.Max(88, 228 - ((index * 29) % 150));
+        return CreateFrozenBrush(MediaColor.FromArgb(0x66, depth, depth, 0xFF));
+    }
+
+    private static MediaBrush CreateFrozenBrush(MediaColor color)
+    {
+        var brush = new MediaSolidColorBrush(color);
+        brush.Freeze();
+        return brush;
     }
 
     public void Dispose()

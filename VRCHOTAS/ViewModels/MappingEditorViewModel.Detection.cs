@@ -91,6 +91,7 @@ public sealed partial class MappingEditorViewModel
                 }
 
                 SourceAxis = axis.Key;
+                SyncAxisRangeWithTarget();
                 UpdateLivePreview();
                 return true;
             }

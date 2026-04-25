@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
         mc:Ignorable="d"
-        Title="{Binding WindowTitle}" Height="760" Width="1280">
+        Title="{Binding WindowTitle}" Height="760" Width="1440">
     <Window.Resources>
         <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter" />
         <converters:MappingSourceIndicatorConverter x:Key="MappingSourceIndicatorConverter" />
@@ -136,8 +136,8 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" />
-                <ColumnDefinition Width="4*" />
+                <ColumnDefinition Width="2.6*" />
+                <ColumnDefinition Width="4.4*" />
             </Grid.ColumnDefinitions>
 
             <ScrollViewer Grid.Column="0" Margin="0,0,12,0" VerticalScrollBarVisibility="Auto">
@@ -228,24 +228,45 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*" />
-                        <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140" />
-                        <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90" />
-                        <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="160" />
-                        <DataGridTemplateColumn Header="Toggle" Width="64">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Button Content="Toggle"
-                                            Padding="6,2"
-                                            Command="{Binding DataContext.ToggleMappingTempDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Actions" Width="150">
+                        <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="170">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Header="Actions" Width="250">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
+                                        <Button Content="Toggle"
+                                                Width="55"
+                                                Margin="0,0,6,0"
+                                                Command="{Binding DataContext.ToggleMappingTempDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="↑" Width="28" Margin="0,0,6,0" Click="MoveMappingUpClick" />
+                                        <Button Content="↓" Width="28" Margin="0,0,6,0" Click="MoveMappingDownClick" />
                                         <Button Content="Edit" Width="55" Margin="0,0,6,0" Click="EditMappingClick" />
                                         <Button Content="Delete" Width="60" Click="DeleteMappingClick" />
                                     </StackPanel>

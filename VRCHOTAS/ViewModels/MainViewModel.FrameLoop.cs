@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using VRCHOTAS.Interop;
 using VRCHOTAS.Models;
 using VRCHOTAS.Services;
@@ -10,8 +11,11 @@ public sealed partial class MainViewModel
     private const int LowFrequencyPollIntervalMilliseconds = 20;
     private const int DriverHeartbeatMaxAgeMs = 5000;
     private const int JoystickRateWindowMs = 5000;
+    private const double ActiveMappingAxisSpeedThreshold = 2.5;
     private bool _driverHeartbeatAlive;
     private bool? _lastPublishedDriverHeartbeatAlive;
+    private RawJoystickState? _lastSelectionDetectionState;
+    private DateTime _lastSelectionDetectionUtc;
 
     private async Task RunFrameLoopAsync(CancellationToken cancellationToken)
     {
@@ -102,6 +106,7 @@ public sealed partial class MainViewModel
             RecordJoystickPollForRateDisplay();
             Volatile.Write(ref _latestState, latestState);
             QueueDeviceMonitorRefresh();
+            UpdateSelectedMappingFromActiveInput(latestState);
 
             // Hotkeys are evaluated here (not on the UI thread) so global shortcuts still work when the main window is hidden in the tray.
             var conflictKeys = BuildJoystickHotkeyConflictSet();
@@ -116,11 +121,12 @@ public sealed partial class MainViewModel
             var isMappingEnabled = Volatile.Read(ref _isMappingEnabled);
             var mappings = Volatile.Read(ref _mappingSnapshot);
             var mapped = isMappingEnabled
-                ? _mappingEngine.Map(latestState, mappings)
+                ? _mappingEngine.Map(latestState, mappings, _lastMappedState)
                 : VirtualControllerState.CreateDefault();
             mapped.PoseSource = isMappingEnabled
                 ? VirtualPoseSource.Mapped
                 : VirtualPoseSource.MirrorRealControllers;
+            _lastMappedState = mapped;
             _ipc?.Write(mapped);
         }
         catch (Exception ex)
@@ -153,5 +159,94 @@ public sealed partial class MainViewModel
         }
 
         return set;
+    }
+
+    private void UpdateSelectedMappingFromActiveInput(RawJoystickState latestState)
+    {
+        var previousState = _lastSelectionDetectionState;
+        var now = DateTime.UtcNow;
+
+        MappingEntry? candidate = null;
+        if (previousState is not null)
+        {
+            var elapsedSeconds = (now - _lastSelectionDetectionUtc).TotalSeconds;
+            if (elapsedSeconds > 0)
+            {
+                candidate = FindActiveMapping(latestState, previousState, elapsedSeconds);
+            }
+        }
+
+        _lastSelectionDetectionState = latestState;
+        _lastSelectionDetectionUtc = now;
+
+        if (candidate is null || ReferenceEquals(candidate, _lastAutoSelectedMapping))
+        {
+            return;
+        }
+
+        _lastAutoSelectedMapping = candidate;
+        _dispatcher.BeginInvoke(() =>
+        {
+            if (!ReferenceEquals(SelectedMapping, candidate))
+            {
+                SelectedMapping = candidate;
+            }
+        }, DispatcherPriority.Input);
+    }
+
+    private MappingEntry? FindActiveMapping(RawJoystickState currentState, RawJoystickState previousState, double elapsedSeconds)
+    {
+        foreach (var mapping in Mappings)
+        {
+            if (mapping.IsTemporarilyDisabled || string.IsNullOrWhiteSpace(mapping.SourceDeviceId))
+            {
+                continue;
+            }
+
+            var currentDevice = currentState.Devices.FirstOrDefault(device =>
+                device.IsConnected && device.DeviceId.Equals(mapping.SourceDeviceId, StringComparison.OrdinalIgnoreCase));
+            if (currentDevice is null)
+            {
+                continue;
+            }
+
+            var previousDevice = previousState.Devices.FirstOrDefault(device =>
+                device.DeviceId.Equals(mapping.SourceDeviceId, StringComparison.OrdinalIgnoreCase));
+            if (previousDevice is null)
+            {
+                continue;
+            }
+
+            if (!mapping.IsAxisMapping)
+            {
+                if (mapping.SourceButtonIndex < 0
+                    || mapping.SourceButtonIndex >= currentDevice.Buttons.Count
+                    || mapping.SourceButtonIndex >= previousDevice.Buttons.Count)
+                {
+                    continue;
+                }
+
+                if (!previousDevice.Buttons[mapping.SourceButtonIndex] && currentDevice.Buttons[mapping.SourceButtonIndex])
+                {
+                    return mapping;
+                }
+
+                continue;
+            }
+
+            if (!currentDevice.Axes.TryGetValue(mapping.SourceAxis, out var currentAxisValue)
+                || !previousDevice.Axes.TryGetValue(mapping.SourceAxis, out var previousAxisValue))
+            {
+                continue;
+            }
+
+            var axisSpeed = Math.Abs(currentAxisValue - previousAxisValue) / elapsedSeconds;
+            if (axisSpeed > ActiveMappingAxisSpeedThreshold)
+            {
+                return mapping;
+            }
+        }
+
+        return null;
     }
 }

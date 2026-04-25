@@ -164,6 +164,17 @@ void HotasServerDriver::RunFrame()
         const std::int32_t handSelectionPriority = ShouldUseMirroredRealControllerPose(snapshot)
             ? vrchotas::driver::kMirroredHandSelectionPriority
             : vrchotas::driver::kMappedHandSelectionPriority;
+
+        if (snapshot.pose_source != _lastLoggedPoseSource)
+        {
+            DriverLogF(
+                "[vrchotas] Hand selection routing (mode=%s): virtualPriority=%d leftRealIndex=%u rightRealIndex=%u",
+                PoseSourceToString(snapshot.pose_source),
+                handSelectionPriority,
+                _lastLeftRealControllerIndex,
+                _lastRightRealControllerIndex);
+        }
+
         _left->SetHandSelectionPriority(handSelectionPriority, PoseSourceToString(snapshot.pose_source));
         _right->SetHandSelectionPriority(handSelectionPriority, PoseSourceToString(snapshot.pose_source));
 
@@ -175,9 +186,8 @@ void HotasServerDriver::RunFrame()
         vr::TrackedDeviceIndex_t realRightDeviceIndex = vr::k_unTrackedDeviceIndexInvalid;
 
         std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> trackedPoses{};
-        const bool shouldSamplePoses = (GetTickCount64() - _lastPoseSampleTickMs) >= vrchotas::driver::kPoseSampleIntervalMs;
 
-        if (ShouldUseMirroredRealControllerPose(snapshot) || shouldSamplePoses)
+        if (ShouldUseMirroredRealControllerPose(snapshot))
         {
             vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, trackedPoses.data(), static_cast<std::uint32_t>(trackedPoses.size()));
         }
@@ -223,71 +233,6 @@ void HotasServerDriver::RunFrame()
                 _lastLeftRealControllerIndex = leftFound ? realLeftDeviceIndex : vr::k_unTrackedDeviceIndexInvalid;
                 _lastRightRealControllerIndex = rightFound ? realRightDeviceIndex : vr::k_unTrackedDeviceIndexInvalid;
             }
-        }
-
-        if (shouldSamplePoses)
-        {
-            vr::DriverPose_t sampledRealLeftPose{};
-            vr::DriverPose_t sampledRealRightPose{};
-            vr::TrackedDeviceIndex_t sampledLeftIndex = vr::k_unTrackedDeviceIndexInvalid;
-            vr::TrackedDeviceIndex_t sampledRightIndex = vr::k_unTrackedDeviceIndexInvalid;
-            const bool sampledLeftFound = TryFindRealControllerPose(
-                vr::TrackedControllerRole_LeftHand,
-                trackedPoses.data(),
-                static_cast<std::uint32_t>(trackedPoses.size()),
-                sampledRealLeftPose,
-                &sampledLeftIndex);
-            const bool sampledRightFound = TryFindRealControllerPose(
-                vr::TrackedControllerRole_RightHand,
-                trackedPoses.data(),
-                static_cast<std::uint32_t>(trackedPoses.size()),
-                sampledRealRightPose,
-                &sampledRightIndex);
-
-            const auto virtualLeftPose = _left->GetPose();
-            const auto virtualRightPose = _right->GetPose();
-
-            DriverLogF(
-                "[vrchotas] Pose sample (mode=%s): RealLeft(found=%s,index=%u,pos=%.3f,%.3f,%.3f,quat=%.4f,%.4f,%.4f,%.4f) | VirtualLeft(pos=%.3f,%.3f,%.3f,quat=%.4f,%.4f,%.4f,%.4f)",
-                PoseSourceToString(snapshot.pose_source),
-                sampledLeftFound ? "true" : "false",
-                sampledLeftFound ? sampledLeftIndex : vr::k_unTrackedDeviceIndexInvalid,
-                sampledLeftFound ? sampledRealLeftPose.vecPosition[0] : 0.0,
-                sampledLeftFound ? sampledRealLeftPose.vecPosition[1] : 0.0,
-                sampledLeftFound ? sampledRealLeftPose.vecPosition[2] : 0.0,
-                sampledLeftFound ? sampledRealLeftPose.qRotation.w : 1.0,
-                sampledLeftFound ? sampledRealLeftPose.qRotation.x : 0.0,
-                sampledLeftFound ? sampledRealLeftPose.qRotation.y : 0.0,
-                sampledLeftFound ? sampledRealLeftPose.qRotation.z : 0.0,
-                virtualLeftPose.vecPosition[0],
-                virtualLeftPose.vecPosition[1],
-                virtualLeftPose.vecPosition[2],
-                virtualLeftPose.qRotation.w,
-                virtualLeftPose.qRotation.x,
-                virtualLeftPose.qRotation.y,
-                virtualLeftPose.qRotation.z);
-
-            DriverLogF(
-                "[vrchotas] Pose sample (mode=%s): RealRight(found=%s,index=%u,pos=%.3f,%.3f,%.3f,quat=%.4f,%.4f,%.4f,%.4f) | VirtualRight(pos=%.3f,%.3f,%.3f,quat=%.4f,%.4f,%.4f,%.4f)",
-                PoseSourceToString(snapshot.pose_source),
-                sampledRightFound ? "true" : "false",
-                sampledRightFound ? sampledRightIndex : vr::k_unTrackedDeviceIndexInvalid,
-                sampledRightFound ? sampledRealRightPose.vecPosition[0] : 0.0,
-                sampledRightFound ? sampledRealRightPose.vecPosition[1] : 0.0,
-                sampledRightFound ? sampledRealRightPose.vecPosition[2] : 0.0,
-                sampledRightFound ? sampledRealRightPose.qRotation.w : 1.0,
-                sampledRightFound ? sampledRealRightPose.qRotation.x : 0.0,
-                sampledRightFound ? sampledRealRightPose.qRotation.y : 0.0,
-                sampledRightFound ? sampledRealRightPose.qRotation.z : 0.0,
-                virtualRightPose.vecPosition[0],
-                virtualRightPose.vecPosition[1],
-                virtualRightPose.vecPosition[2],
-                virtualRightPose.qRotation.w,
-                virtualRightPose.qRotation.x,
-                virtualRightPose.qRotation.y,
-                virtualRightPose.qRotation.z);
-
-            _lastPoseSampleTickMs = GetTickCount64();
         }
 
         const vrchotas::ControllerHandState neutralHand{};

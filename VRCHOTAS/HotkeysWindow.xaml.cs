@@ -40,12 +40,29 @@ public partial class HotkeysWindow : Window
 
     private void ApplyTextsFromModel()
     {
-        PreviousConfigBox.Text = HotkeyDisplayFormatter.Format(_model.PreviousConfiguration);
-        NextConfigBox.Text = HotkeyDisplayFormatter.Format(_model.NextConfiguration);
-        MasterSwitchBox.Text = HotkeyDisplayFormatter.Format(_model.ToggleMasterSwitch);
+        PreviousConfigBox.Text = FormatHotkey(_model.PreviousConfiguration);
+        NextConfigBox.Text = FormatHotkey(_model.NextConfiguration);
+        MasterSwitchBox.Text = FormatHotkey(_model.ToggleMasterSwitch);
         SetLockedUi(0, _model.PreviousConfiguration.Kind != HotkeyInputKind.None);
         SetLockedUi(1, _model.NextConfiguration.Kind != HotkeyInputKind.None);
         SetLockedUi(2, _model.ToggleMasterSwitch.Kind != HotkeyInputKind.None);
+    }
+
+    private string FormatHotkey(HotkeyBinding binding)
+    {
+        return HotkeyDisplayFormatter.Format(binding, ResolveJoystickDeviceName);
+    }
+
+    private string ResolveJoystickDeviceName(string? deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            return string.Empty;
+        }
+
+        var state = _main.GetLatestStateSnapshot();
+        var device = state.Devices.FirstOrDefault(item => item.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
+        return device?.DeviceName ?? deviceId;
     }
 
     private void SetLockedUi(int slot, bool locked)
@@ -182,7 +199,7 @@ public partial class HotkeysWindow : Window
         StopJoystickCapture();
         _suspendScope?.Dispose();
         _suspendScope = null;
-        var text = HotkeyDisplayFormatter.Format(binding);
+        var text = FormatHotkey(binding);
         switch (slot)
         {
             case 0:

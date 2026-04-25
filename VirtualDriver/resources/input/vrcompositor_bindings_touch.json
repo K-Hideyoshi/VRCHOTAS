@@ -1,0 +1,122 @@
+{
+  "action_manifest_version": 0,
+  "alias_info": {},
+  "app_key": "openvr.component.vrcompositor",
+  "bindings": {
+    "/actions/lasermouse": {
+      "poses": [
+        {
+          "output": "/actions/lasermouse/in/Pointer",
+          "path": "/user/hand/left/pose/tip"
+        },
+        {
+          "output": "/actions/lasermouse/in/Pointer",
+          "path": "/user/hand/right/pose/tip"
+        }
+      ],
+      "sources": [
+        {
+          "inputs": {
+            "click": {
+              "output": "/actions/lasermouse/in/leftclick"
+            }
+          },
+          "mode": "button",
+          "parameters": {
+            "click_activate_threshold": "0.65",
+            "click_deactivate_threshold": "0.6"
+          },
+          "path": "/user/hand/left/input/trigger"
+        },
+        {
+          "inputs": {
+            "position": {
+              "output": "/actions/lasermouse/in/trackpadvalue"
+            },
+            "touch": {
+              "output": "/actions/lasermouse/in/trackpadtouch"
+            },
+            "click": {
+              "output": "/actions/lasermouse/in/rightclick"
+            }
+          },
+          "mode": "joystick",
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": {
+            "click": {
+              "output": "/actions/lasermouse/in/middleclick"
+            }
+          },
+          "mode": "button",
+          "path": "/user/hand/left/input/grip"
+        },
+        {
+          "inputs": {
+            "click": {
+              "output": "/actions/lasermouse/in/leftclick"
+            }
+          },
+          "mode": "button",
+          "parameters": {
+            "click_activate_threshold": "0.65",
+            "click_deactivate_threshold": "0.6"
+          },
+          "path": "/user/hand/right/input/trigger"
+        },
+        {
+          "inputs": {
+            "position": {
+              "output": "/actions/lasermouse/in/trackpadvalue"
+            },
+            "touch": {
+              "output": "/actions/lasermouse/in/trackpadtouch"
+            },
+            "click": {
+              "output": "/actions/lasermouse/in/rightclick"
+            }
+          },
+          "mode": "joystick",
+          "path": "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs": {
+            "click": {
+              "output": "/actions/lasermouse/in/middleclick"
+            }
+          },
+          "mode": "button",
+          "path": "/user/hand/right/input/grip"
+        }
+      ]
+    },
+    "/actions/system": {
+      "sources": [
+        {
+          "inputs": {
+            "single": {
+              "output": "/actions/system/in/toggledashboard"
+            }
+          },
+          "mode": "complex_button",
+          "path": "/user/hand/left/input/system"
+        },
+        {
+          "inputs": {
+            "single": {
+              "output": "/actions/system/in/toggledashboard"
+            }
+          },
+          "mode": "complex_button",
+          "path": "/user/hand/right/input/system"
+        }
+      ]
+    }
+  },
+  "controller_type": "oculus_touch",
+  "description": "VRCHOTAS dashboard pointer bindings",
+  "name": "VRCHOTAS VRCompositor Bindings",
+  "options": {},
+  "simulated_actions": []
+}

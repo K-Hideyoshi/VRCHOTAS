@@ -18,7 +18,14 @@ public partial class MappingEditorWindow : Window
         _logger = logger;
         _viewModel = new MappingEditorViewModel(stateProvider, existing);
         DataContext = _viewModel;
-        _logger.Info(nameof(MappingEditorWindow), "Source detection started automatically.");
+        if (existing is null)
+        {
+            _logger.Info(nameof(MappingEditorWindow), "Source detection started automatically.");
+        }
+        else
+        {
+            _logger.Info(nameof(MappingEditorWindow), "Editing existing mapping without auto-start source detection.");
+        }
 
         _detectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _detectTimer.Tick += (_, _) => DetectTick();

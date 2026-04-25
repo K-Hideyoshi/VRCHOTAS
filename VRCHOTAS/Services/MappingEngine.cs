@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using VRCHOTAS.Interop;
 using VRCHOTAS.Logging;
 using VRCHOTAS.Models;
@@ -9,15 +10,23 @@ public sealed class MappingEngine
     private const double DegreesPerRotation = 360.0;
 
     private readonly IAppLogger _logger;
+    private long _lastMapTimestamp;
+    private PoseLogState _leftPoseLogState;
+    private PoseLogState _rightPoseLogState;
 
     public MappingEngine(IAppLogger logger)
     {
         _logger = logger;
+        _lastMapTimestamp = Stopwatch.GetTimestamp();
     }
 
-    public VirtualControllerState Map(RawJoystickState raw, IEnumerable<MappingEntry> mappings)
+    public VirtualControllerState Map(RawJoystickState raw, IEnumerable<MappingEntry> mappings, VirtualControllerState? previousState = null)
     {
-        var output = VirtualControllerState.CreateDefault();
+        var output = previousState ?? VirtualControllerState.CreateDefault();
+        output.EnsureInitialized();
+        ResetTransientInputs(ref output.Left);
+        ResetTransientInputs(ref output.Right);
+        var deltaSeconds = GetFrameDeltaSeconds();
 
         if (!raw.HasConnectedDevice)
         {
@@ -70,19 +79,29 @@ public sealed class MappingEngine
                 {
                     case MappingTargetKind.AxisInput:
                     {
-                        var corrected = MapAxisValue(axisValue, mapping.Deadzone, mapping.Curve, mapping.Saturation, mapping.Invert);
+                        var corrected = MapAxisValue(
+                            axisValue,
+                            mapping.Deadzone,
+                            mapping.Curve,
+                            mapping.Saturation,
+                            mapping.Invert,
+                            ResolveAxisRangeForSource(mapping));
                         hand.EnsureInitialized();
-                        if (mapping.TargetAxisIndex >= 0 && mapping.TargetAxisIndex < hand.Axes.Length)
+                        var axisIndex = ResolveAxisIndex(mapping.TargetAxis);
+                        if (axisIndex >= 0 && axisIndex < hand.Axes.Length)
                         {
-                            hand.Axes[mapping.TargetAxisIndex] = corrected;
+                            hand.Axes[axisIndex] = corrected;
                         }
+
+                        ApplyDerivedAxisTouch(mapping.TargetAxis, corrected, ref hand);
+                        ApplyDerivedAxisButtons(mapping, corrected, ref hand);
 
                         break;
                     }
                     default:
                     {
                         // Saturation scales world units (meters, rotation, rad/s) after normalized shaping.
-                        var shaped = MapAxisValue(axisValue, mapping.Deadzone, mapping.Curve, 1.0, mapping.Invert);
+                        var shaped = MapAxisValue(axisValue, mapping.Deadzone, mapping.Curve, 1.0, mapping.Invert, ResolveAxisRangeForSource(mapping));
                         var scaled = shaped * mapping.Saturation;
                         switch (kind)
                         {
@@ -133,9 +152,26 @@ public sealed class MappingEngine
             }
         }
 
-        FinalizeHandPose(ref output.Left, leftPose);
-        FinalizeHandPose(ref output.Right, rightPose);
+        FinalizeHandPose(ref output.Left, leftPose, deltaSeconds, "Left", ref _leftPoseLogState);
+        FinalizeHandPose(ref output.Right, rightPose, deltaSeconds, "Right", ref _rightPoseLogState);
         return output;
+    }
+
+    private double GetFrameDeltaSeconds()
+    {
+        var now = Stopwatch.GetTimestamp();
+        var elapsedSeconds = (now - _lastMapTimestamp) / (double)Stopwatch.Frequency;
+        _lastMapTimestamp = now;
+        return Math.Clamp(elapsedSeconds, 0.0, 0.05);
+    }
+
+    private static void ResetTransientInputs(ref ControllerHandState hand)
+    {
+        hand.EnsureInitialized();
+        Array.Clear(hand.Buttons);
+        Array.Clear(hand.Axes);
+        Array.Clear(hand.LinearVelocity);
+        Array.Clear(hand.AngularVelocity);
     }
 
     private bool ApplyButtonMapping(MappingEntry mapping, JoystickDeviceState sourceDevice, ref ControllerHandState hand)
@@ -147,9 +183,10 @@ public sealed class MappingEngine
         }
 
         hand.EnsureInitialized();
-        if (mapping.TargetButtonIndex >= 0 && mapping.TargetButtonIndex < hand.Buttons.Length)
+        var buttonIndex = ResolveButtonIndex(mapping.TargetButton);
+        if (buttonIndex >= 0 && buttonIndex < hand.Buttons.Length)
         {
-            hand.Buttons[mapping.TargetButtonIndex] = sourceDevice.Buttons[mapping.SourceButtonIndex];
+            hand.Buttons[buttonIndex] = sourceDevice.Buttons[mapping.SourceButtonIndex];
         }
 
         return true;
@@ -179,12 +216,12 @@ public sealed class MappingEngine
         return true;
     }
 
-    private static void FinalizeHandPose(ref ControllerHandState hand, HandPoseScratch scratch)
+    private void FinalizeHandPose(ref ControllerHandState hand, HandPoseScratch scratch, double deltaSeconds, string handName, ref PoseLogState logState)
     {
         hand.EnsureInitialized();
-        hand.Position[0] = scratch.Px;
-        hand.Position[1] = scratch.Py;
-        hand.Position[2] = scratch.Pz;
+        hand.Position[0] += scratch.Px + (scratch.Vx * deltaSeconds);
+        hand.Position[1] += scratch.Py + (scratch.Vy * deltaSeconds);
+        hand.Position[2] += scratch.Pz + (scratch.Vz * deltaSeconds);
         hand.LinearVelocity[0] = scratch.Vx;
         hand.LinearVelocity[1] = scratch.Vy;
         hand.LinearVelocity[2] = scratch.Vz;
@@ -194,6 +231,7 @@ public sealed class MappingEngine
         var quat = hand.Quaternion ?? new double[VirtualControllerLayout.Quat];
         PoseMappingMath.WriteEulerDegreesToQuaternion(scratch.PitchDeg, scratch.YawDeg, scratch.RollDeg, quat);
         hand.Quaternion = quat;
+        LogPoseStateIfNeeded(hand, handName, deltaSeconds, ref logState);
     }
 
     private static ref ControllerHandState SelectHand(ref VirtualControllerState output, VirtualTargetHand targetHand) =>
@@ -207,8 +245,120 @@ public sealed class MappingEngine
         public double Wx, Wy, Wz;
     }
 
-    public static double MapAxisValue(double value, double deadzone, double curve, double saturation, bool invert)
+    private struct PoseLogState
     {
+        public bool WasActive;
+        public double Px;
+        public double Py;
+        public double Pz;
+        public double Vx;
+        public double Vy;
+        public double Vz;
+    }
+
+    private void LogPoseStateIfNeeded(ControllerHandState hand, string handName, double deltaSeconds, ref PoseLogState state)
+    {
+        const double velocityThreshold = 0.01;
+        const double positionThreshold = 0.002;
+
+        var active = Math.Abs(hand.LinearVelocity[0]) > velocityThreshold
+            || Math.Abs(hand.LinearVelocity[1]) > velocityThreshold
+            || Math.Abs(hand.LinearVelocity[2]) > velocityThreshold
+            || Math.Abs(hand.AngularVelocity[0]) > velocityThreshold
+            || Math.Abs(hand.AngularVelocity[1]) > velocityThreshold
+            || Math.Abs(hand.AngularVelocity[2]) > velocityThreshold;
+
+        var positionChanged = Math.Abs(hand.Position[0] - state.Px) > positionThreshold
+            || Math.Abs(hand.Position[1] - state.Py) > positionThreshold
+            || Math.Abs(hand.Position[2] - state.Pz) > positionThreshold;
+        var velocityChanged = Math.Abs(hand.LinearVelocity[0] - state.Vx) > velocityThreshold
+            || Math.Abs(hand.LinearVelocity[1] - state.Vy) > velocityThreshold
+            || Math.Abs(hand.LinearVelocity[2] - state.Vz) > velocityThreshold;
+
+        if (active != state.WasActive || positionChanged || velocityChanged)
+        {
+            _logger.Debug(nameof(MappingEngine),
+                $"{handName} pose state: dt={deltaSeconds:F4}s pos=({hand.Position[0]:F3}, {hand.Position[1]:F3}, {hand.Position[2]:F3}) linVel=({hand.LinearVelocity[0]:F3}, {hand.LinearVelocity[1]:F3}, {hand.LinearVelocity[2]:F3}) angVel=({hand.AngularVelocity[0]:F3}, {hand.AngularVelocity[1]:F3}, {hand.AngularVelocity[2]:F3})");
+        }
+
+        state.WasActive = active;
+        state.Px = hand.Position[0];
+        state.Py = hand.Position[1];
+        state.Pz = hand.Position[2];
+        state.Vx = hand.LinearVelocity[0];
+        state.Vy = hand.LinearVelocity[1];
+        state.Vz = hand.LinearVelocity[2];
+    }
+
+    private static int ResolveAxisIndex(VirtualAxisTarget axisTarget) => axisTarget switch
+    {
+        VirtualAxisTarget.ThumbstickX => VirtualInputLayout.ThumbstickXAxis,
+        VirtualAxisTarget.ThumbstickY => VirtualInputLayout.ThumbstickYAxis,
+        VirtualAxisTarget.Trigger => VirtualInputLayout.TriggerAxis,
+        VirtualAxisTarget.Grip => VirtualInputLayout.GripAxis,
+        _ => -1
+    };
+
+    private static int ResolveButtonIndex(VirtualButtonTarget buttonTarget) => buttonTarget switch
+    {
+        VirtualButtonTarget.ThumbstickClick => VirtualInputLayout.ThumbstickClickButton,
+        VirtualButtonTarget.PrimaryFaceButton => VirtualInputLayout.PrimaryFaceButton,
+        VirtualButtonTarget.SecondaryFaceButton => VirtualInputLayout.SecondaryFaceButton,
+        VirtualButtonTarget.System => VirtualInputLayout.SystemButton,
+        _ => -1
+    };
+
+    private static AxisRangeKind ResolveAxisRangeForSource(MappingEntry mapping)
+    {
+        if (!mapping.IsAxisMapping && mapping.AxisRange == AxisRangeKind.Unidirectional)
+        {
+            return AxisRangeKind.Bidirectional;
+        }
+
+        return mapping.AxisRange;
+    }
+
+    private static void ApplyDerivedAxisButtons(MappingEntry mapping, double correctedAxisValue, ref ControllerHandState hand)
+    {
+        if (mapping.TargetAxis is not (VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip))
+        {
+            return;
+        }
+
+        var threshold = Math.Clamp(mapping.FullPressThreshold, 0.0, 1.0);
+        var fullyPressed = correctedAxisValue >= threshold;
+
+        if (mapping.TargetAxis == VirtualAxisTarget.Trigger)
+        {
+            hand.Buttons[VirtualInputLayout.TriggerClickButton] = hand.Buttons[VirtualInputLayout.TriggerClickButton] || fullyPressed;
+            return;
+        }
+
+        hand.Buttons[VirtualInputLayout.GripClickButton] = hand.Buttons[VirtualInputLayout.GripClickButton] || fullyPressed;
+    }
+
+    private static void ApplyDerivedAxisTouch(VirtualAxisTarget targetAxis, double correctedAxisValue, ref ControllerHandState hand)
+    {
+        var touched = Math.Abs(correctedAxisValue) > 0.01;
+
+        switch (targetAxis)
+        {
+            case VirtualAxisTarget.ThumbstickX:
+            case VirtualAxisTarget.ThumbstickY:
+                hand.Buttons[VirtualInputLayout.ThumbstickTouchButton] = hand.Buttons[VirtualInputLayout.ThumbstickTouchButton] || touched;
+                break;
+            case VirtualAxisTarget.Trigger:
+                hand.Buttons[VirtualInputLayout.TriggerTouchButton] = hand.Buttons[VirtualInputLayout.TriggerTouchButton] || touched;
+                break;
+            case VirtualAxisTarget.Grip:
+                hand.Buttons[VirtualInputLayout.GripTouchButton] = hand.Buttons[VirtualInputLayout.GripTouchButton] || touched;
+                break;
+        }
+    }
+
+    public static double MapAxisValue(double value, double deadzone, double curve, double saturation, bool invert, AxisRangeKind axisRange = AxisRangeKind.Bidirectional)
+    {
+        value = NormalizeAxisInput(value, axisRange);
         var clampedDeadzone = Math.Clamp(deadzone, 0.0, 0.8);
         var clampedCurve = Math.Clamp(curve, -1.0, 1.0);
         var clampedSaturation = Math.Clamp(saturation, 0.0, 5.0);
@@ -226,5 +376,13 @@ public sealed class MappingEngine
         var curved = Math.Pow(Math.Clamp(normalized, 0.0, 1.0), exponent);
         var finalValue = curved * sign * clampedSaturation;
         return invert ? -finalValue : finalValue;
+    }
+
+    public static double NormalizeAxisInput(double value, AxisRangeKind axisRange)
+    {
+        var clamped = Math.Clamp(value, -1.0, 1.0);
+        return axisRange == AxisRangeKind.Unidirectional
+            ? Math.Clamp((clamped + 1.0) * 0.5, 0.0, 1.0)
+            : clamped;
     }
 }

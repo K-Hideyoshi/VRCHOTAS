@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
+using MediaBrush = System.Windows.Media.Brush;
+using MediaBrushes = System.Windows.Media.Brushes;
 
 namespace VRCHOTAS.Models;
 
@@ -7,6 +9,28 @@ public enum VirtualTargetHand
 {
     Left = 0,
     Right = 1
+}
+
+public enum AxisRangeKind
+{
+    Bidirectional = 0,
+    Unidirectional = 1
+}
+
+public enum VirtualAxisTarget
+{
+    ThumbstickX = 0,
+    ThumbstickY = 1,
+    Trigger = 2,
+    Grip = 3
+}
+
+public enum VirtualButtonTarget
+{
+    ThumbstickClick = 0,
+    PrimaryFaceButton = 1,
+    SecondaryFaceButton = 2,
+    System = 3
 }
 
 public enum MappingTargetKind
@@ -44,6 +68,14 @@ public sealed partial class MappingEntry : ObservableObject
     [property: JsonIgnore]
     private bool _isTemporarilyDisabled;
 
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private MediaBrush _sourceDuplicateBackground = MediaBrushes.Transparent;
+
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private MediaBrush _targetDuplicateBackground = MediaBrushes.Transparent;
+
     /// <summary>
     /// When null (legacy configs), derived from <see cref="IsAxisMapping"/>.
     /// </summary>
@@ -56,8 +88,10 @@ public sealed partial class MappingEntry : ObservableObject
     public string SourceDeviceName { get; set; } = string.Empty;
     public string SourceAxis { get; set; } = "X";
     public int SourceButtonIndex { get; set; }
-    public int TargetAxisIndex { get; set; }
-    public int TargetButtonIndex { get; set; }
+    public AxisRangeKind AxisRange { get; set; } = AxisRangeKind.Bidirectional;
+    public VirtualAxisTarget TargetAxis { get; set; } = VirtualAxisTarget.ThumbstickX;
+    public VirtualButtonTarget TargetButton { get; set; } = VirtualButtonTarget.ThumbstickClick;
+    public double FullPressThreshold { get; set; } = 0.95;
     public double Deadzone { get; set; }
     public double Curve { get; set; }
     public double Saturation { get; set; } = 1.0;
@@ -71,6 +105,11 @@ public sealed partial class MappingEntry : ObservableObject
     public string SourceControlDisplay => IsAxisMapping ? $"Axis {SourceAxis}" : $"Button {SourceButtonIndex}";
 
     [JsonIgnore]
+    public string SourceGroupingKey => IsAxisMapping
+        ? $"{SourceDeviceId}|Axis|{SourceAxis}"
+        : $"{SourceDeviceId}|Button|{SourceButtonIndex}";
+
+    [JsonIgnore]
     public string TargetControlDisplay
     {
         get
@@ -78,8 +117,8 @@ public sealed partial class MappingEntry : ObservableObject
             var k = ResolvedTargetKind;
             return k switch
             {
-                MappingTargetKind.AxisInput => $"VR Axis {TargetAxisIndex}",
-                MappingTargetKind.Button => $"VR Button {TargetButtonIndex}",
+                MappingTargetKind.AxisInput => GetAxisTargetDisplay(),
+                MappingTargetKind.Button => GetButtonTargetDisplay(),
                 MappingTargetKind.PosePositionX => "Pose X (m)",
                 MappingTargetKind.PosePositionY => "Pose Y (m)",
                 MappingTargetKind.PosePositionZ => "Pose Z (m)",
@@ -97,6 +136,14 @@ public sealed partial class MappingEntry : ObservableObject
         }
     }
 
+    [JsonIgnore]
+    public string TargetGroupingKey => ResolvedTargetKind switch
+    {
+        MappingTargetKind.AxisInput => $"{TargetHand}|Axis|{TargetAxis}",
+        MappingTargetKind.Button => $"{TargetHand}|Button|{TargetButton}",
+        _ => $"{TargetHand}|{ResolvedTargetKind}"
+    };
+
     public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex}";
 
     public string TargetDisplay
@@ -107,6 +154,30 @@ public sealed partial class MappingEntry : ObservableObject
             var k = ResolvedTargetKind;
             return $"{hand} / {TargetControlDisplay}";
         }
+    }
+
+    private string GetAxisTargetDisplay()
+    {
+        return TargetAxis switch
+        {
+            VirtualAxisTarget.ThumbstickX => "Thumbstick X (-1..1)",
+            VirtualAxisTarget.ThumbstickY => "Thumbstick Y (-1..1)",
+            VirtualAxisTarget.Trigger => "Trigger (0..1)",
+            VirtualAxisTarget.Grip => "Grip (0..1)",
+            _ => TargetAxis.ToString()
+        };
+    }
+
+    private string GetButtonTargetDisplay()
+    {
+        return TargetButton switch
+        {
+            VirtualButtonTarget.ThumbstickClick => "Thumbstick Click",
+            VirtualButtonTarget.PrimaryFaceButton => TargetHand == VirtualTargetHand.Right ? "A Button" : "X Button",
+            VirtualButtonTarget.SecondaryFaceButton => TargetHand == VirtualTargetHand.Right ? "B Button" : "Y Button",
+            VirtualButtonTarget.System => "System Button",
+            _ => TargetButton.ToString()
+        };
     }
 }
 

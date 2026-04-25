@@ -1,251 +1,140 @@
 {
   "jsonid": "input_profile",
-  "controller_type": "vrchotas_virtual",
+  "controller_type": "oculus_touch",
+  "legacy_binding": "{oculus}/input/legacy_bindings_touch.json",
+  "remapping": "{oculus}/input/touch_controller_remapping.json",
   "input_bindingui_mode": "controller_handed",
+  "input_bindingui_left": {
+    "image": "{oculus}/icons/oculus_touch_left.svg"
+  },
+  "input_bindingui_right": {
+    "image": "{oculus}/icons/oculus_touch_right.svg"
+  },
   "input_source": {
-    "/input/vrchotas/btn00": {
-      "type": "button",
+    "/input/joystick": {
+      "type": "joystick",
+      "x": true,
+      "y": true,
+      "touch": true,
+      "binding_image_point": [54, 31],
       "click": true,
       "order": 0
     },
-    "/input/vrchotas/btn01": {
-      "type": "button",
+    "/input/thumbstick": {
+      "type": "joystick",
+      "x": true,
+      "y": true,
+      "touch": true,
+      "binding_image_point": [54, 31],
       "click": true,
       "order": 1
     },
-    "/input/vrchotas/btn02": {
-      "type": "button",
+    "/input/trigger": {
+      "type": "trigger",
+      "binding_image_point": [22, 85],
+      "value": true,
       "click": true,
+      "touch": true,
       "order": 2
     },
-    "/input/vrchotas/btn03": {
-      "type": "button",
+    "/input/grip": {
+      "type": "trigger",
+      "binding_image_point": [100, 86],
+      "value": true,
       "click": true,
+      "touch": true,
       "order": 3
     },
-    "/input/vrchotas/btn04": {
+    "/input/a": {
       "type": "button",
+      "side": "right",
+      "binding_image_point": [70, 49],
       "click": true,
+      "touch": true,
       "order": 4
     },
-    "/input/vrchotas/btn05": {
+    "/input/b": {
       "type": "button",
+      "side": "right",
+      "binding_image_point": [54, 55],
       "click": true,
+      "touch": true,
       "order": 5
     },
-    "/input/vrchotas/btn06": {
+    "/input/x": {
       "type": "button",
+      "side": "left",
+      "binding_image_point": [70, 49],
       "click": true,
+      "touch": true,
       "order": 6
     },
-    "/input/vrchotas/btn07": {
+    "/input/y": {
       "type": "button",
+      "side": "left",
+      "binding_image_point": [54, 55],
       "click": true,
+      "touch": true,
       "order": 7
     },
-    "/input/vrchotas/btn08": {
+    "/input/system": {
       "type": "button",
+      "side": "left",
+      "binding_image_point": [72, 39],
       "click": true,
+      "touch": true,
       "order": 8
     },
-    "/input/vrchotas/btn09": {
-      "type": "button",
-      "click": true,
+    "/output/haptic": {
+      "type": "vibration",
+      "binding_image_point": [72, 39],
       "order": 9
-    },
-    "/input/vrchotas/btn10": {
-      "type": "button",
-      "click": true,
-      "order": 10
-    },
-    "/input/vrchotas/btn11": {
-      "type": "button",
-      "click": true,
-      "order": 11
-    },
-    "/input/vrchotas/btn12": {
-      "type": "button",
-      "click": true,
-      "order": 12
-    },
-    "/input/vrchotas/btn13": {
-      "type": "button",
-      "click": true,
-      "order": 13
-    },
-    "/input/vrchotas/btn14": {
-      "type": "button",
-      "click": true,
-      "order": 14
-    },
-    "/input/vrchotas/btn15": {
-      "type": "button",
-      "click": true,
-      "order": 15
-    },
-    "/input/vrchotas/btn16": {
-      "type": "button",
-      "click": true,
-      "order": 16
-    },
-    "/input/vrchotas/btn17": {
-      "type": "button",
-      "click": true,
-      "order": 17
-    },
-    "/input/vrchotas/btn18": {
-      "type": "button",
-      "click": true,
-      "order": 18
-    },
-    "/input/vrchotas/btn19": {
-      "type": "button",
-      "click": true,
-      "order": 19
-    },
-    "/input/vrchotas/btn20": {
-      "type": "button",
-      "click": true,
-      "order": 20
-    },
-    "/input/vrchotas/btn21": {
-      "type": "button",
-      "click": true,
-      "order": 21
-    },
-    "/input/vrchotas/btn22": {
-      "type": "button",
-      "click": true,
-      "order": 22
-    },
-    "/input/vrchotas/btn23": {
-      "type": "button",
-      "click": true,
-      "order": 23
-    },
-    "/input/vrchotas/btn24": {
-      "type": "button",
-      "click": true,
-      "order": 24
-    },
-    "/input/vrchotas/btn25": {
-      "type": "button",
-      "click": true,
-      "order": 25
-    },
-    "/input/vrchotas/btn26": {
-      "type": "button",
-      "click": true,
-      "order": 26
-    },
-    "/input/vrchotas/btn27": {
-      "type": "button",
-      "click": true,
-      "order": 27
-    },
-    "/input/vrchotas/btn28": {
-      "type": "button",
-      "click": true,
-      "order": 28
-    },
-    "/input/vrchotas/btn29": {
-      "type": "button",
-      "click": true,
-      "order": 29
-    },
-    "/input/vrchotas/btn30": {
-      "type": "button",
-      "click": true,
-      "order": 30
-    },
-    "/input/vrchotas/btn31": {
-      "type": "button",
-      "click": true,
-      "order": 31
-    },
-    "/input/vrchotas/axis00": {
-      "type": "joystick",
-      "x": true,
-      "order": 32
-    },
-    "/input/vrchotas/axis01": {
-      "type": "joystick",
-      "x": true,
-      "order": 33
-    },
-    "/input/vrchotas/axis02": {
-      "type": "joystick",
-      "x": true,
-      "order": 34
-    },
-    "/input/vrchotas/axis03": {
-      "type": "joystick",
-      "x": true,
-      "order": 35
-    },
-    "/input/vrchotas/axis04": {
-      "type": "joystick",
-      "x": true,
-      "order": 36
-    },
-    "/input/vrchotas/axis05": {
-      "type": "joystick",
-      "x": true,
-      "order": 37
-    },
-    "/input/vrchotas/axis06": {
-      "type": "joystick",
-      "x": true,
-      "order": 38
-    },
-    "/input/vrchotas/axis07": {
-      "type": "joystick",
-      "x": true,
-      "order": 39
-    },
-    "/input/vrchotas/axis08": {
-      "type": "joystick",
-      "x": true,
-      "order": 40
-    },
-    "/input/vrchotas/axis09": {
-      "type": "joystick",
-      "x": true,
-      "order": 41
-    },
-    "/input/vrchotas/axis10": {
-      "type": "joystick",
-      "x": true,
-      "order": 42
-    },
-    "/input/vrchotas/axis11": {
-      "type": "joystick",
-      "x": true,
-      "order": 43
-    },
-    "/input/vrchotas/axis12": {
-      "type": "joystick",
-      "x": true,
-      "order": 44
-    },
-    "/input/vrchotas/axis13": {
-      "type": "joystick",
-      "x": true,
-      "order": 45
-    },
-    "/input/vrchotas/axis14": {
-      "type": "joystick",
-      "x": true,
-      "order": 46
-    },
-    "/input/vrchotas/axis15": {
-      "type": "joystick",
-      "x": true,
-      "order": 47
     },
     "/pose/raw": {
       "type": "pose",
-      "order": 48
+      "binding_image_point": [14, 16],
+      "order": 10
+    },
+    "/pose/base": {
+      "type": "pose",
+      "binding_image_point": [11, 150],
+      "order": 11
+    },
+    "/pose/handgrip": {
+      "type": "pose",
+      "binding_image_point": [24, 86],
+      "order": 12
+    },
+    "/pose/tip": {
+      "type": "pose",
+      "binding_image_point": [14, 16],
+      "order": 13
+    },
+    "/pose/openxr_aim": {
+      "type": "pose",
+      "binding_image_point": [14, 16],
+      "order": 14
+    },
+    "/pose/openxr_grip": {
+      "type": "pose",
+      "binding_image_point": [24, 86],
+      "order": 15
     }
-  }
+  },
+  "mirror_mappings": [
+    ["/user/hand/left/input/x", "/user/hand/right/input/a"],
+    ["/user/hand/left/input/y", "/user/hand/right/input/b"]
+  ],
+  "simulation_settings": {
+    "tracking_system_name": "oculus",
+    "manufacturer_name": "Oculus",
+    "legacy_buttons": [0, 1, 2, 7, 32, 33, 34],
+    "legacy_axis": [2, 3, 3, 0, 0]
+  },
+  "default_bindings": [
+    {
+      "app_key": "openvr.component.vrcompositor",
+      "binding_url": "vrcompositor_bindings_touch.json"
+    }
+  ]
 }

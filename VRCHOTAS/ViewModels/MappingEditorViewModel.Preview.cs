@@ -27,8 +27,10 @@ public sealed partial class MappingEditorViewModel
             SourceDeviceName = SourceDeviceName,
             SourceAxis = SourceAxis,
             SourceButtonIndex = SourceButtonIndex,
-            TargetAxisIndex = TargetAxisIndex,
-            TargetButtonIndex = TargetButtonIndex,
+            AxisRange = AxisRange,
+            TargetAxis = TargetAxis,
+            TargetButton = TargetButton,
+            FullPressThreshold = FullPressThreshold,
             Deadzone = Deadzone,
             Curve = Curve,
             Saturation = Saturation,
@@ -84,13 +86,15 @@ public sealed partial class MappingEditorViewModel
 
     private double ComputeMappedOutput(double input)
     {
-        var shaped = MappingEngine.MapAxisValue(input, Deadzone, Curve, 1.0, Invert);
+        var shaped = MappingEngine.MapAxisValue(input, Deadzone, Curve, 1.0, Invert, AxisRange);
         return SelectedTargetKind == MappingTargetKind.AxisInput
-            ? MappingEngine.MapAxisValue(input, Deadzone, Curve, Saturation, Invert)
+            ? MappingEngine.MapAxisValue(input, Deadzone, Curve, Saturation, Invert, AxisRange)
             : shaped * Math.Clamp(Saturation, 0.0, 5.0);
     }
 
-    private double ResolvePlotYRangeMax() => Math.Max(1.0, Math.Clamp(Saturation, 0.0, 5.0));
+    private double ResolvePlotYRangeMax() => AxisRange == AxisRangeKind.Unidirectional
+        ? Math.Max(1.0, Math.Clamp(Saturation, 0.0, 5.0))
+        : Math.Max(1.0, Math.Clamp(Saturation, 0.0, 5.0));
 
     private bool TryGetPreviewInput(JoystickDeviceState? device, out double input)
     {
@@ -116,6 +120,7 @@ public sealed partial class MappingEditorViewModel
 
     private void ResetAxisShapingParameters()
     {
+        SyncAxisRangeWithTarget();
         Deadzone = DefaultDeadzone;
         Curve = DefaultCurve;
         Saturation = DefaultSaturation;
@@ -129,8 +134,8 @@ public sealed partial class MappingEditorViewModel
     {
         return new[]
         {
-            new TargetKindOption("VR Axis (slot 0-15)", MappingTargetKind.AxisInput),
-            new TargetKindOption("VR Button (0-31)", MappingTargetKind.Button),
+            new TargetKindOption("VR Axis", MappingTargetKind.AxisInput),
+            new TargetKindOption("VR Button", MappingTargetKind.Button),
             new TargetKindOption("Pose position X (m)", MappingTargetKind.PosePositionX),
             new TargetKindOption("Pose position Y (m)", MappingTargetKind.PosePositionY),
             new TargetKindOption("Pose position Z (m)", MappingTargetKind.PosePositionZ),
@@ -143,6 +148,28 @@ public sealed partial class MappingEditorViewModel
             new TargetKindOption("Angular velocity X (rad/s)", MappingTargetKind.AngularVelocityX),
             new TargetKindOption("Angular velocity Y (rad/s)", MappingTargetKind.AngularVelocityY),
             new TargetKindOption("Angular velocity Z (rad/s)", MappingTargetKind.AngularVelocityZ)
+        };
+    }
+
+    private static IReadOnlyList<AxisTargetOption> BuildAxisTargetOptions()
+    {
+        return new[]
+        {
+            new AxisTargetOption("Thumbstick X", VirtualAxisTarget.ThumbstickX),
+            new AxisTargetOption("Thumbstick Y", VirtualAxisTarget.ThumbstickY),
+            new AxisTargetOption("Trigger", VirtualAxisTarget.Trigger),
+            new AxisTargetOption("Grip", VirtualAxisTarget.Grip)
+        };
+    }
+
+    private static IReadOnlyList<ButtonTargetOption> BuildButtonTargetOptions()
+    {
+        return new[]
+        {
+            new ButtonTargetOption("Thumbstick Click", VirtualButtonTarget.ThumbstickClick),
+            new ButtonTargetOption("Primary Face Button (A/X)", VirtualButtonTarget.PrimaryFaceButton),
+            new ButtonTargetOption("Secondary Face Button (B/Y)", VirtualButtonTarget.SecondaryFaceButton),
+            new ButtonTargetOption("System Button", VirtualButtonTarget.System)
         };
     }
 }

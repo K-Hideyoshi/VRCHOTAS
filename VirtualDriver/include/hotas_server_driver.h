@@ -31,6 +31,5 @@ private:
     vrchotas::VirtualPoseSource _lastLoggedPoseSource{ vrchotas::VirtualPoseSource::Mapped };
     vr::TrackedDeviceIndex_t _lastLeftRealControllerIndex{ vr::k_unTrackedDeviceIndexInvalid };
     vr::TrackedDeviceIndex_t _lastRightRealControllerIndex{ vr::k_unTrackedDeviceIndexInvalid };
-    unsigned long long _lastPoseSampleTickMs{ 0 };
     unsigned long _consecutiveMutexWaitFailures{ 0 };
 };

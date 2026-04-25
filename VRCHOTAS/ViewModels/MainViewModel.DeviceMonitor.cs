@@ -27,7 +27,7 @@ public sealed partial class MainViewModel
             {
                 Interlocked.Exchange(ref _deviceShellRefreshQueued, 0);
             }
-        }, DispatcherPriority.Background);
+        }, DispatcherPriority.DataBind);
     }
 
     private void RefreshDeviceGroupShells()
@@ -73,13 +73,12 @@ public sealed partial class MainViewModel
             try
             {
                 UpdateDeviceGroups(GetLatestStateSnapshot());
-                UpdateDeviceStatusSummary();
             }
             finally
             {
                 Interlocked.Exchange(ref _deviceMonitorRefreshQueued, 0);
             }
-        }, DispatcherPriority.Background);
+        }, DispatcherPriority.Render);
     }
 
     private void UpdateDeviceGroups(RawJoystickState state)

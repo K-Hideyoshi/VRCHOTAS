@@ -21,6 +21,10 @@ public:
     void UpdateState(const vrchotas::ControllerHandState& hand, const vr::DriverPose_t* poseOverride = nullptr);
 
 private:
+    static constexpr size_t kSemanticButtonCount = 9;
+    static constexpr size_t kSemanticAxisCount = 4;
+    static constexpr size_t kThumbstickAliasAxisCount = 2;
+    static constexpr size_t kTouchAliasButtonCount = 3;
     void CreateInputComponents(vr::PropertyContainerHandle_t container);
     void ResetCachedPose();
 
@@ -28,10 +32,16 @@ private:
     const char* _serialNumber;
     vr::TrackedDeviceIndex_t _trackedDeviceIndex{ vr::k_unTrackedDeviceIndexInvalid };
     vr::PropertyContainerHandle_t _propertyContainer{ vr::k_ulInvalidPropertyContainer };
-    std::array<vr::VRInputComponentHandle_t, vrchotas::kButtonCount> _buttonHandles{};
-    std::array<vr::VRInputComponentHandle_t, vrchotas::kAxisCount> _axisHandles{};
+    std::array<vr::VRInputComponentHandle_t, kSemanticButtonCount> _buttonHandles{};
+    std::array<vr::VRInputComponentHandle_t, kSemanticAxisCount> _axisHandles{};
+    vr::VRInputComponentHandle_t _thumbstickClickAliasHandle{ vr::k_ulInvalidInputComponentHandle };
+    std::array<vr::VRInputComponentHandle_t, kThumbstickAliasAxisCount> _thumbstickAxisAliasHandles{};
+    std::array<vr::VRInputComponentHandle_t, kTouchAliasButtonCount> _touchAliasHandles{};
+    std::array<bool, kSemanticButtonCount> _lastLoggedButtons{};
+    std::array<double, kSemanticAxisCount> _lastLoggedAxes{};
     vr::DriverPose_t _cachedDriverPose{};
     std::int32_t _controllerHandSelectionPriority{ 0 };
     bool _loggedFirstStateUpdate{ false };
     bool _loggedFirstActiveInput{ false };
+    bool _hasLoggedSemanticInputs{ false };
 };

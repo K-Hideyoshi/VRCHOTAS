@@ -40,7 +40,7 @@ public static class HotkeyCaptureRules
 
 public static class HotkeyDisplayFormatter
 {
-    public static string Format(HotkeyBinding binding)
+    public static string Format(HotkeyBinding binding, Func<string?, string>? joystickDeviceNameResolver = null)
     {
         if (binding.Kind == HotkeyInputKind.None)
         {
@@ -55,8 +55,9 @@ public static class HotkeyDisplayFormatter
         if (binding.Kind == HotkeyInputKind.Joystick)
         {
             var id = binding.JoystickDeviceId ?? string.Empty;
-            var shortId = id.Length > 8 ? id[..8] + "…" : id;
-            return $"{shortId} / Button {binding.JoystickButtonIndex}";
+            var deviceName = joystickDeviceNameResolver?.Invoke(id);
+            var displayName = string.IsNullOrWhiteSpace(deviceName) ? id : deviceName;
+            return $"{displayName} / Button {binding.JoystickButtonIndex}";
         }
 
         return string.Empty;

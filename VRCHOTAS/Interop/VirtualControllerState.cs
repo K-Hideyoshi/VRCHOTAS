@@ -115,3 +115,21 @@ public static class VirtualControllerLayout
     public const string SharedMemoryName = "Local\\VRCHOTAS.VirtualController.State";
     public const string SharedMemoryMutexName = "Local\\VRCHOTAS.VirtualController.State.Mutex";
 }
+
+public static class VirtualInputLayout
+{
+    public const int ThumbstickClickButton = 0;
+    public const int PrimaryFaceButton = 1;
+    public const int SecondaryFaceButton = 2;
+    public const int SystemButton = 3;
+    public const int ThumbstickTouchButton = 4;
+    public const int TriggerTouchButton = 5;
+    public const int TriggerClickButton = 6;
+    public const int GripTouchButton = 7;
+    public const int GripClickButton = 8;
+
+    public const int ThumbstickXAxis = 0;
+    public const int ThumbstickYAxis = 1;
+    public const int TriggerAxis = 2;
+    public const int GripAxis = 3;
+}

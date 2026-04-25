@@ -8,6 +8,19 @@ namespace vrchotas
     inline constexpr int kAxisCount = 16;
     inline constexpr int kVec3 = 3;
     inline constexpr int kQuat = 4;
+    inline constexpr int kThumbstickClickButton = 0;
+    inline constexpr int kPrimaryFaceButton = 1;
+    inline constexpr int kSecondaryFaceButton = 2;
+    inline constexpr int kSystemButton = 3;
+    inline constexpr int kThumbstickTouchButton = 4;
+    inline constexpr int kTriggerTouchButton = 5;
+    inline constexpr int kTriggerClickButton = 6;
+    inline constexpr int kGripTouchButton = 7;
+    inline constexpr int kGripClickButton = 8;
+    inline constexpr int kThumbstickXAxis = 0;
+    inline constexpr int kThumbstickYAxis = 1;
+    inline constexpr int kTriggerAxis = 2;
+    inline constexpr int kGripAxis = 3;
 
     enum class VirtualPoseSource : std::uint8_t
     {
