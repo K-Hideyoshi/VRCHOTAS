@@ -58,37 +58,37 @@ In short:
 
 ```text
 VRCHOTAS/
-©À©¤ README.md
-©À©¤ VRCHOTAS.sln
-©À©¤ VRCHOTAS.slnx
-©À©¤ VRCHOTAS/                         # .NET 10 WPF mapper app
-©¦  ©À©¤ Converters/
-©¦  ©À©¤ Interop/                       # Shared-memory contract and writer
-©¦  ©À©¤ Logging/
-©¦  ©À©¤ Models/
-©¦  ©À©¤ Services/                      # DirectInput, mapping, config, preferences, hotkeys
-©¦  ©À©¤ ViewModels/
-©¦  ©À©¤ MainWindow.xaml                # Main UI
-©¦  ©À©¤ MappingEditorWindow.xaml       # Mapping editor
-©¦  ©À©¤ HotkeysWindow.xaml             # Hotkey settings UI
-©¦  ©¸©¤ VRCHOTAS.csproj
-©¸©¤ VirtualDriver/                    # SteamVR OpenVR driver
-   ©À©¤ CMakeLists.txt
-   ©À©¤ README.md
-   ©À©¤ deploy_driver.bat
-   ©À©¤ include/
-   ©¦  ©À©¤ hotas_controller_device.h
-   ©¦  ©¸©¤ virtual_controller_state.h
-   ©À©¤ resources/
-   ©¦  ©À©¤ driver.vrchotas.vrdrivermanifest
-   ©¦  ©¸©¤ input/
-   ©¦     ©À©¤ vrchotas_virtual_profile.json
-   ©¦     ©¸©¤ vrcompositor_bindings_touch.json
-   ©¸©¤ src/
-      ©À©¤ driver_hotas.cpp
-      ©À©¤ hotas_controller_device.cpp
-      ©À©¤ hotas_server_driver.cpp
-      ©¸©¤ hotas_watchdog_driver.cpp
+â”œâ”€ README.md
+â”œâ”€ VRCHOTAS.sln
+â”œâ”€ VRCHOTAS.slnx
+â”œâ”€ VRCHOTAS/                         # .NET 10 WPF mapper app
+â”‚  â”œâ”€ Converters/
+â”‚  â”œâ”€ Interop/                       # Shared-memory contract and writer
+â”‚  â”œâ”€ Logging/
+â”‚  â”œâ”€ Models/
+â”‚  â”œâ”€ Services/                      # DirectInput, mapping, config, preferences, hotkeys
+â”‚  â”œâ”€ ViewModels/
+â”‚  â”œâ”€ MainWindow.xaml                # Main UI
+â”‚  â”œâ”€ MappingEditorWindow.xaml       # Mapping editor
+â”‚  â”œâ”€ HotkeysWindow.xaml             # Hotkey settings UI
+â”‚  â””â”€ VRCHOTAS.csproj
+â””â”€ VirtualDriver/                    # SteamVR OpenVR driver
+   â”œâ”€ CMakeLists.txt
+   â”œâ”€ README.md
+   â”œâ”€ deploy_driver.bat
+   â”œâ”€ include/
+   â”‚  â”œâ”€ hotas_controller_device.h
+   â”‚  â””â”€ virtual_controller_state.h
+   â”œâ”€ resources/
+   â”‚  â”œâ”€ driver.vrchotas.vrdrivermanifest
+   â”‚  â””â”€ input/
+   â”‚     â”œâ”€ vrchotas_virtual_profile.json
+   â”‚     â””â”€ vrcompositor_bindings_touch.json
+   â””â”€ src/
+      â”œâ”€ driver_hotas.cpp
+      â”œâ”€ hotas_controller_device.cpp
+      â”œâ”€ hotas_server_driver.cpp
+      â””â”€ hotas_watchdog_driver.cpp
 ```
 
 ## Implementation Overview
