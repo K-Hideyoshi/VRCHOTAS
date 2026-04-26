@@ -11,8 +11,6 @@ public sealed class MappingEngine
 
     private readonly IAppLogger _logger;
     private long _lastMapTimestamp;
-    private PoseLogState _leftPoseLogState;
-    private PoseLogState _rightPoseLogState;
 
     public MappingEngine(IAppLogger logger)
     {
@@ -63,6 +61,22 @@ public sealed class MappingEngine
                     continue;
                 }
 
+                if (mapping.TargetButton == VirtualButtonTarget.RecenterHand)
+                {
+                    if (mapping.SourceButtonIndex >= 0
+                        && mapping.SourceButtonIndex < sourceDevice.Buttons.Count
+                        && sourceDevice.Buttons[mapping.SourceButtonIndex])
+                    {
+                        ResetHandPose(ref hand);
+                        ResetPoseScratch(ref poseScratch);
+                        poseScratch.ResetRequested = true;
+                        _logger.Debug(nameof(MappingEngine),
+                            $"Recenter hand requested: hand={mapping.TargetHand} sourceDevice={mapping.SourceDeviceId} button={mapping.SourceButtonIndex}");
+                    }
+
+                    continue;
+                }
+
                 if (!ApplyButtonMapping(mapping, sourceDevice, ref hand))
                 {
                     continue;
@@ -90,56 +104,60 @@ public sealed class MappingEngine
                         var axisIndex = ResolveAxisIndex(mapping.TargetAxis);
                         if (axisIndex >= 0 && axisIndex < hand.Axes.Length)
                         {
-                            hand.Axes[axisIndex] = corrected;
+                            hand.Axes[axisIndex] = CombineAxisValue(hand.Axes[axisIndex], corrected, mapping.IsAxisMapping, mapping.TargetAxis);
                         }
 
                         ApplyDerivedAxisTouch(mapping.TargetAxis, corrected, ref hand);
                         ApplyDerivedAxisButtons(mapping, corrected, ref hand);
-
                         break;
                     }
                     default:
                     {
+                        if (poseScratch.ResetRequested)
+                        {
+                            continue;
+                        }
+
                         // Saturation scales world units (meters, rotation, rad/s) after normalized shaping.
                         var shaped = MapAxisValue(axisValue, mapping.Deadzone, mapping.Curve, 1.0, mapping.Invert, ResolveAxisRangeForSource(mapping));
                         var scaled = shaped * mapping.Saturation;
                         switch (kind)
                         {
                             case MappingTargetKind.PosePositionX:
-                                poseScratch.Px = scaled;
+                                poseScratch.Px += scaled;
                                 break;
                             case MappingTargetKind.PosePositionY:
-                                poseScratch.Py = scaled;
+                                poseScratch.Py += scaled;
                                 break;
                             case MappingTargetKind.PosePositionZ:
-                                poseScratch.Pz = scaled;
+                                poseScratch.Pz += scaled;
                                 break;
                             case MappingTargetKind.PoseOrientationX:
-                                poseScratch.PitchDeg = scaled * DegreesPerRotation;
+                                poseScratch.PitchDeg += scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.PoseOrientationY:
-                                poseScratch.YawDeg = scaled * DegreesPerRotation;
+                                poseScratch.YawDeg += scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.PoseOrientationZ:
-                                poseScratch.RollDeg = scaled * DegreesPerRotation;
+                                poseScratch.RollDeg += scaled * DegreesPerRotation;
                                 break;
                             case MappingTargetKind.LinearVelocityX:
-                                poseScratch.Vx = scaled;
+                                poseScratch.Vx += scaled;
                                 break;
                             case MappingTargetKind.LinearVelocityY:
-                                poseScratch.Vy = scaled;
+                                poseScratch.Vy += scaled;
                                 break;
                             case MappingTargetKind.LinearVelocityZ:
-                                poseScratch.Vz = scaled;
+                                poseScratch.Vz += scaled;
                                 break;
                             case MappingTargetKind.AngularVelocityX:
-                                poseScratch.Wx = scaled;
+                                poseScratch.Wx += scaled;
                                 break;
                             case MappingTargetKind.AngularVelocityY:
-                                poseScratch.Wy = scaled;
+                                poseScratch.Wy += scaled;
                                 break;
                             case MappingTargetKind.AngularVelocityZ:
-                                poseScratch.Wz = scaled;
+                                poseScratch.Wz += scaled;
                                 break;
                             default:
                                 _logger.Debug(nameof(MappingEngine), $"Unhandled target kind: {kind}.");
@@ -152,8 +170,8 @@ public sealed class MappingEngine
             }
         }
 
-        FinalizeHandPose(ref output.Left, leftPose, deltaSeconds, "Left", ref _leftPoseLogState);
-        FinalizeHandPose(ref output.Right, rightPose, deltaSeconds, "Right", ref _rightPoseLogState);
+        FinalizeHandPose(ref output.Left, leftPose, deltaSeconds);
+        FinalizeHandPose(ref output.Right, rightPose, deltaSeconds);
         return output;
     }
 
@@ -183,6 +201,16 @@ public sealed class MappingEngine
         }
 
         hand.EnsureInitialized();
+        if (mapping.TargetButton == VirtualButtonTarget.RecenterHand)
+        {
+            if (sourceDevice.Buttons[mapping.SourceButtonIndex])
+            {
+                ResetHandPose(ref hand);
+            }
+
+            return true;
+        }
+
         var buttonIndex = ResolveButtonIndex(mapping.TargetButton);
         if (buttonIndex >= 0 && buttonIndex < hand.Buttons.Length)
         {
@@ -216,7 +244,7 @@ public sealed class MappingEngine
         return true;
     }
 
-    private void FinalizeHandPose(ref ControllerHandState hand, HandPoseScratch scratch, double deltaSeconds, string handName, ref PoseLogState logState)
+    private void FinalizeHandPose(ref ControllerHandState hand, HandPoseScratch scratch, double deltaSeconds)
     {
         hand.EnsureInitialized();
         hand.Position[0] += scratch.Px + (scratch.Vx * deltaSeconds);
@@ -231,7 +259,6 @@ public sealed class MappingEngine
         var quat = hand.Quaternion ?? new double[VirtualControllerLayout.Quat];
         PoseMappingMath.WriteEulerDegreesToQuaternion(scratch.PitchDeg, scratch.YawDeg, scratch.RollDeg, quat);
         hand.Quaternion = quat;
-        LogPoseStateIfNeeded(hand, handName, deltaSeconds, ref logState);
     }
 
     private static ref ControllerHandState SelectHand(ref VirtualControllerState output, VirtualTargetHand targetHand) =>
@@ -243,51 +270,7 @@ public sealed class MappingEngine
         public double PitchDeg, YawDeg, RollDeg;
         public double Vx, Vy, Vz;
         public double Wx, Wy, Wz;
-    }
-
-    private struct PoseLogState
-    {
-        public bool WasActive;
-        public double Px;
-        public double Py;
-        public double Pz;
-        public double Vx;
-        public double Vy;
-        public double Vz;
-    }
-
-    private void LogPoseStateIfNeeded(ControllerHandState hand, string handName, double deltaSeconds, ref PoseLogState state)
-    {
-        const double velocityThreshold = 0.01;
-        const double positionThreshold = 0.002;
-
-        var active = Math.Abs(hand.LinearVelocity[0]) > velocityThreshold
-            || Math.Abs(hand.LinearVelocity[1]) > velocityThreshold
-            || Math.Abs(hand.LinearVelocity[2]) > velocityThreshold
-            || Math.Abs(hand.AngularVelocity[0]) > velocityThreshold
-            || Math.Abs(hand.AngularVelocity[1]) > velocityThreshold
-            || Math.Abs(hand.AngularVelocity[2]) > velocityThreshold;
-
-        var positionChanged = Math.Abs(hand.Position[0] - state.Px) > positionThreshold
-            || Math.Abs(hand.Position[1] - state.Py) > positionThreshold
-            || Math.Abs(hand.Position[2] - state.Pz) > positionThreshold;
-        var velocityChanged = Math.Abs(hand.LinearVelocity[0] - state.Vx) > velocityThreshold
-            || Math.Abs(hand.LinearVelocity[1] - state.Vy) > velocityThreshold
-            || Math.Abs(hand.LinearVelocity[2] - state.Vz) > velocityThreshold;
-
-        if (active != state.WasActive || positionChanged || velocityChanged)
-        {
-            _logger.Debug(nameof(MappingEngine),
-                $"{handName} pose state: dt={deltaSeconds:F4}s pos=({hand.Position[0]:F3}, {hand.Position[1]:F3}, {hand.Position[2]:F3}) linVel=({hand.LinearVelocity[0]:F3}, {hand.LinearVelocity[1]:F3}, {hand.LinearVelocity[2]:F3}) angVel=({hand.AngularVelocity[0]:F3}, {hand.AngularVelocity[1]:F3}, {hand.AngularVelocity[2]:F3})");
-        }
-
-        state.WasActive = active;
-        state.Px = hand.Position[0];
-        state.Py = hand.Position[1];
-        state.Pz = hand.Position[2];
-        state.Vx = hand.LinearVelocity[0];
-        state.Vy = hand.LinearVelocity[1];
-        state.Vz = hand.LinearVelocity[2];
+        public bool ResetRequested;
     }
 
     private static int ResolveAxisIndex(VirtualAxisTarget axisTarget) => axisTarget switch
@@ -307,6 +290,47 @@ public sealed class MappingEngine
         VirtualButtonTarget.System => VirtualInputLayout.SystemButton,
         _ => -1
     };
+
+    private static double CombineAxisValue(double existingValue, double incomingValue, bool isAxisSource, VirtualAxisTarget targetAxis)
+    {
+        if (isAxisSource)
+        {
+            return incomingValue;
+        }
+
+        var combined = existingValue + incomingValue;
+        return targetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip
+            ? Math.Clamp(combined, 0.0, 1.0)
+            : Math.Clamp(combined, -1.0, 1.0);
+    }
+
+    private static void ResetHandPose(ref ControllerHandState hand)
+    {
+        hand.EnsureInitialized();
+        Array.Clear(hand.Position);
+        Array.Clear(hand.LinearVelocity);
+        Array.Clear(hand.AngularVelocity);
+        var quaternion = hand.Quaternion ?? new double[VirtualControllerLayout.Quat];
+        Array.Clear(quaternion);
+        quaternion[0] = 1.0;
+        hand.Quaternion = quaternion;
+    }
+
+    private static void ResetPoseScratch(ref HandPoseScratch scratch)
+    {
+        scratch.Px = 0;
+        scratch.Py = 0;
+        scratch.Pz = 0;
+        scratch.PitchDeg = 0;
+        scratch.YawDeg = 0;
+        scratch.RollDeg = 0;
+        scratch.Vx = 0;
+        scratch.Vy = 0;
+        scratch.Vz = 0;
+        scratch.Wx = 0;
+        scratch.Wy = 0;
+        scratch.Wz = 0;
+    }
 
     private static AxisRangeKind ResolveAxisRangeForSource(MappingEntry mapping)
     {

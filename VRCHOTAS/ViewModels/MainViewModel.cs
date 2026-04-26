@@ -292,6 +292,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger.Info(nameof(MainViewModel), $"Mapping moved down: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
     }
 
+    public void MoveMappingToIndex(MappingEntry mapping, int targetIndex)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+
+        var currentIndex = Mappings.IndexOf(mapping);
+        if (currentIndex < 0)
+        {
+            return;
+        }
+
+        targetIndex = Math.Clamp(targetIndex, 0, Math.Max(0, Mappings.Count - 1));
+        if (currentIndex == targetIndex)
+        {
+            SelectedMapping = mapping;
+            return;
+        }
+
+        Mappings.Move(currentIndex, targetIndex);
+        SelectedMapping = mapping;
+        MarkConfigurationDirty();
+        _logger.Info(nameof(MainViewModel), $"Mapping moved to index {targetIndex}: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
+    }
+
     private void OpenEditMappingDialog()
     {
         if (SelectedMapping is null)

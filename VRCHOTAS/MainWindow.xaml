@@ -202,13 +202,35 @@
                     <Button Content="Delete Selected" MinWidth="110" Command="{Binding DeleteSelectedMappingCommand}" />
                 </StackPanel>
 
-                <DataGrid Grid.Row="1"
+                <DataGrid x:Name="MappingsGrid"
+                          Grid.Row="1"
                           ItemsSource="{Binding Mappings}"
                           SelectedItem="{Binding SelectedMapping}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
-                          IsReadOnly="True">
+                          IsReadOnly="True"
+                          SelectionMode="Single"
+                          SelectionUnit="FullRow"
+                          AllowDrop="True"
+                          DragOver="MappingsGridDragOver"
+                          Drop="MappingsGridDrop">
                     <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="28">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="Transparent"
+                                            Cursor="SizeAll"
+                                            PreviewMouseLeftButtonDown="MappingDragHandleMouseLeftButtonDown"
+                                            PreviewMouseMove="MappingDragHandleMouseMove">
+                                        <TextBlock Text="☰"
+                                                   FontSize="13"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   ToolTip="Drag to reorder" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="" Width="34">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -265,8 +287,6 @@
                                                 Margin="0,0,6,0"
                                                 Command="{Binding DataContext.ToggleMappingTempDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}" />
-                                        <Button Content="↑" Width="28" Margin="0,0,6,0" Click="MoveMappingUpClick" />
-                                        <Button Content="↓" Width="28" Margin="0,0,6,0" Click="MoveMappingDownClick" />
                                         <Button Content="Edit" Width="55" Margin="0,0,6,0" Click="EditMappingClick" />
                                         <Button Content="Delete" Width="60" Click="DeleteMappingClick" />
                                     </StackPanel>

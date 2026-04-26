@@ -169,7 +169,8 @@ public sealed partial class MappingEditorViewModel
             new ButtonTargetOption("Thumbstick Click", VirtualButtonTarget.ThumbstickClick),
             new ButtonTargetOption("Primary Face Button (A/X)", VirtualButtonTarget.PrimaryFaceButton),
             new ButtonTargetOption("Secondary Face Button (B/Y)", VirtualButtonTarget.SecondaryFaceButton),
-            new ButtonTargetOption("System Button", VirtualButtonTarget.System)
+            new ButtonTargetOption("System Button", VirtualButtonTarget.System),
+            new ButtonTargetOption("Recenter Hand", VirtualButtonTarget.RecenterHand)
         };
     }
 }

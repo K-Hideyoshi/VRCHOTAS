@@ -235,9 +235,8 @@ void HotasServerDriver::RunFrame()
             }
         }
 
-        const vrchotas::ControllerHandState neutralHand{};
-        const auto& leftInput = ShouldUseMirroredRealControllerPose(snapshot) ? neutralHand : snapshot.left;
-        const auto& rightInput = ShouldUseMirroredRealControllerPose(snapshot) ? neutralHand : snapshot.right;
+        const auto& leftInput = snapshot.left;
+        const auto& rightInput = snapshot.right;
 
         _left->UpdateState(leftInput, leftPoseOverride);
         _right->UpdateState(rightInput, rightPoseOverride);

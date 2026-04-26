@@ -198,7 +198,7 @@ public sealed partial class MainViewModel
     {
         foreach (var mapping in Mappings)
         {
-            if (mapping.IsTemporarilyDisabled || string.IsNullOrWhiteSpace(mapping.SourceDeviceId))
+            if (string.IsNullOrWhiteSpace(mapping.SourceDeviceId))
             {
                 continue;
             }

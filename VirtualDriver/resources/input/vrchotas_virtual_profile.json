@@ -33,7 +33,6 @@
       "type": "trigger",
       "binding_image_point": [22, 85],
       "value": true,
-      "click": true,
       "touch": true,
       "order": 2
     },
@@ -41,7 +40,6 @@
       "type": "trigger",
       "binding_image_point": [100, 86],
       "value": true,
-      "click": true,
       "touch": true,
       "order": 3
     },
@@ -126,6 +124,15 @@
     ["/user/hand/left/input/y", "/user/hand/right/input/b"]
   ],
   "simulation_settings": {
+    "hmd_profile": "rift",
+    "left_modelnumber": "Oculus Quest2 (Left Controller)",
+    "right_modelnumber": "Oculus Quest2 (Right Controller)",
+    "left_serialnumber": "WMHD315M3010GV_Controller_Left",
+    "right_serialnumber": "WMHD315M3010GV_Controller_Right",
+    "left_rendermodel": "oculus_quest2_controller_left",
+    "right_rendermodel": "oculus_quest2_controller_right",
+    "left_registered_device_type": "oculus/WMHD315M3010GV_Controller_Left",
+    "right_registered_device_type": "oculus/WMHD315M3010GV_Controller_Right",
     "tracking_system_name": "oculus",
     "manufacturer_name": "Oculus",
     "legacy_buttons": [0, 1, 2, 7, 32, 33, 34],

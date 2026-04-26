@@ -30,7 +30,8 @@ public enum VirtualButtonTarget
     ThumbstickClick = 0,
     PrimaryFaceButton = 1,
     SecondaryFaceButton = 2,
-    System = 3
+    System = 3,
+    RecenterHand = 4
 }
 
 public enum MappingTargetKind
@@ -176,6 +177,7 @@ public sealed partial class MappingEntry : ObservableObject
             VirtualButtonTarget.PrimaryFaceButton => TargetHand == VirtualTargetHand.Right ? "A Button" : "X Button",
             VirtualButtonTarget.SecondaryFaceButton => TargetHand == VirtualTargetHand.Right ? "B Button" : "Y Button",
             VirtualButtonTarget.System => "System Button",
+            VirtualButtonTarget.RecenterHand => "Recenter Hand",
             _ => TargetButton.ToString()
         };
     }

@@ -1,6 +1,13 @@
 ﻿using System.Windows;
+using System.Windows.Media;
 using Forms = System.Windows.Forms;
 using Controls = System.Windows.Controls;
+using WpfDragDropEffects = System.Windows.DragDropEffects;
+using WpfDragEventArgs = System.Windows.DragEventArgs;
+using WpfMouseButtonState = System.Windows.Input.MouseButtonState;
+using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
+using WpfMouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
+using WpfPoint = System.Windows.Point;
 using VRCHOTAS.Logging;
 using VRCHOTAS.Models;
 using VRCHOTAS.ViewModels;
@@ -14,6 +21,8 @@ namespace VRCHOTAS
         private LogWindow? _logWindow;
         private bool _isExitRequested;
         private bool _hasShownTrayHint;
+        private WpfPoint _mappingDragStartPoint;
+        private MappingEntry? _mappingDragCandidate;
 
         public MainWindow()
         {
@@ -190,24 +199,80 @@ namespace VRCHOTAS
             _viewModel.OpenEditMappingDialogCommand.Execute(null);
         }
 
-        private void MoveMappingUpClick(object sender, RoutedEventArgs e)
+        private void MappingDragHandleMouseLeftButtonDown(object sender, WpfMouseButtonEventArgs e)
         {
-            if (sender is not Controls.Button button || button.DataContext is not MappingEntry mapping)
+            if (sender is not FrameworkElement element || element.DataContext is not MappingEntry mapping)
             {
                 return;
             }
 
-            _viewModel.MoveMappingUp(mapping);
+            _mappingDragCandidate = mapping;
+            _mappingDragStartPoint = e.GetPosition(this);
+            _viewModel.SelectedMapping = mapping;
         }
 
-        private void MoveMappingDownClick(object sender, RoutedEventArgs e)
+        private void MappingDragHandleMouseMove(object sender, WpfMouseEventArgs e)
         {
-            if (sender is not Controls.Button button || button.DataContext is not MappingEntry mapping)
+            if (e.LeftButton != WpfMouseButtonState.Pressed || _mappingDragCandidate is null)
             {
                 return;
             }
 
-            _viewModel.MoveMappingDown(mapping);
+            var currentPosition = e.GetPosition(this);
+            if (Math.Abs(currentPosition.X - _mappingDragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance
+                && Math.Abs(currentPosition.Y - _mappingDragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+            {
+                return;
+            }
+
+            DragDrop.DoDragDrop((DependencyObject)sender, _mappingDragCandidate, WpfDragDropEffects.Move);
+            _mappingDragCandidate = null;
+        }
+
+        private void MappingsGridDragOver(object sender, WpfDragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(typeof(MappingEntry))
+                ? WpfDragDropEffects.Move
+                : WpfDragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void MappingsGridDrop(object sender, WpfDragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(typeof(MappingEntry)))
+            {
+                return;
+            }
+
+            var dragged = (MappingEntry?)e.Data.GetData(typeof(MappingEntry));
+            if (dragged is null)
+            {
+                return;
+            }
+
+            var row = FindAncestor<Controls.DataGridRow>(e.OriginalSource as DependencyObject);
+            var target = row?.Item as MappingEntry;
+            if (target is null)
+            {
+                return;
+            }
+
+            _viewModel.MoveMappingToIndex(dragged, _viewModel.Mappings.IndexOf(target));
+        }
+
+        private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current is not null)
+            {
+                if (current is T result)
+                {
+                    return result;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
         }
 
         private void OnHotkeysMenuClick(object sender, RoutedEventArgs e)

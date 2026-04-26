@@ -19,15 +19,17 @@ namespace
         mask |= vr::ButtonMaskFromId(vr::k_EButton_Axis0);
         mask |= vr::ButtonMaskFromId(vr::k_EButton_Axis1);
         mask |= vr::ButtonMaskFromId(vr::k_EButton_Axis2);
+        mask |= vr::ButtonMaskFromId(vr::k_EButton_SteamVR_Trigger);
 
         if (role == vr::TrackedControllerRole_RightHand)
         {
             mask |= vr::ButtonMaskFromId(vr::k_EButton_A);
+            mask |= vr::ButtonMaskFromId(vr::k_EButton_ApplicationMenu);
         }
         else
         {
             mask |= vr::ButtonMaskFromId(vr::k_EButton_ApplicationMenu);
-            mask |= vr::ButtonMaskFromId(vr::k_EButton_Grip);
+            mask |= vr::ButtonMaskFromId(vr::k_EButton_A);
         }
 
         return mask;
@@ -64,6 +66,8 @@ vr::EVRInitError HotasControllerDevice::Activate(vr::TrackedDeviceIndex_t unObje
     vr::VRProperties()->SetStringProperty(container, vr::Prop_TrackingSystemName_String, vrchotas::driver::kTrackingSystemName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ManufacturerName_String, vrchotas::driver::kManufacturerName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ModelNumber_String, "VRCHOTAS Virtual Controller");
+    vr::VRProperties()->SetStringProperty(container, vr::Prop_RenderModelName_String, _role == vr::TrackedControllerRole_LeftHand ? "oculus_quest2_controller_left" : "oculus_quest2_controller_right");
+    vr::VRProperties()->SetStringProperty(container, vr::Prop_RegisteredDeviceType_String, _role == vr::TrackedControllerRole_LeftHand ? "oculus/WMHD315M3010GV_Controller_Left" : "oculus/WMHD315M3010GV_Controller_Right");
     vr::VRProperties()->SetInt32Property(container, vr::Prop_ControllerRoleHint_Int32, static_cast<std::int32_t>(_role));
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ControllerType_String, vrchotas::driver::kControllerType);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_InputProfilePath_String, vrchotas::driver::kInputProfilePath);
@@ -170,34 +174,6 @@ void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& han
             hand.position[2]);
         _loggedFirstActiveInput = true;
     }
-
-    for (size_t i = 0; i < _buttonHandles.size(); ++i)
-    {
-        if (!_hasLoggedSemanticInputs || _lastLoggedButtons[i] != hand.buttons[i])
-        {
-            DriverLogF(
-                "[vrchotas] Semantic button update for %s: slot=%zu value=%s",
-                _serialNumber,
-                i,
-                hand.buttons[i] ? "true" : "false");
-            _lastLoggedButtons[i] = hand.buttons[i];
-        }
-    }
-
-    for (size_t i = 0; i < _axisHandles.size(); ++i)
-    {
-        if (!_hasLoggedSemanticInputs || ShouldLogAxisChange(_lastLoggedAxes[i], hand.axes[i]))
-        {
-            DriverLogF(
-                "[vrchotas] Semantic axis update for %s: slot=%zu value=%.3f",
-                _serialNumber,
-                i,
-                hand.axes[i]);
-            _lastLoggedAxes[i] = hand.axes[i];
-        }
-    }
-
-    _hasLoggedSemanticInputs = true;
 
     for (int i = 0; i < vrchotas::kButtonCount; ++i)
     {
