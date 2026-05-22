@@ -71,6 +71,8 @@ public struct VirtualControllerState
     public VirtualPoseSource PoseSource;
     public ControllerHandState Left;
     public ControllerHandState Right;
+    /// <summary>App-written heartbeat (Windows Environment.TickCount64 ms). Refreshed on each app write.</summary>
+    public ulong AppHeartbeatTickMs;
     /// <summary>Driver-written heartbeat (Windows GetTickCount64 ms). Preserved by app writes.</summary>
     public ulong DriverHeartbeatTickMs;
 
@@ -81,6 +83,7 @@ public struct VirtualControllerState
             PoseSource = VirtualPoseSource.Mapped,
             Left = CreateDefaultHand(),
             Right = CreateDefaultHand(),
+            AppHeartbeatTickMs = 0,
             DriverHeartbeatTickMs = 0
         };
         return state;

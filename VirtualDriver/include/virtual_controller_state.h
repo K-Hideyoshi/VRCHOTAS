@@ -47,6 +47,8 @@ namespace vrchotas
         VirtualPoseSource pose_source;
         ControllerHandState left;
         ControllerHandState right;
+        // Written by VRCHOTAS app on each state publish (Environment.TickCount64 ms).
+        std::uint64_t app_heartbeat_tick_ms;
         // Written by OpenVR driver each RunFrame while holding the shared mutex (GetTickCount64 ms).
         std::uint64_t driver_heartbeat_tick_ms;
     };

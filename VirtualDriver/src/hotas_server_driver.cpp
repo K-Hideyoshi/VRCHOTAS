@@ -9,6 +9,8 @@
 
 namespace
 {
+    constexpr ULONGLONG kAppHeartbeatTimeoutMs = 5000;
+
     const char* const kCompatibleInterfaceVersions[] =
     {
         vr::IVRSettings_Version,
@@ -26,6 +28,67 @@ namespace
         vr::IVRIPCResourceManagerClient_Version,
         nullptr
     };
+}
+
+bool HotasServerDriver::ShouldExposeVirtualControllers(const vrchotas::VirtualControllerState& snapshot) const
+{
+    if (snapshot.app_heartbeat_tick_ms == 0)
+    {
+        return false;
+    }
+
+    const auto now = GetTickCount64();
+    const auto age = now >= snapshot.app_heartbeat_tick_ms
+        ? now - snapshot.app_heartbeat_tick_ms
+        : 0;
+    return age <= kAppHeartbeatTimeoutMs;
+}
+
+void HotasServerDriver::EnsureVirtualControllersRegistered()
+{
+    if (_controllersRegistered)
+    {
+        return;
+    }
+
+    _left = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_LeftHand, _controllerGeneration);
+    _right = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_RightHand, _controllerGeneration);
+
+    const auto* leftSerialNumber = _left->GetSerialNumber();
+    const auto* rightSerialNumber = _right->GetSerialNumber();
+    const bool leftAdded = vr::VRServerDriverHost()->TrackedDeviceAdded(leftSerialNumber, vr::TrackedDeviceClass_Controller, _left.get());
+    const bool rightAdded = vr::VRServerDriverHost()->TrackedDeviceAdded(rightSerialNumber, vr::TrackedDeviceClass_Controller, _right.get());
+    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", leftSerialNumber, leftAdded ? "true" : "false");
+    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", rightSerialNumber, rightAdded ? "true" : "false");
+    _controllersRegistered = leftAdded && rightAdded;
+    _loggedWaitingForAppHeartbeat = false;
+    if (_controllersRegistered)
+    {
+        SetVirtualControllersConnected(true);
+    }
+}
+
+void HotasServerDriver::RebuildVirtualControllers()
+{
+    DriverLogF("[vrchotas] Rebuilding virtual controllers with new generation. previous=%d next=%d", _controllerGeneration, _controllerGeneration + 1);
+    _left.reset();
+    _right.reset();
+    _controllersRegistered = false;
+    ++_controllerGeneration;
+    _lastDesiredControllerConnection = false;
+    EnsureVirtualControllersRegistered();
+}
+
+void HotasServerDriver::SetVirtualControllersConnected(bool connected)
+{
+    if (!_left || !_right)
+    {
+        return;
+    }
+
+    _left->SetDeviceConnected(connected);
+    _right->SetDeviceConnected(connected);
+    _lastDesiredControllerConnection = connected;
 }
 
 vr::EVRInitError HotasServerDriver::Init(vr::IVRDriverContext* pDriverContext)
@@ -78,13 +141,6 @@ vr::EVRInitError HotasServerDriver::Init(vr::IVRDriverContext* pDriverContext)
         DriverLog("[vrchotas] Failed to create or open shared memory resources.");
     }
 
-    _left = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_LeftHand);
-    _right = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_RightHand);
-
-    const bool leftAdded = vr::VRServerDriverHost()->TrackedDeviceAdded("vrchotas_left", vr::TrackedDeviceClass_Controller, _left.get());
-    const bool rightAdded = vr::VRServerDriverHost()->TrackedDeviceAdded("vrchotas_right", vr::TrackedDeviceClass_Controller, _right.get());
-    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", "vrchotas_left", leftAdded ? "true" : "false");
-    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", "vrchotas_right", rightAdded ? "true" : "false");
     DriverLog("[vrchotas] Server driver initialization completed.");
 
     return vr::VRInitError_None;
@@ -125,7 +181,7 @@ const char* const* HotasServerDriver::GetInterfaceVersions()
 
 void HotasServerDriver::RunFrame()
 {
-    if (!_view || !_left || !_right || !_mutex)
+    if (!_view || !_mutex)
     {
         if (!_loggedMissingRuntimeResources)
         {
@@ -149,6 +205,30 @@ void HotasServerDriver::RunFrame()
         _view->driver_heartbeat_tick_ms = GetTickCount64();
         ReleaseMutex(_mutex);
 
+        if (!ShouldExposeVirtualControllers(snapshot))
+        {
+            if (!_loggedWaitingForAppHeartbeat)
+            {
+                DriverLog("[vrchotas] Waiting for VRCHOTAS heartbeat before exposing virtual controllers.");
+                _loggedWaitingForAppHeartbeat = true;
+            }
+
+            if (_controllersRegistered && _lastDesiredControllerConnection)
+            {
+                DriverLog("[vrchotas] VRCHOTAS heartbeat lost. Marking virtual controllers disconnected.");
+                SetVirtualControllersConnected(false);
+            }
+
+            _consecutiveMutexWaitFailures = 0;
+            return;
+        }
+
+        EnsureVirtualControllersRegistered();
+        if (!_left || !_right)
+        {
+            return;
+        }
+
         if (!_loggedButtonAxisMirrorLimitation)
         {
             DriverLog("[vrchotas] Real-controller button/axis mirroring is unavailable in current OpenVR driver APIs. In MirrorRealControllers mode, virtual button/axis values are forced to neutral.");
@@ -158,7 +238,34 @@ void HotasServerDriver::RunFrame()
         if (snapshot.pose_source != _lastLoggedPoseSource)
         {
             DriverLogF("[vrchotas] Pose handoff mode changed: %s", PoseSourceToString(snapshot.pose_source));
-            _lastLoggedPoseSource = snapshot.pose_source;
+            if (snapshot.pose_source == vrchotas::VirtualPoseSource::MirrorRealControllers)
+            {
+                SetVirtualControllersConnected(false);
+                _left->ForceReannounceHandSelectionPriority(vrchotas::driver::kMirroredHandSelectionPriority, "mirror-mode-enter");
+                _right->ForceReannounceHandSelectionPriority(vrchotas::driver::kMirroredHandSelectionPriority, "mirror-mode-enter");
+                _consecutiveMutexWaitFailures = 0;
+                _lastLoggedPoseSource = snapshot.pose_source;
+                return;
+            }
+
+            RebuildVirtualControllers();
+            if (!_left || !_right)
+            {
+                _consecutiveMutexWaitFailures = 0;
+                _lastLoggedPoseSource = snapshot.pose_source;
+                return;
+            }
+
+            _left->PrepareForReconnect();
+            _right->PrepareForReconnect();
+            SetVirtualControllersConnected(true);
+            _left->ForceReannounceHandSelectionPriority(vrchotas::driver::kMappedHandSelectionPriority, "mapped-mode-enter");
+            _right->ForceReannounceHandSelectionPriority(vrchotas::driver::kMappedHandSelectionPriority, "mapped-mode-enter");
+        }
+
+        if (!_lastDesiredControllerConnection)
+        {
+            SetVirtualControllersConnected(true);
         }
 
         const std::int32_t handSelectionPriority = ShouldUseMirroredRealControllerPose(snapshot)
@@ -167,12 +274,15 @@ void HotasServerDriver::RunFrame()
 
         if (snapshot.pose_source != _lastLoggedPoseSource)
         {
+            _left->ForceReannounceHandSelectionPriority(handSelectionPriority, "pose-source-changed");
+            _right->ForceReannounceHandSelectionPriority(handSelectionPriority, "pose-source-changed");
             DriverLogF(
                 "[vrchotas] Hand selection routing (mode=%s): virtualPriority=%d leftRealIndex=%u rightRealIndex=%u",
                 PoseSourceToString(snapshot.pose_source),
                 handSelectionPriority,
                 _lastLeftRealControllerIndex,
                 _lastRightRealControllerIndex);
+            _lastLoggedPoseSource = snapshot.pose_source;
         }
 
         _left->SetHandSelectionPriority(handSelectionPriority, PoseSourceToString(snapshot.pose_source));

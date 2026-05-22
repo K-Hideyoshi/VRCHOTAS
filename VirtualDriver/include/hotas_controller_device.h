@@ -2,13 +2,14 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <openvr_driver.h>
 #include "virtual_controller_state.h"
 
 class HotasControllerDevice final : public vr::ITrackedDeviceServerDriver
 {
 public:
-    explicit HotasControllerDevice(vr::ETrackedControllerRole role);
+    explicit HotasControllerDevice(vr::ETrackedControllerRole role, int generation = 0);
 
     vr::EVRInitError Activate(vr::TrackedDeviceIndex_t unObjectId) override;
     void Deactivate() override;
@@ -18,7 +19,11 @@ public:
     vr::DriverPose_t GetPose() override;
 
     void SetHandSelectionPriority(std::int32_t priority, const char* reason);
+    void ForceReannounceHandSelectionPriority(std::int32_t priority, const char* reason);
+    void SetDeviceConnected(bool connected);
+    void PrepareForReconnect();
     void UpdateState(const vrchotas::ControllerHandState& hand, const vr::DriverPose_t* poseOverride = nullptr);
+    const char* GetSerialNumber() const;
 
 private:
     static constexpr size_t kSemanticButtonCount = 9;
@@ -26,10 +31,12 @@ private:
     static constexpr size_t kThumbstickAliasAxisCount = 2;
     static constexpr size_t kTouchAliasButtonCount = 3;
     void CreateInputComponents(vr::PropertyContainerHandle_t container);
+    void PublishNeutralInputState();
     void ResetCachedPose();
 
     vr::ETrackedControllerRole _role;
-    const char* _serialNumber;
+    std::string _serialNumber;
+    int _generation;
     vr::TrackedDeviceIndex_t _trackedDeviceIndex{ vr::k_unTrackedDeviceIndexInvalid };
     vr::PropertyContainerHandle_t _propertyContainer{ vr::k_ulInvalidPropertyContainer };
     std::array<vr::VRInputComponentHandle_t, kSemanticButtonCount> _buttonHandles{};
@@ -41,6 +48,8 @@ private:
     std::array<double, kSemanticAxisCount> _lastLoggedAxes{};
     vr::DriverPose_t _cachedDriverPose{};
     std::int32_t _controllerHandSelectionPriority{ 0 };
+    bool _deviceConnected{ true };
+    bool _pendingReconnectRefresh{ false };
     bool _loggedFirstStateUpdate{ false };
     bool _loggedFirstActiveInput{ false };
     bool _hasLoggedSemanticInputs{ false };

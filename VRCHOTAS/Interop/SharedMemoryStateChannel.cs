@@ -40,6 +40,7 @@ public sealed class SharedMemoryStateChannel : IDisposable
         try
         {
             var existing = ReadStructFromView();
+            copy.AppHeartbeatTickMs = unchecked((ulong)Environment.TickCount64);
             copy.DriverHeartbeatTickMs = existing.DriverHeartbeatTickMs;
             var bytes = StructureToBytes(copy);
             _view.WriteArray(0, bytes, 0, bytes.Length);

@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+#include <string>
 #include <openvr_driver.h>
 #include "driver_constants.h"
 #include "driver_logging.h"
@@ -43,11 +44,20 @@ namespace
 
         return crossedActiveBoundary || std::abs(previousValue - currentValue) >= kSemanticAxisChangeThreshold;
     }
+
+    std::string BuildControllerSerialNumber(vr::ETrackedControllerRole role, int generation)
+    {
+        const auto handName = role == vr::TrackedControllerRole_LeftHand ? "left" : "right";
+        return generation > 0
+            ? "vrchotas_" + std::string(handName) + "_g" + std::to_string(generation)
+            : "vrchotas_" + std::string(handName);
+    }
 }
 
-HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role)
+HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role, int generation)
     : _role(role),
-      _serialNumber(role == vr::TrackedControllerRole_LeftHand ? "vrchotas_left" : "vrchotas_right")
+      _serialNumber(BuildControllerSerialNumber(role, generation)),
+      _generation(generation)
 {
     _buttonHandles.fill(vr::k_ulInvalidInputComponentHandle);
     _axisHandles.fill(vr::k_ulInvalidInputComponentHandle);
@@ -56,13 +66,18 @@ HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role)
     ResetCachedPose();
 }
 
+const char* HotasControllerDevice::GetSerialNumber() const
+{
+    return _serialNumber.c_str();
+}
+
 vr::EVRInitError HotasControllerDevice::Activate(vr::TrackedDeviceIndex_t unObjectId)
 {
     _trackedDeviceIndex = unObjectId;
-    DriverLogF("[vrchotas] Activate started for %s with object id %u.", _serialNumber, unObjectId);
+    DriverLogF("[vrchotas] Activate started for %s (generation=%d) with object id %u.", _serialNumber, _generation, unObjectId);
     auto container = vr::VRProperties()->TrackedDeviceToPropertyContainer(unObjectId);
     _propertyContainer = container;
-    vr::VRProperties()->SetStringProperty(container, vr::Prop_SerialNumber_String, _serialNumber);
+    vr::VRProperties()->SetStringProperty(container, vr::Prop_SerialNumber_String, _serialNumber.c_str());
     vr::VRProperties()->SetStringProperty(container, vr::Prop_TrackingSystemName_String, vrchotas::driver::kTrackingSystemName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ManufacturerName_String, vrchotas::driver::kManufacturerName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ModelNumber_String, "VRCHOTAS Virtual Controller");
@@ -147,6 +162,50 @@ void HotasControllerDevice::SetHandSelectionPriority(std::int32_t priority, cons
         _serialNumber,
         priority,
         reason ? reason : "<unspecified>");
+}
+
+void HotasControllerDevice::ForceReannounceHandSelectionPriority(std::int32_t priority, const char* reason)
+{
+    if (_propertyContainer == vr::k_ulInvalidPropertyContainer)
+    {
+        return;
+    }
+
+    const auto forcedPriority = priority == 0 ? 1 : priority;
+    vr::VRProperties()->SetInt32Property(_propertyContainer, vr::Prop_ControllerHandSelectionPriority_Int32, 0);
+    vr::VRProperties()->SetInt32Property(_propertyContainer, vr::Prop_ControllerHandSelectionPriority_Int32, forcedPriority);
+    _controllerHandSelectionPriority = forcedPriority;
+    DriverLogF(
+        "[vrchotas] Hand selection priority reannounced for %s: priority=%d reason=%s",
+        _serialNumber,
+        forcedPriority,
+        reason ? reason : "force-reannounce");
+}
+
+void HotasControllerDevice::SetDeviceConnected(bool connected)
+{
+    if (_deviceConnected == connected)
+    {
+        return;
+    }
+
+    _deviceConnected = connected;
+    if (!connected)
+    {
+        PublishNeutralInputState();
+    }
+
+    _cachedDriverPose.deviceIsConnected = connected;
+    _cachedDriverPose.poseIsValid = connected;
+    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(_trackedDeviceIndex, _cachedDriverPose, sizeof(vr::DriverPose_t));
+}
+
+void HotasControllerDevice::PrepareForReconnect()
+{
+    PublishNeutralInputState();
+    _controllerHandSelectionPriority = 0;
+    _pendingReconnectRefresh = true;
+    _loggedFirstActiveInput = false;
 }
 
 void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& hand, const vr::DriverPose_t* poseOverride)
@@ -239,7 +298,66 @@ void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& han
         FillDriverPoseFromHand(hand, _cachedDriverPose);
     }
 
+    _cachedDriverPose.deviceIsConnected = _deviceConnected;
+    _cachedDriverPose.poseIsValid = _deviceConnected;
+
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(_trackedDeviceIndex, _cachedDriverPose, sizeof(vr::DriverPose_t));
+
+    if (_pendingReconnectRefresh)
+    {
+        PublishNeutralInputState();
+        _pendingReconnectRefresh = false;
+    }
+}
+
+void HotasControllerDevice::PublishNeutralInputState()
+{
+    for (int i = 0; i < vrchotas::kButtonCount; ++i)
+    {
+        if (i >= static_cast<int>(_buttonHandles.size()))
+        {
+            break;
+        }
+
+        if (_buttonHandles[static_cast<size_t>(i)] != vr::k_ulInvalidInputComponentHandle)
+        {
+            vr::VRDriverInput()->UpdateBooleanComponent(_buttonHandles[static_cast<size_t>(i)], false, 0.0);
+        }
+    }
+
+    if (_thumbstickClickAliasHandle != vr::k_ulInvalidInputComponentHandle)
+    {
+        vr::VRDriverInput()->UpdateBooleanComponent(_thumbstickClickAliasHandle, false, 0.0);
+    }
+
+    for (const auto handle : _touchAliasHandles)
+    {
+        if (handle != vr::k_ulInvalidInputComponentHandle)
+        {
+            vr::VRDriverInput()->UpdateBooleanComponent(handle, false, 0.0);
+        }
+    }
+
+    for (int i = 0; i < vrchotas::kAxisCount; ++i)
+    {
+        if (i >= static_cast<int>(_axisHandles.size()))
+        {
+            break;
+        }
+
+        if (_axisHandles[static_cast<size_t>(i)] != vr::k_ulInvalidInputComponentHandle)
+        {
+            vr::VRDriverInput()->UpdateScalarComponent(_axisHandles[static_cast<size_t>(i)], 0.0f, 0.0);
+        }
+    }
+
+    for (const auto handle : _thumbstickAxisAliasHandles)
+    {
+        if (handle != vr::k_ulInvalidInputComponentHandle)
+        {
+            vr::VRDriverInput()->UpdateScalarComponent(handle, 0.0f, 0.0);
+        }
+    }
 }
 
 void HotasControllerDevice::CreateInputComponents(vr::PropertyContainerHandle_t container)

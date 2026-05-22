@@ -17,15 +17,24 @@ public:
     void LeaveStandby() override;
 
 private:
+    bool ShouldExposeVirtualControllers(const vrchotas::VirtualControllerState& snapshot) const;
+    void EnsureVirtualControllersRegistered();
+    void RebuildVirtualControllers();
+    void SetVirtualControllersConnected(bool connected);
+
     HANDLE _mapping{ nullptr };
     HANDLE _mutex{ nullptr };
     vrchotas::VirtualControllerState* _view{ nullptr };
     std::unique_ptr<HotasControllerDevice> _left;
     std::unique_ptr<HotasControllerDevice> _right;
+    bool _controllersRegistered{ false };
     bool _loggedFirstRunFrame{ false };
     bool _loggedMissingRuntimeResources{ false };
     bool _loggedMutexWaitFailure{ false };
     bool _loggedButtonAxisMirrorLimitation{ false };
+    bool _loggedWaitingForAppHeartbeat{ false };
+    bool _lastDesiredControllerConnection{ false };
+    int _controllerGeneration{ 0 };
     bool _lastLeftRealControllerFound{ false };
     bool _lastRightRealControllerFound{ false };
     vrchotas::VirtualPoseSource _lastLoggedPoseSource{ vrchotas::VirtualPoseSource::Mapped };
