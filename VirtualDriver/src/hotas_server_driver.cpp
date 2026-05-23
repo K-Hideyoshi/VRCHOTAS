@@ -51,32 +51,19 @@ void HotasServerDriver::EnsureVirtualControllersRegistered()
         return;
     }
 
-    _left = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_LeftHand, _controllerGeneration);
-    _right = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_RightHand, _controllerGeneration);
+    _left = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_LeftHand);
+    _right = std::make_unique<HotasControllerDevice>(vr::TrackedControllerRole_RightHand);
 
-    const auto* leftSerialNumber = _left->GetSerialNumber();
-    const auto* rightSerialNumber = _right->GetSerialNumber();
-    const bool leftAdded = vr::VRServerDriverHost()->TrackedDeviceAdded(leftSerialNumber, vr::TrackedDeviceClass_Controller, _left.get());
-    const bool rightAdded = vr::VRServerDriverHost()->TrackedDeviceAdded(rightSerialNumber, vr::TrackedDeviceClass_Controller, _right.get());
-    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", leftSerialNumber, leftAdded ? "true" : "false");
-    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", rightSerialNumber, rightAdded ? "true" : "false");
+    const bool leftAdded = vr::VRServerDriverHost()->TrackedDeviceAdded("vrchotas_left", vr::TrackedDeviceClass_Controller, _left.get());
+    const bool rightAdded = vr::VRServerDriverHost()->TrackedDeviceAdded("vrchotas_right", vr::TrackedDeviceClass_Controller, _right.get());
+    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", "vrchotas_left", leftAdded ? "true" : "false");
+    DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", "vrchotas_right", rightAdded ? "true" : "false");
     _controllersRegistered = leftAdded && rightAdded;
     _loggedWaitingForAppHeartbeat = false;
     if (_controllersRegistered)
     {
         SetVirtualControllersConnected(true);
     }
-}
-
-void HotasServerDriver::RebuildVirtualControllers()
-{
-    DriverLogF("[vrchotas] Rebuilding virtual controllers with new generation. previous=%d next=%d", _controllerGeneration, _controllerGeneration + 1);
-    _left.reset();
-    _right.reset();
-    _controllersRegistered = false;
-    ++_controllerGeneration;
-    _lastDesiredControllerConnection = false;
-    EnsureVirtualControllersRegistered();
 }
 
 void HotasServerDriver::SetVirtualControllersConnected(bool connected)
@@ -248,14 +235,7 @@ void HotasServerDriver::RunFrame()
                 return;
             }
 
-            RebuildVirtualControllers();
-            if (!_left || !_right)
-            {
-                _consecutiveMutexWaitFailures = 0;
-                _lastLoggedPoseSource = snapshot.pose_source;
-                return;
-            }
-
+            SetVirtualControllersConnected(false);
             _left->PrepareForReconnect();
             _right->PrepareForReconnect();
             SetVirtualControllersConnected(true);

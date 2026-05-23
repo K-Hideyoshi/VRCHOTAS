@@ -11,6 +11,8 @@ public sealed class MappingEngine
 
     private readonly IAppLogger _logger;
     private long _lastMapTimestamp;
+    private readonly HandPoseAnchorState _leftAnchor = new();
+    private readonly HandPoseAnchorState _rightAnchor = new();
 
     public MappingEngine(IAppLogger logger)
     {
@@ -67,7 +69,7 @@ public sealed class MappingEngine
                         && mapping.SourceButtonIndex < sourceDevice.Buttons.Count
                         && sourceDevice.Buttons[mapping.SourceButtonIndex])
                     {
-                        ResetHandPose(ref hand);
+                        ResetHandPose(ref hand, GetAnchorState(mapping.TargetHand));
                         ResetPoseScratch(ref poseScratch);
                         poseScratch.ResetRequested = true;
                         _logger.Debug(nameof(MappingEngine),
@@ -170,8 +172,8 @@ public sealed class MappingEngine
             }
         }
 
-        FinalizeHandPose(ref output.Left, leftPose, deltaSeconds);
-        FinalizeHandPose(ref output.Right, rightPose, deltaSeconds);
+        FinalizeHandPose(ref output.Left, _leftAnchor, leftPose, deltaSeconds);
+        FinalizeHandPose(ref output.Right, _rightAnchor, rightPose, deltaSeconds);
         return output;
     }
 
@@ -205,7 +207,7 @@ public sealed class MappingEngine
         {
             if (sourceDevice.Buttons[mapping.SourceButtonIndex])
             {
-                ResetHandPose(ref hand);
+                ResetHandPose(ref hand, GetAnchorState(mapping.TargetHand));
             }
 
             return true;
@@ -244,12 +246,16 @@ public sealed class MappingEngine
         return true;
     }
 
-    private void FinalizeHandPose(ref ControllerHandState hand, HandPoseScratch scratch, double deltaSeconds)
+    private void FinalizeHandPose(ref ControllerHandState hand, HandPoseAnchorState anchor, HandPoseScratch scratch, double deltaSeconds)
     {
         hand.EnsureInitialized();
-        hand.Position[0] += scratch.Px + (scratch.Vx * deltaSeconds);
-        hand.Position[1] += scratch.Py + (scratch.Vy * deltaSeconds);
-        hand.Position[2] += scratch.Pz + (scratch.Vz * deltaSeconds);
+        anchor.X += scratch.Vx * deltaSeconds;
+        anchor.Y += scratch.Vy * deltaSeconds;
+        anchor.Z += scratch.Vz * deltaSeconds;
+
+        hand.Position[0] = anchor.X + scratch.Px;
+        hand.Position[1] = anchor.Y + scratch.Py;
+        hand.Position[2] = anchor.Z + scratch.Pz;
         hand.LinearVelocity[0] = scratch.Vx;
         hand.LinearVelocity[1] = scratch.Vy;
         hand.LinearVelocity[2] = scratch.Vz;
@@ -264,6 +270,9 @@ public sealed class MappingEngine
     private static ref ControllerHandState SelectHand(ref VirtualControllerState output, VirtualTargetHand targetHand) =>
         ref targetHand == VirtualTargetHand.Right ? ref output.Right : ref output.Left;
 
+    private HandPoseAnchorState GetAnchorState(VirtualTargetHand targetHand) =>
+        targetHand == VirtualTargetHand.Right ? _rightAnchor : _leftAnchor;
+
     private struct HandPoseScratch
     {
         public double Px, Py, Pz;
@@ -271,6 +280,20 @@ public sealed class MappingEngine
         public double Vx, Vy, Vz;
         public double Wx, Wy, Wz;
         public bool ResetRequested;
+    }
+
+    private sealed class HandPoseAnchorState
+    {
+        public double X;
+        public double Y;
+        public double Z;
+
+        public void Reset()
+        {
+            X = 0;
+            Y = 0;
+            Z = 0;
+        }
     }
 
     private static int ResolveAxisIndex(VirtualAxisTarget axisTarget) => axisTarget switch
@@ -304,9 +327,10 @@ public sealed class MappingEngine
             : Math.Clamp(combined, -1.0, 1.0);
     }
 
-    private static void ResetHandPose(ref ControllerHandState hand)
+    private static void ResetHandPose(ref ControllerHandState hand, HandPoseAnchorState anchor)
     {
         hand.EnsureInitialized();
+        anchor.Reset();
         Array.Clear(hand.Position);
         Array.Clear(hand.LinearVelocity);
         Array.Clear(hand.AngularVelocity);

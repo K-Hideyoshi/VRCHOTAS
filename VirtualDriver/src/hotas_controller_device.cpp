@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
-#include <string>
 #include <openvr_driver.h>
 #include "driver_constants.h"
 #include "driver_logging.h"
@@ -45,19 +44,11 @@ namespace
         return crossedActiveBoundary || std::abs(previousValue - currentValue) >= kSemanticAxisChangeThreshold;
     }
 
-    std::string BuildControllerSerialNumber(vr::ETrackedControllerRole role, int generation)
-    {
-        const auto handName = role == vr::TrackedControllerRole_LeftHand ? "left" : "right";
-        return generation > 0
-            ? "vrchotas_" + std::string(handName) + "_g" + std::to_string(generation)
-            : "vrchotas_" + std::string(handName);
-    }
 }
 
-HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role, int generation)
+HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role)
     : _role(role),
-      _serialNumber(BuildControllerSerialNumber(role, generation)),
-      _generation(generation)
+      _serialNumber(role == vr::TrackedControllerRole_LeftHand ? "vrchotas_left" : "vrchotas_right")
 {
     _buttonHandles.fill(vr::k_ulInvalidInputComponentHandle);
     _axisHandles.fill(vr::k_ulInvalidInputComponentHandle);
@@ -66,18 +57,13 @@ HotasControllerDevice::HotasControllerDevice(vr::ETrackedControllerRole role, in
     ResetCachedPose();
 }
 
-const char* HotasControllerDevice::GetSerialNumber() const
-{
-    return _serialNumber.c_str();
-}
-
 vr::EVRInitError HotasControllerDevice::Activate(vr::TrackedDeviceIndex_t unObjectId)
 {
     _trackedDeviceIndex = unObjectId;
-    DriverLogF("[vrchotas] Activate started for %s (generation=%d) with object id %u.", _serialNumber, _generation, unObjectId);
+    DriverLogF("[vrchotas] Activate started for %s with object id %u.", _serialNumber, unObjectId);
     auto container = vr::VRProperties()->TrackedDeviceToPropertyContainer(unObjectId);
     _propertyContainer = container;
-    vr::VRProperties()->SetStringProperty(container, vr::Prop_SerialNumber_String, _serialNumber.c_str());
+    vr::VRProperties()->SetStringProperty(container, vr::Prop_SerialNumber_String, _serialNumber);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_TrackingSystemName_String, vrchotas::driver::kTrackingSystemName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ManufacturerName_String, vrchotas::driver::kManufacturerName);
     vr::VRProperties()->SetStringProperty(container, vr::Prop_ModelNumber_String, "VRCHOTAS Virtual Controller");

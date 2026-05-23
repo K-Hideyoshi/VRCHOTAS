@@ -2,14 +2,13 @@
 
 #include <array>
 #include <cstdint>
-#include <string>
 #include <openvr_driver.h>
 #include "virtual_controller_state.h"
 
 class HotasControllerDevice final : public vr::ITrackedDeviceServerDriver
 {
 public:
-    explicit HotasControllerDevice(vr::ETrackedControllerRole role, int generation = 0);
+    explicit HotasControllerDevice(vr::ETrackedControllerRole role);
 
     vr::EVRInitError Activate(vr::TrackedDeviceIndex_t unObjectId) override;
     void Deactivate() override;
@@ -23,7 +22,6 @@ public:
     void SetDeviceConnected(bool connected);
     void PrepareForReconnect();
     void UpdateState(const vrchotas::ControllerHandState& hand, const vr::DriverPose_t* poseOverride = nullptr);
-    const char* GetSerialNumber() const;
 
 private:
     static constexpr size_t kSemanticButtonCount = 9;
@@ -35,8 +33,7 @@ private:
     void ResetCachedPose();
 
     vr::ETrackedControllerRole _role;
-    std::string _serialNumber;
-    int _generation;
+    const char* _serialNumber;
     vr::TrackedDeviceIndex_t _trackedDeviceIndex{ vr::k_unTrackedDeviceIndexInvalid };
     vr::PropertyContainerHandle_t _propertyContainer{ vr::k_ulInvalidPropertyContainer };
     std::array<vr::VRInputComponentHandle_t, kSemanticButtonCount> _buttonHandles{};

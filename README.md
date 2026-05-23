@@ -116,9 +116,9 @@ Current implementation characteristics:
 - Uses `OPENVR_SDK_PATH` during CMake configure/build.
 - Publishes Oculus Touch-like capabilities, legacy bindings, and compositor bindings.
 - Supports these semantic controller inputs:
-  - joystick x/y
-  - joystick click
-  - joystick touch
+  - thumbstick x/y
+  - thumbstick click
+  - thumbstick touch
   - trigger value
   - trigger touch
   - trigger click
@@ -128,7 +128,7 @@ Current implementation characteristics:
   - primary face button (`X`/`A`)
   - secondary face button (`Y`/`B`)
   - system button
-- Includes alias paths for `joystick` / `thumbstick` naming expected by SteamVR bindings.
+- Includes alias paths for `joystick` as an alternative name for `thumbstick` (expected by some SteamVR bindings).
 - Uses `vrcompositor_bindings_touch.json` for dashboard pointer and system toggle bindings.
 
 
@@ -164,19 +164,16 @@ Current implementation characteristics:
   - mapping master switch
 - Displays joystick hotkeys using **device names** when available.
 - Automatically selects the currently active mapping row when a source button edge or fast axis movement is detected.
-- Supports moving mapping rows up/down while keeping the moved row selected.
 - Highlights duplicate mapping groups in the list:
   - Source columns use red shades
   - Target columns use blue shades
   - Grouping is strict:
     - Source: `SourceDeviceId + Button/Axis`
     - Target: `TargetHand + TargetControl`
-- The Mapping list Actions column includes:
-  - Toggle
-  - Move up
-  - Move down
-  - Edit
-  - Delete
+- The Mapping list includes a drag handle (☰) in the first column for reordering and an Actions column with:
+  - Toggle: temporarily disable/enable the mapping without deletion
+  - Edit: open the mapping editor to modify source, target, and parameters
+  - Delete: remove the mapping from the list
 
 
 ## Current Feature Summary
@@ -189,11 +186,18 @@ Compared to earlier states of the project, the current tree includes these notab
 - Trigger and grip analog mappings derive click state from a configurable full-press threshold.
 - Thumbstick / trigger / grip analog mappings derive touch state from analog activity.
 - Mapping engine now resets transient button/axis state each frame before rebuilding output.
-- Velocity mappings are integrated into position output each frame and include extra debug logging.
+- Pose position mappings now represent an instantaneous offset relative to the current hand reference point.
+- Linear velocity mappings move that hand reference point over time, so velocity and position offsets can be used independently or together.
 - Main window device monitor refresh has been tuned for more responsive updates.
 - Hotkey display no longer truncates joystick devices to shortened IDs.
-- Mapping rows can be reordered directly from the list.
+- Mapping rows can be reordered directly from the list using drag-and-drop (☰ handle in the first column).
 - Duplicate mappings are visually grouped in the list by strict runtime keys, not by display text.
+- **Virtual controller lifecycle and handoff**:
+  - Virtual controllers (left and right) are registered once at driver startup with fixed serial identifiers (`vrchotas_left`, `vrchotas_right`).
+  - The driver exposes or hides virtual controllers based on the app's heartbeat presence (via `AppHeartbeatTickMs`).
+  - When the app stops publishing (no heartbeat updates), the driver automatically marks controllers as disconnected, allowing real SteamVR controllers to take over.
+  - When the app resumes publishing, the driver reconnects the virtual controllers in place without creating new tracked devices, achieving seamless handoff without device accumulation.
+  - This design allows safe switching between real and virtual controller input without breaking SteamVR controller binding continuity.
 
 ## Shared Contract
 
@@ -211,7 +215,8 @@ The .NET App and the C++ Driver communicate through named shared memory guarded 
 - `VirtualPoseSource PoseSource`
 - `ControllerHandState Left`
 - `ControllerHandState Right`
-- `ulong / uint64 driver heartbeat`
+- `ulong / uint64 AppHeartbeatTickMs`: app-written heartbeat (Windows Environment.TickCount64 ms), refreshed on each state publish
+- `ulong / uint64 DriverHeartbeatTickMs`: driver-written heartbeat (Windows GetTickCount64 ms), preserved by app writes
 
 `PoseSource` values:
 
@@ -228,6 +233,12 @@ Each hand contains:
 - `Quaternion[4]` ordered as `w, x, y, z`
 - `LinearVelocity[3]`
 - `AngularVelocity[3]`
+
+Pose behavior in the current app implementation:
+
+- `Position` is an instantaneous mapped offset relative to a per-hand reference point.
+- `LinearVelocity` moves that reference point over time.
+- The final published hand position is the current reference point plus the current mapped position offset.
 
 ### Semantic input slots currently used
 
@@ -328,7 +339,7 @@ From `VirtualDriver/`:
 
 The script:
 
-- verifies that the DLL, manifest, and input profile exist
+- verifies that the DLL, source manifest (`resources\driver.vrchotas.vrdrivermanifest`), and input profile exist
 - copies the driver files to `%LOCALAPPDATA%\openvr\drivers\vrchotas`
 - tries to locate `vrpathreg.exe`
 - calls `adddriver` when SteamVR registration tooling is found
@@ -362,10 +373,11 @@ The script:
    - `Trigger`
    - `Grip`
 7. For `VR Button`, choose one semantic target:
-   - `Thumbstick Click`
-   - `Primary Face Button (A/X)`
-   - `Secondary Face Button (B/Y)`
-   - `System Button`
+    - `Thumbstick Click`
+    - `Primary Face Button (A/X)`
+    - `Secondary Face Button (B/Y)`
+    - `System Button`
+- `Recenter Hand` (resets the hand reference point, clears the current mapped pose offset, and zeroes the current mapped velocities)
 8. For axis sources, adjust:
    - `Deadzone`
    - `Curve`
@@ -376,7 +388,7 @@ The script:
 9. Save the configuration.
 10. Optionally configure hotkeys under `Configuration -> Preference -> Hotkeys`.
 11. Use the Mapping master switch to enable or disable mapping output.
-12. Use per-row actions to toggle, reorder, edit, or delete mappings.
+12. Use the drag handle (☰) to reorder mappings, and use per-row actions to toggle, edit, or delete them.
 13. Start SteamVR and validate the virtual controllers.
 
 Notes:
@@ -471,7 +483,8 @@ Runtime-only state is **not** persisted, including:
 ### Position or velocity mapping does not behave as expected
 
 - Confirm whether the mapping targets are pose position or velocity targets.
-- Remember that velocity mappings are integrated into position over time by the app.
+- Remember that pose position targets are offsets relative to the current hand reference point, while linear velocity targets move that reference point over time.
+- Use `Recenter Hand` to reset the current reference point, clear the current mapped pose offset, and zero the currently published mapped velocities.
 - Review the app debug logs for pose state output.
 
 ## Development Notes
