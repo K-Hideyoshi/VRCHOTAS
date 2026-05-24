@@ -103,7 +103,7 @@ public sealed partial class MappingEntry : ObservableObject
         TargetKind ?? (IsAxisMapping ? MappingTargetKind.AxisInput : MappingTargetKind.Button);
 
     [JsonIgnore]
-    public string SourceControlDisplay => IsAxisMapping ? $"Axis {SourceAxis}" : $"Button {SourceButtonIndex}";
+    public string SourceControlDisplay => IsAxisMapping ? $"Axis {SourceAxis}" : $"Button {SourceButtonIndex + 1}";
 
     [JsonIgnore]
     public string SourceGroupingKey => IsAxisMapping
@@ -145,7 +145,7 @@ public sealed partial class MappingEntry : ObservableObject
         _ => $"{TargetHand}|{ResolvedTargetKind}"
     };
 
-    public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex}";
+    public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex + 1}";
 
     public string TargetDisplay
     {

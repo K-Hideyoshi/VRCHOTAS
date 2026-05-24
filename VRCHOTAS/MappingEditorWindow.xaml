@@ -11,7 +11,7 @@
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
 
-    <Grid Margin="12">
+    <Grid x:Name="RootGrid" Margin="12" Background="Transparent" MouseLeftButtonDown="RootGridMouseLeftButtonDown">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -50,35 +50,43 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Target:" />
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target:" />
                 <ComboBox Grid.Row="0" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding AvailableTargetKindOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedTargetKind}" />
 
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Virtual Hand:" />
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
                 <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
 
-                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                            ItemsSource="{Binding AxisTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetAxis}" />
 
-                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="VR Button Target:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <ComboBox Grid.Row="3" Grid.Column="1" Width="300" HorizontalAlignment="Left"
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Button Target:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="3" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                            ItemsSource="{Binding ButtonTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetButton}" />
 
-                <TextBlock Grid.Row="4" VerticalAlignment="Center" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Grid Grid.Row="4" Grid.Column="1" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="0.0" Maximum="1.0" Value="{Binding FullPressThreshold}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding FullPressThreshold, StringFormat=F2}" VerticalAlignment="Center" />
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="1.0" Value="{Binding FullPressThreshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding FullPressThreshold, StringFormat=F2, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             Tag="FullPressThreshold"
+                             GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                             LostKeyboardFocus="NumericValueEditorLostFocus"
+                             PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
             </Grid>
@@ -100,40 +108,64 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Invert:" />
-                <CheckBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" IsChecked="{Binding Invert}" />
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,8" Text="Invert:" />
+                <CheckBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" Margin="0,0,0,8" IsChecked="{Binding Invert}" />
 
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Deadzone:" />
-                <Grid Grid.Row="1" Grid.Column="1">
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8" Text="Deadzone:" />
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Deadzone, StringFormat=F2}" VerticalAlignment="Center" />
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding Deadzone, StringFormat=F2, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             Tag="Deadzone"
+                             GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                             LostKeyboardFocus="NumericValueEditorLostFocus"
+                             PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Curve:" />
-                <Grid Grid.Row="2" Grid.Column="1">
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8" Text="Curve:" />
+                <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="-1.0" Maximum="1.0" Value="{Binding Curve}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Curve, StringFormat=F2}" VerticalAlignment="Center" />
+                    <Slider Grid.Column="0" Minimum="-1.0" Maximum="1.0" Value="{Binding Curve, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding Curve, StringFormat=F2, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             Tag="Curve"
+                             GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                             LostKeyboardFocus="NumericValueEditorLostFocus"
+                             PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Saturation:" />
-                <Grid Grid.Row="3" Grid.Column="1">
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Text="Saturation:" />
+                <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
-                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding Saturation, StringFormat=F2}" VerticalAlignment="Center" />
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding Saturation, StringFormat=F2, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             Tag="Saturation"
+                             GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                             LostKeyboardFocus="NumericValueEditorLostFocus"
+                             PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="4" VerticalAlignment="Top" Text="Curve Preview (x -> y):" />
+                <TextBlock Grid.Row="4" VerticalAlignment="Top" Margin="0,0,0,8" Text="Curve Preview (x -> y):" />
                 <Border Grid.Row="4" Grid.Column="1" Grid.RowSpan="2" BorderBrush="Gray" BorderThickness="1" Width="210" Height="210" HorizontalAlignment="Left">
                     <Canvas Width="200" Height="200" Margin="4">
                         <TextBlock Canvas.Left="2" Canvas.Top="2" Text="{Binding PlotYMaxLabel}" FontSize="10" Foreground="Gray" />
@@ -156,12 +188,12 @@
                     </Canvas>
                 </Border>
 
-                <TextBlock Grid.Row="6" VerticalAlignment="Center" Text="Input / Mapped Output:" />
-                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="Input:" />
-                    <TextBlock Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />
-                    <TextBlock Text="Mapped Output:" />
-                    <TextBlock Margin="6,0,0,0" Text="{Binding CurrentOutputValue, StringFormat=F3}" />
+                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,8,0,0" Text="Input / Mapped Output:" />
+                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                    <TextBlock VerticalAlignment="Center" Text="Input:" />
+                    <TextBlock VerticalAlignment="Center" Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />
+                    <TextBlock VerticalAlignment="Center" Text="Mapped Output:" />
+                    <TextBlock VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding CurrentOutputValue, StringFormat=F3}" />
                 </StackPanel>
             </Grid>
         </GroupBox>

@@ -57,7 +57,7 @@ public static class HotkeyDisplayFormatter
             var id = binding.JoystickDeviceId ?? string.Empty;
             var deviceName = joystickDeviceNameResolver?.Invoke(id);
             var displayName = string.IsNullOrWhiteSpace(deviceName) ? id : deviceName;
-            return $"{displayName} / Button {binding.JoystickButtonIndex}";
+            return $"{displayName} / Button {binding.JoystickButtonIndex + 1}";
         }
 
         return string.Empty;

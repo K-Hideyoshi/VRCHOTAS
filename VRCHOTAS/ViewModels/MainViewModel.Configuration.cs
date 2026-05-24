@@ -31,6 +31,44 @@ public sealed partial class MainViewModel
         RefreshAvailableConfigurations();
     }
 
+    public void SaveCurrentConfigurationForUi()
+    {
+        SaveCurrentConfiguration();
+    }
+
+    public bool ConfigurationFileExists(string fileName)
+    {
+        return _configurationService.ConfigurationExists(fileName);
+    }
+
+    public string GetConfigurationDirectoryPathForUi()
+    {
+        return _configurationService.GetConfigurationDirectoryPath();
+    }
+
+    public bool TryCreateNewConfiguration(string fileName, out string errorMessage)
+    {
+        errorMessage = string.Empty;
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            errorMessage = "Configuration file name cannot be empty.";
+            return false;
+        }
+
+        var normalizedFileName = EnsureJsonFileName(fileName);
+        if (_configurationService.ConfigurationExists(normalizedFileName))
+        {
+            errorMessage = $"Configuration already exists: {normalizedFileName}";
+            return false;
+        }
+
+        _configurationService.SaveByFileName(normalizedFileName, new AppConfiguration());
+        RefreshAvailableConfigurations();
+        LoadConfigurationByName(normalizedFileName);
+        _logger.Info(nameof(MainViewModel), $"New configuration created: {normalizedFileName}");
+        return true;
+    }
+
     private void SaveCurrentConfiguration()
     {
         if (string.IsNullOrWhiteSpace(CurrentConfigurationFileName))
@@ -61,13 +99,15 @@ public sealed partial class MainViewModel
 
     private void RebuildConfigurationMenuItems()
     {
-        ConfigurationMenuItems.Clear();
+        LoadConfigurationMenuItems.Clear();
+        DefaultConfigurationMenuItems.Clear();
         var defaultFile = _preferencesService.GetDefaultConfigurationFileName();
         foreach (var fileName in AvailableConfigurationFiles)
         {
             var isCurrent = string.Equals(fileName, CurrentConfigurationFileName, StringComparison.OrdinalIgnoreCase);
             var isDefault = string.Equals(fileName, defaultFile, StringComparison.OrdinalIgnoreCase);
-            ConfigurationMenuItems.Add(new ConfigurationMenuItem(fileName, isCurrent, isDefault));
+            LoadConfigurationMenuItems.Add(new ConfigurationMenuItem(fileName, isCurrent));
+            DefaultConfigurationMenuItems.Add(new ConfigurationMenuItem(fileName, isDefault));
         }
     }
 

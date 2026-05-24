@@ -5,17 +5,89 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
         mc:Ignorable="d"
-        Title="{Binding WindowTitle}" Height="760" Width="1440">
+        Title="{Binding WindowTitle}" Height="760" Width="1480">
+    <Window.InputBindings>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveConfigCommand}" />
+        <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsConfigCommand}" />
+        <KeyBinding Key="N" Modifiers="Control" Command="{x:Static ApplicationCommands.New}" />
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static ApplicationCommands.New}" Executed="NewConfigurationCommandExecuted" />
+    </Window.CommandBindings>
     <Window.Resources>
         <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter" />
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:MappingSourceIndicatorConverter x:Key="MappingSourceIndicatorConverter" />
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="#FFF6F7F9" />
+            <Setter Property="BorderBrush" Value="#FFD0D5DD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFEAECEF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFDDE2E7" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MappingActionButtonStyle" TargetType="Button" BasedOn="{StaticResource IconButtonStyle}">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+        <Style x:Key="MappingCellStyle" TargetType="DataGridCell">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,0,6,0" />
+            <Setter Property="Foreground" Value="#FF111111" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="BorderBrush" Value="#FF2563EB" />
+                    <Setter Property="BorderThickness" Value="1.5" />
+                    <Setter Property="Foreground" Value="#FF111111" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MappingSourceGroupCellStyle" TargetType="DataGridCell" BasedOn="{StaticResource MappingCellStyle}">
+            <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+        </Style>
+        <Style x:Key="MappingTargetGroupCellStyle" TargetType="DataGridCell" BasedOn="{StaticResource MappingCellStyle}">
+            <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+        </Style>
         <Style x:Key="MasterSwitchButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#FFF0F2F5" />
+            <Setter Property="Foreground" Value="#FF1F2937" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Padding" Value="14,8" />
             <Setter Property="MinWidth" Value="170" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#33000000" />
+            <Setter Property="BorderBrush" Value="#FFD0D5DD" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -28,14 +100,19 @@
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
+                                               TextElement.Foreground="{TemplateBinding Foreground}"
                                               Margin="{TemplateBinding Padding}" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsMappingEnabled}" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFE7F6EC" />
+                                <Setter Property="BorderBrush" Value="#FFA7D7B5" />
+                            </DataTrigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.9" />
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFEAECEF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.8" />
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFDDE2E7" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="RootBorder" Property="Opacity" Value="0.6" />
@@ -56,18 +133,25 @@
 
         <Menu Grid.Row="0">
             <MenuItem Header="Configuration">
-                <MenuItem Header="Save" Command="{Binding SaveConfigCommand}" />
-                <MenuItem Header="Save As..." Click="SaveAsConfigurationClick" />
+                <MenuItem Header="New"
+                          InputGestureText="Ctrl+N"
+                          Command="{x:Static ApplicationCommands.New}" />
+                <Separator />
+                <MenuItem Header="Save" Command="{Binding SaveConfigCommand}" InputGestureText="Ctrl+S" />
+                <MenuItem Header="Save As..." Click="SaveAsConfigurationClick" InputGestureText="Ctrl+Shift+S" />
+                <MenuItem Header="Show Config Folder" Click="RevealConfigFolderClick" />
                 <Separator />
                 <MenuItem Header="Refresh Configuration List" Command="{Binding RefreshConfigListCommand}" />
 
                 <MenuItem Header="Load Configuration">
                     <MenuItem.ItemsSource>
-                        <Binding Path="ConfigurationMenuItems" />
+                        <Binding Path="LoadConfigurationMenuItems" />
                     </MenuItem.ItemsSource>
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding MenuHeader}" />
+                            <Setter Property="Header" Value="{Binding DisplayFileName}" />
+                            <Setter Property="IsCheckable" Value="True" />
+                            <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
                             <Setter Property="Command" Value="{Binding DataContext.LoadConfigByNameCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                             <Setter Property="CommandParameter" Value="{Binding FileName}" />
                         </Style>
@@ -76,11 +160,13 @@
 
                 <MenuItem Header="Set Default Configuration">
                     <MenuItem.ItemsSource>
-                        <Binding Path="ConfigurationMenuItems" />
+                        <Binding Path="DefaultConfigurationMenuItems" />
                     </MenuItem.ItemsSource>
                     <MenuItem.ItemContainerStyle>
                         <Style TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding MenuHeader}" />
+                            <Setter Property="Header" Value="{Binding DisplayFileName}" />
+                            <Setter Property="IsCheckable" Value="True" />
+                            <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
                             <Setter Property="Command" Value="{Binding DataContext.SetDefaultConfigByNameCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                             <Setter Property="CommandParameter" Value="{Binding FileName}" />
                         </Style>
@@ -102,42 +188,64 @@
         <Grid Grid.Row="1" Margin="0,8,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="200" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="*" MinWidth="200" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Top">
-                <TextBlock Text="Discovered Device:" VerticalAlignment="Top" FontWeight="Bold" />
-                <TextBlock Text="{Binding DeviceStatusSummary}" Margin="8,0,16,0" VerticalAlignment="Top" TextWrapping="Wrap" />
+            <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Stretch" Margin="0,0,12,0">
+                <TextBlock Text="Discovered Device" FontWeight="Bold" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding DeviceStatusSummary}" TextWrapping="Wrap" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,24,0">
-                <TextBlock Text="Driver heartbeat:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
-                <TextBlock Text="{Binding DriverHeartbeatStatusDisplay}" VerticalAlignment="Center" />
-            </StackPanel>
+            <Grid Grid.Column="1" Margin="12,0" VerticalAlignment="Stretch">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,24,0">
-                <TextBlock Text="Refresh rate:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
-                <TextBlock Text="{Binding JoystickRefreshRateDisplay}" VerticalAlignment="Center" />
-            </StackPanel>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Driver Heartbeat:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding DriverHeartbeatStatusDisplay}" VerticalAlignment="Center" />
+                </StackPanel>
 
-            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Driver Sync Rate:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding DriverSyncRateDisplay}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Column="2" Margin="12,0,0,0">
                 <Button Style="{StaticResource MasterSwitchButtonStyle}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
                         Command="{Binding ToggleMappingEnabledCommand}"
-                        Background="{Binding IsMappingEnabled, Converter={StaticResource BooleanToBrushConverter}}">
+                        ToolTip="Mapping">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <TextBlock Text="Mapping" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <Image Width="20"
+                               Height="20"
+                               Margin="0,0,8,0"
+                               Stretch="Uniform">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Source" Value="pack://application:,,,/icons/toggle-line.png" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMappingEnabled}" Value="True">
+                                            <Setter Property="Source" Value="pack://application:,,,/icons/toggle-fill.png" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
                         <TextBlock Text="{Binding MappingEnabledStatusText}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-            </StackPanel>
+            </Grid>
         </Grid>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.6*" />
-                <ColumnDefinition Width="4.4*" />
+                <ColumnDefinition Width="2.3*" />
+                <ColumnDefinition Width="4.7*" />
             </Grid.ColumnDefinitions>
 
             <ScrollViewer Grid.Column="0" Margin="0,0,12,0" VerticalScrollBarVisibility="Auto">
@@ -149,8 +257,35 @@
                                     <TextBlock Text="{Binding DeviceName}" FontWeight="Bold" />
                                     <TextBlock Text="{Binding DeviceId}" FontStyle="Italic" FontSize="11" Margin="0,0,0,6" />
 
-                                    <TextBlock Text="Axes" FontWeight="Bold" Margin="0,0,0,4" />
-                                    <ItemsControl ItemsSource="{Binding Axes}">
+                                    <TextBlock Text="Axes"
+                                               FontWeight="Bold"
+                                               Margin="0,0,0,4"
+                                               Visibility="{Binding HasAnyAxes, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <StackPanel Visibility="{Binding HasPositionAxes, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                Margin="0,0,0,8">
+                                        <Border Width="100"
+                                                Height="100"
+                                                BorderBrush="Gray"
+                                                BorderThickness="1"
+                                                HorizontalAlignment="Left"
+                                                Background="#11000000">
+                                            <Grid>
+                                                <Line X1="50" Y1="0" X2="50" Y2="100" Stroke="#66000000" StrokeThickness="1" />
+                                                <Line X1="0" Y1="50" X2="100" Y2="50" Stroke="#66000000" StrokeThickness="1" />
+                                                <Canvas>
+                                                    <Ellipse Width="12"
+                                                             Height="12"
+                                                             Fill="DodgerBlue"
+                                                             Stroke="Black"
+                                                              Canvas.Left="{Binding PositionIndicatorLeft}"
+                                                              Canvas.Top="{Binding PositionIndicatorTop}" />
+                                                </Canvas>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding PositionDisplay}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding Axes}"
+                                                  Visibility="{Binding HasAxes, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid Margin="0,2,0,2">
@@ -167,8 +302,12 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <TextBlock Text="Buttons" FontWeight="Bold" Margin="0,8,0,4" />
-                                    <ItemsControl ItemsSource="{Binding Buttons}">
+                                    <TextBlock Text="Buttons"
+                                               FontWeight="Bold"
+                                               Margin="0,8,0,4"
+                                               Visibility="{Binding HasButtons, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <ItemsControl ItemsSource="{Binding Buttons}"
+                                                  Visibility="{Binding HasButtons, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <UniformGrid Columns="8" />
@@ -183,6 +322,71 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <TextBlock Text="POV"
+                                               FontWeight="Bold"
+                                               Margin="0,8,0,4"
+                                               Visibility="{Binding HasPovs, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <ItemsControl ItemsSource="{Binding Povs}"
+                                                  Visibility="{Binding HasPovs, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,2,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="70" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <Border Grid.Column="1"
+                                                            Width="72"
+                                                            Height="72"
+                                                            BorderBrush="Gray"
+                                                            BorderThickness="1"
+                                                            Background="#11000000"
+                                                            ToolTip="{Binding Direction}">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="*" />
+                                                                <RowDefinition Height="*" />
+                                                                <RowDefinition Height="*" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <Border Grid.Row="0" Grid.Column="1" CornerRadius="4" Background="{Binding IsUp, Converter={StaticResource BooleanToBrushConverter}}" Margin="4">
+                                                                <TextBlock Text="▲" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" />
+                                                            </Border>
+                                                            <Border Grid.Row="1" Grid.Column="2" CornerRadius="4" Background="{Binding IsRight, Converter={StaticResource BooleanToBrushConverter}}" Margin="4">
+                                                                <TextBlock Text="▶" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" />
+                                                            </Border>
+                                                            <Border Grid.Row="2" Grid.Column="1" CornerRadius="4" Background="{Binding IsDown, Converter={StaticResource BooleanToBrushConverter}}" Margin="4">
+                                                                <TextBlock Text="▼" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" />
+                                                            </Border>
+                                                            <Border Grid.Row="1" Grid.Column="0" CornerRadius="4" Background="{Binding IsLeft, Converter={StaticResource BooleanToBrushConverter}}" Margin="4">
+                                                                <TextBlock Text="◀" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" />
+                                                            </Border>
+                                                            <Ellipse Grid.Row="1"
+                                                                     Grid.Column="1"
+                                                                     Width="18"
+                                                                     Height="18"
+                                                                     Fill="{Binding IsCentered, Converter={StaticResource BooleanToBrushConverter}}"
+                                                                     Stroke="Black"
+                                                                     HorizontalAlignment="Center"
+                                                                     VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="No physical inputs reported."
+                                               Margin="0,4,0,0"
+                                               FontStyle="Italic"
+                                               Visibility="{Binding HasPhysicalInputs, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -197,24 +401,47 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Content="Add Mapping" MinWidth="100" Margin="0,0,8,0" Command="{Binding OpenAddMappingDialogCommand}" />
-                    <Button Content="Edit Selected" MinWidth="100" Margin="0,0,8,0" Command="{Binding OpenEditMappingDialogCommand}" />
-                    <Button Content="Delete Selected" MinWidth="110" Command="{Binding DeleteSelectedMappingCommand}" />
+                    <Button Style="{StaticResource IconButtonStyle}" Command="{Binding OpenAddMappingDialogCommand}" ToolTip="Add Mapping">
+                        <Image Width="20" Height="20" Stretch="Uniform" Source="pack://application:,,,/icons/file-add-line.png" />
+                    </Button>
+                    <Button Style="{StaticResource IconButtonStyle}" Command="{Binding OpenEditMappingDialogCommand}" ToolTip="Edit Selected">
+                        <Image Width="20" Height="20" Stretch="Uniform" Source="pack://application:,,,/icons/file-edit-fill.png" />
+                    </Button>
+                    <Button Style="{StaticResource IconButtonStyle}" Margin="0" Command="{Binding DeleteSelectedMappingCommand}" ToolTip="Delete Selected">
+                        <Image Width="20" Height="20" Stretch="Uniform" Source="pack://application:,,,/icons/delete-bin-line.png" />
+                    </Button>
                 </StackPanel>
 
-                <DataGrid x:Name="MappingsGrid"
-                          Grid.Row="1"
-                          ItemsSource="{Binding Mappings}"
-                          SelectedItem="{Binding SelectedMapping}"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False"
-                          IsReadOnly="True"
-                          SelectionMode="Single"
-                          SelectionUnit="FullRow"
-                          AllowDrop="True"
-                          DragOver="MappingsGridDragOver"
-                          Drop="MappingsGridDrop">
-                    <DataGrid.Columns>
+                <Grid Grid.Row="1">
+                    <DataGrid x:Name="MappingsGrid"
+                              ItemsSource="{Binding Mappings}"
+                              SelectedItem="{Binding SelectedMapping}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              AllowDrop="True"
+                               Loaded="MappingsGridLoaded"
+                              DragOver="MappingsGridDragOver"
+                              DragLeave="MappingsGridDragLeave"
+                              Drop="MappingsGridDrop">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="MinHeight" Value="36" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                                <Setter Property="FontWeight" Value="Normal" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.CellStyle>
+                            <StaticResource ResourceKey="MappingCellStyle" />
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
                         <DataGridTemplateColumn Header="" Width="28">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -250,51 +477,93 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Source Device" Binding="{Binding SourceDeviceName}" Width="*">
+                        <DataGridTextColumn x:Name="SourceDeviceColumn" Header="Source Device" Binding="{Binding SourceDeviceName}" Width="140">
+                            <DataGridTextColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingSourceGroupCellStyle" />
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140">
+                        <DataGridTextColumn x:Name="SourceControlColumn" Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140">
+                            <DataGridTextColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingSourceGroupCellStyle" />
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Target Hand" Binding="{Binding TargetHand}" Width="90">
+                        <DataGridTextColumn x:Name="TargetHandColumn" Header="Target Hand" Binding="{Binding TargetHand}" Width="90">
+                            <DataGridTextColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingTargetGroupCellStyle" />
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="170">
+                        <DataGridTextColumn x:Name="TargetControlColumn" Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="170">
+                            <DataGridTextColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingTargetGroupCellStyle" />
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTemplateColumn Header="Actions" Width="250">
+                        <DataGridTemplateColumn Header="Actions" Width="154">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="Toggle"
-                                                Width="55"
-                                                Margin="0,0,6,0"
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource MappingActionButtonStyle}"
+                                                ToolTip="Toggle"
                                                 Command="{Binding DataContext.ToggleMappingTempDisabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}" />
-                                        <Button Content="Edit" Width="55" Margin="0,0,6,0" Click="EditMappingClick" />
-                                        <Button Content="Delete" Width="60" Click="DeleteMappingClick" />
+                                                CommandParameter="{Binding}">
+                                            <Image Width="16"
+                                                   Height="16"
+                                                   Stretch="Uniform">
+                                                <Image.Style>
+                                                    <Style TargetType="Image">
+                                                        <Setter Property="Source" Value="pack://application:,,,/icons/toggle-fill.png" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsTemporarilyDisabled}" Value="True">
+                                                                <Setter Property="Source" Value="pack://application:,,,/icons/toggle-line.png" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Image.Style>
+                                            </Image>
+                                        </Button>
+                                        <Button Style="{StaticResource MappingActionButtonStyle}" ToolTip="Copy" Click="CopyMappingClick">
+                                            <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/file-copy-2-fill.png" />
+                                        </Button>
+                                        <Button Style="{StaticResource MappingActionButtonStyle}" ToolTip="Edit" Click="EditMappingClick">
+                                            <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/file-edit-fill.png" />
+                                        </Button>
+                                        <Button Style="{StaticResource MappingActionButtonStyle}" Margin="0" ToolTip="Delete" Click="DeleteMappingClick">
+                                            <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/delete-bin-line.png" />
+                                        </Button>
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border x:Name="MappingDropIndicator"
+                            Height="3"
+                            Background="DodgerBlue"
+                            VerticalAlignment="Top"
+                            Margin="0,0,0,0"
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False"
+                            Panel.ZIndex="1" />
+                </Grid>
             </Grid>
         </Grid>
     </Grid>

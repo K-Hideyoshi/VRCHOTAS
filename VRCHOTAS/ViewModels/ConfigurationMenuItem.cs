@@ -1,30 +1,15 @@
 namespace VRCHOTAS.ViewModels;
 
-/// <summary>One configuration file row for Load / Set Default menus with checkmark prefixes.</summary>
+/// <summary>One configuration file row for configuration menus.</summary>
 public sealed class ConfigurationMenuItem
 {
-    public ConfigurationMenuItem(string fileName, bool isCurrent, bool isDefault)
+    public ConfigurationMenuItem(string fileName, bool isChecked)
     {
         FileName = fileName;
-        MenuHeader = BuildHeader(fileName, isCurrent, isDefault);
+        IsChecked = isChecked;
     }
 
     public string FileName { get; }
-    public string MenuHeader { get; }
-
-    private static string BuildHeader(string fileName, bool isCurrent, bool isDefault)
-    {
-        var prefix = string.Empty;
-        if (isCurrent)
-        {
-            prefix += "√ ";
-        }
-
-        if (isDefault)
-        {
-            prefix += "√ ";
-        }
-
-        return prefix + fileName;
-    }
+    public string DisplayFileName => FileName.Replace("_", "__", StringComparison.Ordinal);
+    public bool IsChecked { get; }
 }

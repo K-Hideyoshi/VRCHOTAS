@@ -1,7 +1,12 @@
 ﻿using System.Windows;
 using System.Windows.Media;
+using System.Diagnostics;
+using System.Globalization;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Forms = System.Windows.Forms;
 using Controls = System.Windows.Controls;
+using WpfExecutedRoutedEventArgs = System.Windows.Input.ExecutedRoutedEventArgs;
 using WpfDragDropEffects = System.Windows.DragDropEffects;
 using WpfDragEventArgs = System.Windows.DragEventArgs;
 using WpfMouseButtonState = System.Windows.Input.MouseButtonState;
@@ -23,6 +28,7 @@ namespace VRCHOTAS
         private bool _hasShownTrayHint;
         private WpfPoint _mappingDragStartPoint;
         private MappingEntry? _mappingDragCandidate;
+        private int? _mappingDropTargetIndex;
 
         public MainWindow()
         {
@@ -33,8 +39,89 @@ namespace VRCHOTAS
             _viewModel.LogWindowRequested += OnLogWindowRequested;
             _viewModel.MappingEditorRequested += OnMappingEditorRequested;
             _viewModel.SaveAsRequested += OnSaveAsRequested;
+            _viewModel.Mappings.CollectionChanged += OnMappingsCollectionChanged;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             Closing += OnClosing;
             Closed += OnClosed;
+        }
+
+        private void OnMappingsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            AutoSizeMappingColumns();
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.SelectedMapping))
+            {
+                ScrollSelectedMappingIntoView();
+            }
+        }
+
+        private void MappingsGridLoaded(object sender, RoutedEventArgs e)
+        {
+            AutoSizeMappingColumns();
+        }
+
+        private void AutoSizeMappingColumns()
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            AutoSizeMappingColumn(SourceDeviceColumn, _viewModel.Mappings.Select(mapping => mapping.SourceDeviceName), 140, 360);
+            AutoSizeMappingColumn(SourceControlColumn, _viewModel.Mappings.Select(mapping => mapping.SourceControlDisplay), 140, 220);
+            AutoSizeMappingColumn(TargetHandColumn, _viewModel.Mappings.Select(mapping => mapping.TargetHand.ToString()), 90, 160);
+            AutoSizeMappingColumn(TargetControlColumn, _viewModel.Mappings.Select(mapping => mapping.TargetControlDisplay), 170, 360);
+        }
+
+        private void AutoSizeMappingColumn(Controls.DataGridColumn? column, IEnumerable<string> values, double minWidth, double maxWidth)
+        {
+            if (column is null)
+            {
+                return;
+            }
+
+            var typeface = new Typeface(FontFamily, FontStyle, FontWeight, FontStretch);
+            var maxText = new[] { column.Header?.ToString() ?? string.Empty }
+                .Concat(values.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            double widest = minWidth;
+            foreach (var text in maxText)
+            {
+                var formatted = new FormattedText(
+                    text,
+                    CultureInfo.CurrentUICulture,
+                    System.Windows.FlowDirection.LeftToRight,
+                    typeface,
+                    12,
+                    System.Windows.Media.Brushes.Black,
+                    VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                widest = Math.Max(widest, formatted.Width + 28);
+            }
+
+            column.Width = new Controls.DataGridLength(Math.Clamp(widest, minWidth, maxWidth));
+        }
+
+        private void ScrollSelectedMappingIntoView()
+        {
+            var selected = _viewModel.SelectedMapping;
+            if (selected is null || !IsLoaded)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_viewModel.SelectedMapping is null)
+                {
+                    return;
+                }
+
+                MappingsGrid.UpdateLayout();
+                MappingsGrid.ScrollIntoView(selected);
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private Forms.NotifyIcon CreateNotifyIcon()
@@ -60,6 +147,34 @@ namespace VRCHOTAS
             RequestSaveAsConfiguration();
         }
 
+        private void NewConfigurationClick(object sender, RoutedEventArgs e)
+        {
+            RequestNewConfiguration();
+        }
+
+        private void NewConfigurationCommandExecuted(object sender, WpfExecutedRoutedEventArgs e)
+        {
+            RequestNewConfiguration();
+        }
+
+        private void RevealConfigFolderClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var folderPath = _viewModel.GetConfigurationDirectoryPathForUi();
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = folderPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                LogManager.Logger.Warning(nameof(MainWindow), $"Failed to open config folder. {ex.Message}");
+                System.Windows.MessageBox.Show(this, ex.Message, "Reveal Config Folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private void OnSaveAsRequested(object? sender, System.EventArgs e)
         {
             RequestSaveAsConfiguration();
@@ -67,7 +182,7 @@ namespace VRCHOTAS
 
         private void RequestSaveAsConfiguration()
         {
-            var fileName = PromptForConfigurationFileName();
+            var fileName = PromptForConfigurationFileName("Save Configuration As", "Save");
             if (string.IsNullOrWhiteSpace(fileName))
             {
                 return;
@@ -76,11 +191,63 @@ namespace VRCHOTAS
             _viewModel.SaveAsConfiguration(fileName);
         }
 
-        private string? PromptForConfigurationFileName()
+        private void RequestNewConfiguration()
+        {
+            if (!ConfirmNewConfigurationSwitch())
+            {
+                return;
+            }
+
+            while (true)
+            {
+                var fileName = PromptForConfigurationFileName("Create New Configuration", "Create");
+                if (string.IsNullOrWhiteSpace(fileName))
+                {
+                    return;
+                }
+
+                if (_viewModel.TryCreateNewConfiguration(fileName, out var errorMessage))
+                {
+                    return;
+                }
+
+                System.Windows.MessageBox.Show(this, errorMessage, "New Configuration", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private bool ConfirmNewConfigurationSwitch()
+        {
+            if (!_viewModel.IsConfigurationDirty)
+            {
+                return true;
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                this,
+                "The current configuration has unsaved changes. Save before creating a new configuration?\n\nYes = Save\nNo = Discard changes\nCancel = Keep editing current configuration",
+                "Unsaved Configuration Changes",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Cancel)
+            {
+                return false;
+            }
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return true;
+            }
+
+            _viewModel.SaveCurrentConfigurationForUi();
+            return !_viewModel.IsConfigurationDirty;
+        }
+
+        private string? PromptForConfigurationFileName(string title, string confirmButtonText)
         {
             var dialog = new Window
             {
-                Title = "Save Configuration As",
+                Title = title,
                 Width = 380,
                 Height = 150,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -96,7 +263,7 @@ namespace VRCHOTAS
 
             var okButton = new Controls.Button
             {
-                Content = "Save",
+                Content = confirmButtonText,
                 Width = 80,
                 IsDefault = true,
                 Margin = new Thickness(0, 0, 8, 0)
@@ -199,6 +366,16 @@ namespace VRCHOTAS
             _viewModel.OpenEditMappingDialogCommand.Execute(null);
         }
 
+        private void CopyMappingClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Controls.Button button || button.DataContext is not MappingEntry mapping)
+            {
+                return;
+            }
+
+            _viewModel.DuplicateMapping(mapping);
+        }
+
         private void MappingDragHandleMouseLeftButtonDown(object sender, WpfMouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement element || element.DataContext is not MappingEntry mapping)
@@ -231,33 +408,188 @@ namespace VRCHOTAS
 
         private void MappingsGridDragOver(object sender, WpfDragEventArgs e)
         {
-            e.Effects = e.Data.GetDataPresent(typeof(MappingEntry))
-                ? WpfDragDropEffects.Move
-                : WpfDragDropEffects.None;
-            e.Handled = true;
-        }
-
-        private void MappingsGridDrop(object sender, WpfDragEventArgs e)
-        {
             if (!e.Data.GetDataPresent(typeof(MappingEntry)))
             {
+                HideMappingDropIndicator();
+                e.Effects = WpfDragDropEffects.None;
+                e.Handled = true;
                 return;
             }
 
             var dragged = (MappingEntry?)e.Data.GetData(typeof(MappingEntry));
             if (dragged is null)
             {
+                HideMappingDropIndicator();
+                e.Effects = WpfDragDropEffects.None;
+                e.Handled = true;
                 return;
             }
 
-            var row = FindAncestor<Controls.DataGridRow>(e.OriginalSource as DependencyObject);
-            var target = row?.Item as MappingEntry;
-            if (target is null)
+            e.Effects = WpfDragDropEffects.Move;
+            UpdateMappingDropIndicator(e.GetPosition(MappingsGrid), dragged);
+            e.Handled = true;
+        }
+
+        private void MappingsGridDragLeave(object sender, WpfDragEventArgs e)
+        {
+            if (sender is not Controls.DataGrid dataGrid)
+            {
+                HideMappingDropIndicator();
+                return;
+            }
+
+            var position = e.GetPosition(dataGrid);
+            if (position.X < 0 || position.Y < 0 || position.X > dataGrid.ActualWidth || position.Y > dataGrid.ActualHeight)
+            {
+                HideMappingDropIndicator();
+            }
+        }
+
+        private void MappingsGridDrop(object sender, WpfDragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(typeof(MappingEntry)))
+            {
+                HideMappingDropIndicator();
+                return;
+            }
+
+            var dragged = (MappingEntry?)e.Data.GetData(typeof(MappingEntry));
+            if (dragged is null)
+            {
+                HideMappingDropIndicator();
+                return;
+            }
+
+            var targetIndex = _mappingDropTargetIndex;
+            if (!targetIndex.HasValue && TryResolveMappingDropTarget(e.GetPosition(MappingsGrid), dragged, out var resolvedIndex, out _))
+            {
+                targetIndex = resolvedIndex;
+            }
+
+            if (targetIndex.HasValue)
+            {
+                _viewModel.MoveMappingToIndex(dragged, targetIndex.Value);
+            }
+
+            HideMappingDropIndicator();
+        }
+
+        private void UpdateMappingDropIndicator(WpfPoint position, MappingEntry dragged)
+        {
+            if (!TryResolveMappingDropTarget(position, dragged, out var targetIndex, out var indicatorY))
+            {
+                HideMappingDropIndicator();
+                return;
+            }
+
+            var dropIndicator = GetMappingDropIndicator();
+            if (dropIndicator is null)
             {
                 return;
             }
 
-            _viewModel.MoveMappingToIndex(dragged, _viewModel.Mappings.IndexOf(target));
+            _mappingDropTargetIndex = targetIndex;
+            dropIndicator.Margin = new Thickness(0, Math.Max(0, indicatorY - (dropIndicator.Height / 2.0)), 0, 0);
+            dropIndicator.Visibility = Visibility.Visible;
+        }
+
+        private bool TryResolveMappingDropTarget(WpfPoint position, MappingEntry dragged, out int targetIndex, out double indicatorY)
+        {
+            targetIndex = 0;
+            indicatorY = 0;
+
+            var row = FindAncestor<Controls.DataGridRow>(MappingsGrid.InputHitTest(position) as DependencyObject);
+
+            if (row?.Item is not MappingEntry target)
+            {
+                var itemCount = _viewModel.Mappings.Count;
+                if (itemCount == 0)
+                {
+                    return true;
+                }
+
+                var firstRow = FindDataGridRowByIndex(0);
+                var lastRow = FindDataGridRowByIndex(itemCount - 1);
+                if (firstRow is null || lastRow is null)
+                {
+                    return false;
+                }
+
+                var firstRowTop = firstRow.TransformToAncestor(MappingsGrid).Transform(new WpfPoint(0, 0)).Y;
+                var lastRowTop = lastRow.TransformToAncestor(MappingsGrid).Transform(new WpfPoint(0, 0)).Y;
+                if (position.Y <= firstRowTop + firstRow.ActualHeight / 2.0)
+                {
+                    targetIndex = 0;
+                    indicatorY = firstRowTop;
+                    return true;
+                }
+
+                targetIndex = itemCount;
+                indicatorY = lastRowTop + lastRow.ActualHeight;
+                var draggedIndexAtBottom = _viewModel.Mappings.IndexOf(dragged);
+                if (draggedIndexAtBottom >= 0 && targetIndex > draggedIndexAtBottom)
+                {
+                    targetIndex--;
+                }
+
+                targetIndex = Math.Clamp(targetIndex, 0, Math.Max(0, itemCount - 1));
+                return true;
+            }
+
+            var insertionIndex = _viewModel.Mappings.IndexOf(target);
+            if (insertionIndex < 0)
+            {
+                return false;
+            }
+
+            var rowTop = row.TransformToAncestor(MappingsGrid).Transform(new WpfPoint(0, 0)).Y;
+            var insertAfter = position.Y >= rowTop + row.ActualHeight / 2.0;
+            if (insertAfter)
+            {
+                insertionIndex++;
+                indicatorY = rowTop + row.ActualHeight;
+            }
+            else
+            {
+                indicatorY = rowTop;
+            }
+
+            var draggedIndex = _viewModel.Mappings.IndexOf(dragged);
+            targetIndex = insertionIndex;
+            if (draggedIndex >= 0 && insertionIndex > draggedIndex)
+            {
+                targetIndex--;
+            }
+
+            targetIndex = Math.Clamp(targetIndex, 0, Math.Max(0, _viewModel.Mappings.Count - 1));
+            return true;
+        }
+
+        private Controls.DataGridRow? FindDataGridRowByIndex(int index)
+        {
+            if (MappingsGrid.ItemContainerGenerator.ContainerFromIndex(index) is Controls.DataGridRow row)
+            {
+                return row;
+            }
+
+            MappingsGrid.UpdateLayout();
+            MappingsGrid.ScrollIntoView(MappingsGrid.Items[index]);
+            return MappingsGrid.ItemContainerGenerator.ContainerFromIndex(index) as Controls.DataGridRow;
+        }
+
+        private void HideMappingDropIndicator()
+        {
+            _mappingDropTargetIndex = null;
+            var dropIndicator = GetMappingDropIndicator();
+            if (dropIndicator is not null)
+            {
+                dropIndicator.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private Controls.Border? GetMappingDropIndicator()
+        {
+            return FindName("MappingDropIndicator") as Controls.Border;
         }
 
         private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
@@ -347,6 +679,8 @@ namespace VRCHOTAS
             _viewModel.LogWindowRequested -= OnLogWindowRequested;
             _viewModel.MappingEditorRequested -= OnMappingEditorRequested;
             _viewModel.SaveAsRequested -= OnSaveAsRequested;
+            _viewModel.Mappings.CollectionChanged -= OnMappingsCollectionChanged;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             Closing -= OnClosing;
             _notifyIcon.MouseDoubleClick -= OnNotifyIconMouseDoubleClick;
             _notifyIcon.Dispose();

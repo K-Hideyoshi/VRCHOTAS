@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Globalization;
 using VRCHOTAS.Models;
 using VRCHOTAS.Services;
 
@@ -352,10 +353,66 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     public string SourceSummary => string.IsNullOrWhiteSpace(SourceDeviceName)
         ? "No source detected"
         : IsSourceButtonDetected
-            ? $"{SourceDeviceName} / Button {SourceButtonIndex}"
+            ? $"{SourceDeviceName} / Button {SourceButtonIndex + 1}"
             : $"{SourceDeviceName} / Axis {SourceAxis}";
 
     public bool CanEditTarget => HasDetectedSource;
+
+    public string GetNumericEditorText(string fieldName)
+    {
+        return GetNumericFieldValue(fieldName).ToString("F2", CultureInfo.CurrentCulture);
+    }
+
+    public bool TrySetNumericEditorValue(string fieldName, string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)
+            || !double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out var value))
+        {
+            return false;
+        }
+
+        var (min, max) = GetNumericFieldRange(fieldName);
+        if (value < min || value > max)
+        {
+            return false;
+        }
+
+        switch (fieldName)
+        {
+            case nameof(FullPressThreshold):
+                FullPressThreshold = value;
+                return true;
+            case nameof(Deadzone):
+                Deadzone = value;
+                return true;
+            case nameof(Curve):
+                Curve = value;
+                return true;
+            case nameof(Saturation):
+                Saturation = value;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private double GetNumericFieldValue(string fieldName) => fieldName switch
+    {
+        nameof(FullPressThreshold) => FullPressThreshold,
+        nameof(Deadzone) => Deadzone,
+        nameof(Curve) => Curve,
+        nameof(Saturation) => Saturation,
+        _ => 0.0
+    };
+
+    private (double Min, double Max) GetNumericFieldRange(string fieldName) => fieldName switch
+    {
+        nameof(FullPressThreshold) => (0.0, 1.0),
+        nameof(Deadzone) => (0.0, 0.8),
+        nameof(Curve) => (-1.0, 1.0),
+        nameof(Saturation) => (0.0, 5.0),
+        _ => (double.NaN, double.NaN)
+    };
 
     private void SyncAxisRangeWithTarget()
     {

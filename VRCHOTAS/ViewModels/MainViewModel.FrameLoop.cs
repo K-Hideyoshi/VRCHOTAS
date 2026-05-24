@@ -95,7 +95,7 @@ public sealed partial class MainViewModel
         _joystickPollCountInWindow = 0;
         _rateWindowStartTicks = now;
         var text = $"{hz:F1} Hz";
-        _dispatcher.BeginInvoke(() => JoystickRefreshRateDisplay = text);
+        _dispatcher.BeginInvoke(() => DriverSyncRateDisplay = text);
     }
 
     private void RunFrameCore()

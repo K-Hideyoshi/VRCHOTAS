@@ -16,4 +16,8 @@
     <PackageReference Include="SharpDX.DirectInput" Version="4.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="icons\*.png" />
+  </ItemGroup>
+
 </Project>

@@ -10,7 +10,9 @@ public sealed class ConfigurationService
     private readonly IAppLogger _logger;
     private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
     private static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
+    private static readonly string LegacyConfigDirectory = AppDataDirectory;
     private const string DefaultConfigFileName = "default-config.json";
+    private const string PreferencesFileName = "preferences.json";
 
     public ConfigurationService(IAppLogger logger)
     {
@@ -48,11 +50,11 @@ public sealed class ConfigurationService
         try
         {
             Directory.CreateDirectory(ConfigDirectory);
-            return Directory
-                .EnumerateFiles(ConfigDirectory, "*.json", SearchOption.TopDirectoryOnly)
+            return EnumerateConfigurationFilePaths()
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name)
                 .ToArray();
         }
@@ -90,6 +92,58 @@ public sealed class ConfigurationService
         {
             _logger.Error(nameof(ConfigurationService), $"Configuration load failed: {normalized}", ex);
             return new AppConfiguration();
+        }
+    }
+
+    public bool ConfigurationExists(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        try
+        {
+            var normalized = EnsureJsonExtension(fileName);
+            return EnumerateConfigurationFilePaths()
+                .Any(path => Path.GetFileName(path).Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(nameof(ConfigurationService), $"Failed to check configuration existence: {fileName}", ex);
+            return false;
+        }
+    }
+
+    public string GetConfigurationDirectoryPath()
+    {
+        Directory.CreateDirectory(ConfigDirectory);
+        return ConfigDirectory;
+    }
+
+    private static IEnumerable<string> EnumerateConfigurationFilePaths()
+    {
+        if (Directory.Exists(ConfigDirectory))
+        {
+            foreach (var path in Directory.EnumerateFiles(ConfigDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            {
+                yield return path;
+            }
+        }
+
+        if (!Directory.Exists(LegacyConfigDirectory))
+        {
+            yield break;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(LegacyConfigDirectory, "*.json", SearchOption.TopDirectoryOnly))
+        {
+            if (Path.GetFileName(path).Equals(PreferencesFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            yield return path;
         }
     }
 

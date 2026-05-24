@@ -40,12 +40,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _deviceStatusSummary = "No device discovered.";
     private string _currentConfigurationFileName = string.Empty;
     private bool _isConfigurationDirty;
-    private bool _isMappingEnabled = true;
+    private bool _isMappingEnabled;
     private int _deviceShellRefreshQueued;
     private int _deviceMonitorRefreshQueued;
     private int _joystickPollCountInWindow;
     private long _rateWindowStartTicks = Environment.TickCount64;
-    private string _joystickRefreshRateDisplay = "—";
+    private string _driverSyncRateDisplay = "—";
     private string _driverHeartbeatStatusDisplay = "No signal";
     private MappingEntry? _lastAutoSelectedMapping;
 
@@ -57,7 +57,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ICollectionView FilteredLogs { get; }
 
-    public ObservableCollection<ConfigurationMenuItem> ConfigurationMenuItems { get; } = new();
+    public ObservableCollection<ConfigurationMenuItem> LoadConfigurationMenuItems { get; } = new();
+    public ObservableCollection<ConfigurationMenuItem> DefaultConfigurationMenuItems { get; } = new();
 
     public PreferencesService Preferences => _preferencesService;
 
@@ -133,13 +134,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string MappingEnabledStatusText => IsMappingEnabled ? "Enabled" : "Disabled";
+    public string MappingEnabledStatusText => IsMappingEnabled ? "Master ON" : "Master OFF";
 
-    /// <summary>Joystick poll rate averaged over the last 5 seconds (updated every 5s).</summary>
-    public string JoystickRefreshRateDisplay
+    /// <summary>Driver sync rate averaged over the last 5 seconds (updated every 5s).</summary>
+    public string DriverSyncRateDisplay
     {
-        get => _joystickRefreshRateDisplay;
-        private set => SetProperty(ref _joystickRefreshRateDisplay, value);
+        get => _driverSyncRateDisplay;
+        private set => SetProperty(ref _driverSyncRateDisplay, value);
     }
 
     /// <summary>Driver shared-memory heartbeat status (OK when recent tick from OpenVR driver).</summary>
@@ -315,6 +316,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger.Info(nameof(MainViewModel), $"Mapping moved to index {targetIndex}: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
     }
 
+    public void DuplicateMapping(MappingEntry mapping)
+    {
+        ArgumentNullException.ThrowIfNull(mapping);
+
+        var index = Mappings.IndexOf(mapping);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var duplicate = CloneMapping(mapping);
+        Mappings.Insert(index + 1, duplicate);
+        SelectedMapping = duplicate;
+        MarkConfigurationDirty();
+        _logger.Info(nameof(MainViewModel), $"Mapping duplicated: {mapping.SourceDisplay} -> {mapping.TargetDisplay}");
+    }
+
     private void OpenEditMappingDialog()
     {
         if (SelectedMapping is null)
@@ -394,14 +412,58 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static MediaBrush CreateSourceDuplicateBrush(int index)
     {
-        var depth = (byte)Math.Max(88, 228 - ((index * 29) % 150));
-        return CreateFrozenBrush(MediaColor.FromArgb(0x66, 0xFF, depth, depth));
+        return CreateDuplicateBrush(index, 0.26);
     }
 
     private static MediaBrush CreateTargetDuplicateBrush(int index)
     {
-        var depth = (byte)Math.Max(88, 228 - ((index * 29) % 150));
-        return CreateFrozenBrush(MediaColor.FromArgb(0x66, depth, depth, 0xFF));
+        return CreateDuplicateBrush(index, 0.0);
+    }
+
+    private static MediaBrush CreateDuplicateBrush(int index, double hueOffset)
+    {
+        const int hueCount = 8;
+        var brightnessLevels = new[] { 0.82, 0.68, 0.54 };
+        var hueIndex = ((index % hueCount) + hueCount) % hueCount;
+        var brightnessIndex = (index / hueCount) % brightnessLevels.Length;
+        var hue = (hueIndex * (360.0 / hueCount) + (hueOffset * 360.0)) % 360.0;
+        var color = CreateColorFromHsv(hue, 0.45, brightnessLevels[brightnessIndex]);
+        return CreateFrozenBrush(MediaColor.FromArgb(0x66, color.R, color.G, color.B));
+    }
+
+    private static MediaColor CreateColorFromHsv(double hue, double saturation, double value)
+    {
+        hue = ((hue % 360.0) + 360.0) % 360.0;
+        saturation = Math.Clamp(saturation, 0.0, 1.0);
+        value = Math.Clamp(value, 0.0, 1.0);
+
+        if (saturation <= 0.0)
+        {
+            var channel = (byte)Math.Round(value * 255.0);
+            return MediaColor.FromRgb(channel, channel, channel);
+        }
+
+        var sector = hue / 60.0;
+        var sectorIndex = (int)Math.Floor(sector);
+        var fraction = sector - sectorIndex;
+        var p = value * (1.0 - saturation);
+        var q = value * (1.0 - saturation * fraction);
+        var t = value * (1.0 - saturation * (1.0 - fraction));
+
+        var (red, green, blue) = sectorIndex switch
+        {
+            0 => (value, t, p),
+            1 => (q, value, p),
+            2 => (p, value, t),
+            3 => (p, q, value),
+            4 => (t, p, value),
+            _ => (value, p, q)
+        };
+
+        return MediaColor.FromRgb(
+            (byte)Math.Round(red * 255.0),
+            (byte)Math.Round(green * 255.0),
+            (byte)Math.Round(blue * 255.0));
     }
 
     private static MediaBrush CreateFrozenBrush(MediaColor color)
@@ -409,6 +471,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var brush = new MediaSolidColorBrush(color);
         brush.Freeze();
         return brush;
+    }
+
+    private static MappingEntry CloneMapping(MappingEntry mapping)
+    {
+        return new MappingEntry
+        {
+            TargetKind = mapping.TargetKind,
+            IsAxisMapping = mapping.IsAxisMapping,
+            TargetHand = mapping.TargetHand,
+            SourceDeviceId = mapping.SourceDeviceId,
+            SourceDeviceName = mapping.SourceDeviceName,
+            SourceAxis = mapping.SourceAxis,
+            SourceButtonIndex = mapping.SourceButtonIndex,
+            AxisRange = mapping.AxisRange,
+            TargetAxis = mapping.TargetAxis,
+            TargetButton = mapping.TargetButton,
+            FullPressThreshold = mapping.FullPressThreshold,
+            Deadzone = mapping.Deadzone,
+            Curve = mapping.Curve,
+            Saturation = mapping.Saturation,
+            Invert = mapping.Invert,
+            IsSourceDeviceConnected = mapping.IsSourceDeviceConnected,
+            IsTemporarilyDisabled = mapping.IsTemporarilyDisabled
+        };
     }
 
     public void Dispose()
