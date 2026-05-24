@@ -19,20 +19,28 @@ The system is composed of two required parts:
 
 ## Table of Contents
 
-- [Architecture](#architecture)
+- [Runtime Requirements](#runtime-requirements)
 - [Implementation Overview](#implementation-overview)
-- [Requirements](#requirements)
 - [Build Guide](#build-guide)
   - [Build the C++ Driver](#build-the-c-driver)
   - [Build the .NET App](#build-the-net-app)
 - [Deployment and Startup](#deployment-and-startup)
+- [How to Undo Deployment](#how-to-undo-deployment)
 - [Configuration and Data Locations](#configuration-and-data-locations)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
-## Architecture
+## Runtime Requirements
 
-VRCHOTAS uses a shared-memory architecture:
+### Windows
+
+- Windows 10/11
+- SteamVR
+- A DirectInput HOTAS / joystick device
+
+## Implementation Overview
+
+VRCHOTAS uses a shared-memory architecture built from two required parts:
 
 1. **.NET App**
    - Enumerates and polls physical DirectInput HOTAS / joystick devices.
@@ -50,8 +58,6 @@ In short:
 
 - **.NET App handles device input, mapping, UI, and state publishing**
 - **C++ Driver handles SteamVR-facing controller injection**
-
-## Implementation Overview
 
 ### C++ Driver
 
@@ -75,14 +81,6 @@ Responsibilities:
 - Lets users create, edit, reorder, enable/disable, save, and load mappings.
 - Applies VR controller mapping logic.
 - Writes the resulting virtual controller state to shared memory.
-
-## Requirements
-
-### Windows
-
-- Windows 10/11
-- SteamVR
-- A DirectInput HOTAS / joystick device
 
 ## Build Guide
 
@@ -164,10 +162,28 @@ The script:
    & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" showdrivers
    ```
 
+## How to Undo Deployment
+
+1. Close SteamVR.
+2. Remove the deployed driver registration:
+
+   ```powershell
+   & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" removedriver "$env:LOCALAPPDATA\openvr\drivers\vrchotas"
+   ```
+
+3. Delete the deployed driver folder if you no longer need the local copy:
+
+   ```powershell
+   Remove-Item "$env:LOCALAPPDATA\openvr\drivers\vrchotas" -Recurse -Force
+   ```
+
+4. Start SteamVR again.
+
 ## Configuration and Data Locations
 
 - App data root: `%APPDATA%\VRCHOTAS\`
 - Configurations: `%APPDATA%\VRCHOTAS\configs\`
+- Logs: `%APPDATA%\VRCHOTAS\logs\`
 - Preferences: `%APPDATA%\VRCHOTAS\preferences.json`
 
 ## Troubleshooting
