@@ -109,7 +109,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string WindowTitle => $"VRCHOTAS Mapper - {CurrentConfigurationFileName}{(IsConfigurationDirty ? " *" : string.Empty)}";
+    public string WindowTitle => $"VRCHOTAS - {CurrentConfigurationFileName}{(IsConfigurationDirty ? " *" : string.Empty)}";
 
     public MappingEntry? SelectedMapping
     {

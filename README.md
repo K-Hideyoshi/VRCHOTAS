@@ -1,12 +1,18 @@
 ﻿# VRCHOTAS
 
+![VRCHOTAS banner](assets/banner.jpeg)
+
 [![Platform](https://img.shields.io/badge/platform-Windows-blue)](#requirements)
 	[![.NET](https://img.shields.io/badge/.NET-10-purple)](#requirements)
 [![C++](https://img.shields.io/badge/C%2B%2B-20-00599C)](#requirements)
 [![UI](https://img.shields.io/badge/UI-WPF-512BD4)](#implementation-overview)
 [![License](https://img.shields.io/badge/license-GPLv3-green)](#license)
 
-VRCHOTAS is a Windows + SteamVR HOTAS / joystick mapping system composed of two required parts:
+VRCHOTAS transforms joysticks, HOTAS systems, and steering wheels into SteamVR controllers. It is a simple yet powerful emulator that bridges DirectInput hardware into VR with fully customizable mappings.
+
+The project originally started to help flight-sim players use their joystick / HOTAS hardware to control aircraft and fighter jets in VRChat flight worlds. It is also designed as a more general solution that can theoretically be used to bring any DirectInput game controller into any SteamVR game or application.
+
+The system is composed of two required parts:
 
 - **.NET App**: discovers DirectInput devices, manages mappings/configurations/hotkeys, and publishes virtual controller state
 - **C++ Driver**: loads as an OpenVR / SteamVR driver and exposes SteamVR-visible virtual controllers

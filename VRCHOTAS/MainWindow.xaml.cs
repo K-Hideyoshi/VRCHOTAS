@@ -132,14 +132,26 @@ namespace VRCHOTAS
 
             var notifyIcon = new Forms.NotifyIcon
             {
-                Text = "VRCHOTAS Mapper",
-                Icon = System.Drawing.SystemIcons.Application,
+                Text = "VRCHOTAS",
+                Icon = LoadNotifyIcon(),
                 Visible = true,
                 ContextMenuStrip = contextMenu
             };
 
             notifyIcon.MouseDoubleClick += OnNotifyIconMouseDoubleClick;
             return notifyIcon;
+        }
+
+        private static System.Drawing.Icon LoadNotifyIcon()
+        {
+            var resourceInfo = System.Windows.Application.GetResourceStream(new Uri("icons/logo_bg_crop_outer.ico", UriKind.Relative));
+            if (resourceInfo is null)
+            {
+                return System.Drawing.SystemIcons.Application;
+            }
+
+            using var stream = resourceInfo.Stream;
+            return new System.Drawing.Icon(stream);
         }
 
         private void SaveAsConfigurationClick(object sender, RoutedEventArgs e)
@@ -643,7 +655,7 @@ namespace VRCHOTAS
                 return;
             }
 
-            _notifyIcon.ShowBalloonTip(2000, "VRCHOTAS Mapper", "The application is still running in the system tray.", Forms.ToolTipIcon.Info);
+            _notifyIcon.ShowBalloonTip(2000, "VRCHOTAS", "The application is still running in the system tray.", Forms.ToolTipIcon.Info);
             _hasShownTrayHint = true;
         }
 

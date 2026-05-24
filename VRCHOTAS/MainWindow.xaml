@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
         mc:Ignorable="d"
-        Title="{Binding WindowTitle}" Height="760" Width="1480">
+         Title="{Binding WindowTitle}" Height="760" Width="1480"
+         Icon="icons/logo_bg_crop_outer.ico">
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveConfigCommand}" />
         <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsConfigCommand}" />
