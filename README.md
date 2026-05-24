@@ -43,44 +43,31 @@ The system is composed of two required parts:
 VRCHOTAS uses a shared-memory architecture built from two required parts:
 
 1. **.NET App**
+	  - Location: `VRCHOTAS/`
    - Enumerates and polls physical DirectInput HOTAS / joystick devices.
+	  - Enumerates and acquires DirectInput devices.
+   - Polls device axes and buttons continuously.
    - Applies mapping logic for controller axes, buttons, and other supported targets.
+	  - Lets users create, edit, reorder, enable/disable, save, and load mappings.
+   - Applies VR controller mapping logic.
    - Publishes virtual controller state into shared memory.
+	  - Writes the resulting virtual controller state to shared memory.
    - Provides the desktop UI, configuration management, hotkeys, and logging.
 
 2. **C++ Driver**
+	  - Location: `VirtualDriver/`
    - Loads inside SteamVR as an OpenVR driver.
+	  - Registers left and right virtual controllers with SteamVR.
+   - Declares the virtual controller input profile.
    - Reads the shared virtual controller state.
    - Exposes left and right virtual controllers to SteamVR.
    - Updates SteamVR-visible inputs and controller state.
+   - Updates virtual controller pose from mapped pose data.
 
 In short:
 
 - **.NET App handles device input, mapping, UI, and state publishing**
 - **C++ Driver handles SteamVR-facing controller injection**
-
-### C++ Driver
-
-Location: `VirtualDriver/`
-
-Responsibilities:
-
-- Registers left and right virtual controllers with SteamVR.
-- Declares the virtual controller input profile.
-- Reads shared memory and updates SteamVR input state.
-- Updates virtual controller pose from mapped pose data.
-
-### .NET App
-
-Location: `VRCHOTAS/`
-
-Responsibilities:
-
-- Enumerates and acquires DirectInput devices.
-- Polls device axes and buttons continuously.
-- Lets users create, edit, reorder, enable/disable, save, and load mappings.
-- Applies VR controller mapping logic.
-- Writes the resulting virtual controller state to shared memory.
 
 ## Build Guide
 
