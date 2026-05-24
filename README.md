@@ -22,7 +22,6 @@ VRCHOTAS is a Windows + SteamVR HOTAS / joystick mapping system composed of two 
 - [Deployment and Startup](#deployment-and-startup)
 - [Configuration and Data Locations](#configuration-and-data-locations)
 - [Troubleshooting](#troubleshooting)
-- [Development Notes](#development-notes)
 - [License](#license)
 
 ## Architecture
@@ -79,21 +78,16 @@ Responsibilities:
 - SteamVR
 - A DirectInput HOTAS / joystick device
 
-### C++ Driver
+## Build Guide
+
+### Build the C++ Driver
+
+#### Requirements
 
 - Visual Studio 2022 / 2026 with C++ Desktop workload
 - CMake 3.20+
 - OpenVR SDK
 - `OPENVR_SDK_PATH` configured to the OpenVR SDK root
-
-### .NET App
-
-- .NET 10 SDK
-- Visual Studio 2026 or another environment capable of building `net10.0-windows`
-
-## Build Guide
-
-### Build the C++ Driver
 
 Configure and build from the repository root:
 
@@ -116,6 +110,11 @@ Expected output:
 - `VirtualDriver\build\resources\input\vrcompositor_bindings_touch.json`
 
 ### Build the .NET App
+
+#### Requirements
+
+- .NET 10 SDK
+- Visual Studio 2026 or another environment capable of building `net10.0-windows`
 
 ```powershell
 dotnet restore .\VRCHOTAS\VRCHOTAS.csproj
@@ -153,13 +152,16 @@ The script:
 4. Start the .NET app
 5. Confirm devices, mappings, driver sync rate, and driver heartbeat in the UI
 6. Start or restart SteamVR
-7. Verify the virtual controllers in SteamVR
+7. Verify the virtual controllers in SteamVR and confirm the driver is registered:
+
+   ```powershell
+   & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" showdrivers
+   ```
 
 ## Configuration and Data Locations
 
 - App data root: `%APPDATA%\VRCHOTAS\`
 - Configurations: `%APPDATA%\VRCHOTAS\configs\`
-- Legacy config location: `%APPDATA%\VRCHOTAS\`
 - Preferences: `%APPDATA%\VRCHOTAS\preferences.json`
 
 ## Troubleshooting
@@ -174,11 +176,16 @@ The script:
 ### SteamVR does not show the virtual controllers
 
 - Confirm `deploy_driver.bat` completed successfully.
-- Confirm the driver directory was registered.
+- Confirm the driver directory was registered:
+
+  ```powershell
+  & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" showdrivers
+  ```
+
 - Confirm these files exist under the deployed driver root:
-  - `driver.vrdrivermanifest`
-  - `bin\win64\driver_vrchotas.dll`
-  - `resources\input\vrchotas_virtual_profile.json`
+	- `%LOCALAPPDATA%\openvr\drivers\vrchotas\driver.vrdrivermanifest`
+  - `%LOCALAPPDATA%\openvr\drivers\vrchotas\bin\win64\driver_vrchotas.dll`
+  - `%LOCALAPPDATA%\openvr\drivers\vrchotas\resources\input\vrchotas_virtual_profile.json`
 - Restart SteamVR after deployment.
 
 ### SteamVR loads the driver, but input does not react as expected
@@ -194,11 +201,6 @@ The script:
 - Confirm whether the mapping targets are pose position or velocity targets.
 - Use `Recenter Hand` if you need to reset the current hand reference point.
 - Review the application logs for mapping and pose state output.
-
-## Development Notes
-
-- Every code change must be accompanied by a README update for any affected behavior, UI, workflow, build requirement, or user-visible feature.
-- README should stay concise and focus on core content rather than deep implementation detail.
 
 ## License
 
