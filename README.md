@@ -24,6 +24,7 @@ The system is composed of two required parts:
 - [Build Guide](#build-guide)
   - [Build the C++ Driver](#build-the-c-driver)
   - [Build the .NET App](#build-the-net-app)
+  - [Release Packaging Guide](#release-packaging-guide)
 - [Deployment and Startup](#deployment-and-startup)
 - [How to Undo Deployment](#how-to-undo-deployment)
 - [Configuration and Data Locations](#configuration-and-data-locations)
@@ -116,36 +117,49 @@ Run:
 dotnet run --project .\VRCHOTAS\VRCHOTAS.csproj
 ```
 
+### Release Packaging Guide
+
+Release packaging instructions were moved to [docs/release-packaging.md](docs/release-packaging.md).
+
 ## Deployment and Startup
 
-### Deploy the driver
+The portable package uses this startup behavior:
 
-From `VirtualDriver/`:
+- On app startup, VRCHOTAS silently tries to detect SteamVR.
+- When SteamVR is found, VRCHOTAS copies the bundled C++ driver payload into `%LOCALAPPDATA%\openvr\drivers\vrchotas`.
+- VRCHOTAS then runs `vrpathreg.exe adddriver` automatically.
+- No manual deployment step is required for the normal portable release.
 
-```powershell
-.\deploy_driver.bat Release
-```
+How the portable package gets the driver payload:
 
-The script:
+- `scripts\publish-release.ps1` builds `VirtualDriver` in `Release` mode.
+- The script copies these build outputs into `DriverPayload\` inside the portable folder:
+  - `driver.vrdrivermanifest`
+  - `bin\win64\driver_vrchotas.dll`
+  - `resources\input\...`
+- On first app start, `SteamVrDriverDeploymentService` reads that bundled `DriverPayload` directory and deploys it into the local OpenVR driver directory.
 
-- verifies that the DLL, source manifest (`resources\driver.vrchotas.vrdrivermanifest`), and input profile exist
-- copies the driver files to `%LOCALAPPDATA%\openvr\drivers\vrchotas`
-- tries to locate `vrpathreg.exe`
-- calls `adddriver` when SteamVR registration tooling is found
+Where OpenVR SDK is used:
 
-### Recommended startup order
+- It is used only when compiling the C++ driver in `VirtualDriver\CMakeLists.txt`.
+- During packaging, `scripts\publish-release.ps1` checks GitHub for the latest SDK version and reuses or refreshes the local SDK cache automatically unless `-OpenVrSdkPath` is provided.
+- The cached SDK is kept between release runs, while only temporary download/extract files are removed after each run.
+- The portable app does not download or discover OpenVR SDK at runtime.
+- At runtime, only SteamVR itself is detected, mainly so VRCHOTAS can find and run `vrpathreg.exe`.
 
-1. Build `VirtualDriver`
-2. Build `VRCHOTAS`
-3. Deploy the driver
-4. Start the .NET app
-5. Confirm devices, mappings, driver sync rate, and driver heartbeat in the UI
-6. Start or restart SteamVR
-7. Verify the virtual controllers in SteamVR and confirm the driver is registered:
+Recommended startup order:
+
+1. Extract VRCHOTAS.
+2. Start VRCHOTAS once so the silent driver deployment can run.
+3. Confirm devices, mappings, driver sync rate, and driver heartbeat in the UI.
+4. Start or restart SteamVR.
+5. Verify the virtual controllers in SteamVR and confirm the driver is registered:
 
    ```powershell
    & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" showdrivers
    ```
+
+For local development, `VirtualDriver\deploy_driver.bat Release` is still available if you want to deploy the driver manually outside the packaged app flow.
 
 ## How to Undo Deployment
 
@@ -155,6 +169,14 @@ The script:
    ```powershell
    & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" removedriver "$env:LOCALAPPDATA\openvr\drivers\vrchotas"
    ```
+
+   Or use the repository cleanup script:
+
+   ```powershell
+   .\scripts\remove-deployed-driver.ps1
+   ```
+
+   Note: if `vrpathreg.exe show` still lists `%LOCALAPPDATA%\openvr\drivers\vrchotas` after cleanup, manually remove the stale entry from `%LOCALAPPDATA%\openvr\openvrpaths.vrpath` before re-testing deployment.
 
 3. Delete the deployed driver folder if you no longer need the local copy:
 

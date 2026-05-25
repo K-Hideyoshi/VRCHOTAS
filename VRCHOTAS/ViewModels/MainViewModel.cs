@@ -25,6 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly MappingEngine _mappingEngine;
     private readonly ConfigurationService _configurationService;
     private readonly PreferencesService _preferencesService;
+    private readonly SteamVrDriverDeploymentService _steamVrDriverDeploymentService;
     private readonly HotkeyRuntime _hotkeyRuntime = new();
     private HotkeyPreferences _hotkeyPreferences = new();
     private readonly SharedMemoryStateChannel? _ipc;
@@ -161,8 +162,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _mappingEngine = new MappingEngine(_logger);
         _configurationService = new ConfigurationService(_logger);
         _preferencesService = new PreferencesService(_logger);
+        _steamVrDriverDeploymentService = new SteamVrDriverDeploymentService(_logger);
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
+        _steamVrDriverDeploymentService.TryDeployOnStartup();
 
         try
         {

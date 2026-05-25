@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)version.json') and '$(DisableVersionJson)' != 'true'">
+	<_VersionJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.json'))</_VersionJson>
+	<_VersionFromJson>$([System.Text.RegularExpressions.Regex]::Match('$(_VersionJson)', '&quot;version&quot;\s*:\s*&quot;(?&lt;value&gt;[^&quot;]+)&quot;').Groups['value'].Value)</_VersionFromJson>
+	<_VersionCore>$([System.Text.RegularExpressions.Regex]::Match('$(_VersionFromJson)', '^(?&lt;value&gt;\d+\.\d+\.\d+)(?:[-+].*)?$').Groups['value'].Value)</_VersionCore>
+	<_VersionCoreWithRevision>$([System.Text.RegularExpressions.Regex]::Match('$(_VersionFromJson)', '^(?&lt;value&gt;\d+\.\d+\.\d+\.\d+)(?:[-+].*)?$').Groups['value'].Value)</_VersionCoreWithRevision>
+
+	<Version Condition="'$(Version)' == '' and '$(_VersionFromJson)' != ''">$(_VersionFromJson)</Version>
+	<InformationalVersion Condition="'$(InformationalVersion)' == '' and '$(_VersionFromJson)' != ''">$(_VersionFromJson)</InformationalVersion>
+	<AssemblyVersion Condition="'$(AssemblyVersion)' == '' and '$(_VersionCoreWithRevision)' != ''">$(_VersionCoreWithRevision)</AssemblyVersion>
+	<AssemblyVersion Condition="'$(AssemblyVersion)' == '' and '$(_VersionCoreWithRevision)' == '' and '$(_VersionCore)' != ''">$(_VersionCore).0</AssemblyVersion>
+	<FileVersion Condition="'$(FileVersion)' == '' and '$(_VersionCoreWithRevision)' != ''">$(_VersionCoreWithRevision)</FileVersion>
+	<FileVersion Condition="'$(FileVersion)' == '' and '$(_VersionCoreWithRevision)' == '' and '$(_VersionCore)' != ''">$(_VersionCore).0</FileVersion>
+  </PropertyGroup>
+
+  <Target Name="ValidateVersionJson"
+		  BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+		  Condition="Exists('$(MSBuildThisFileDirectory)version.json') and '$(DisableVersionJson)' != 'true' and '$(MSBuildProjectExtension)' == '.csproj'">
+	<Error Condition="'$(_VersionFromJson)' == ''" Text="version.json must contain a non-empty 'version' value." />
+	<Error Condition="'$(_VersionCore)' == '' and '$(_VersionCoreWithRevision)' == ''" Text="version.json version '$(_VersionFromJson)' must use semantic version format major.minor.patch[-suffix] or major.minor.patch.revision[-suffix]." />
+	<Message Importance="Low" Text="Applied version $(Version) from version.json to $(MSBuildProjectName)." />
+  </Target>
+</Project>

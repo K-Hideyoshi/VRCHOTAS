@@ -8,6 +8,13 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>icons\logo_bg_crop_outer.ico</ApplicationIcon>
+    <AssemblyName>VRCHOTAS</AssemblyName>
+    <Product>VRCHOTAS</Product>
+    <Company>VRCHOTAS</Company>
+    <Description>Transforms HOTAS and joystick devices into SteamVR controllers.</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <ItemGroup>
