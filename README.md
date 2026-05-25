@@ -130,22 +130,7 @@ The portable package uses this startup behavior:
 - VRCHOTAS then runs `vrpathreg.exe adddriver` automatically.
 - No manual deployment step is required for the normal portable release.
 
-How the portable package gets the driver payload:
-
-- `scripts\publish-release.ps1` builds `VirtualDriver` in `Release` mode.
-- The script copies these build outputs into `DriverPayload\` inside the portable folder:
-  - `driver.vrdrivermanifest`
-  - `bin\win64\driver_vrchotas.dll`
-  - `resources\input\...`
-- On first app start, `SteamVrDriverDeploymentService` reads that bundled `DriverPayload` directory and deploys it into the local OpenVR driver directory.
-
-Where OpenVR SDK is used:
-
-- It is used only when compiling the C++ driver in `VirtualDriver\CMakeLists.txt`.
-- During packaging, `scripts\publish-release.ps1` checks GitHub for the latest SDK version and reuses or refreshes the local SDK cache automatically unless `-OpenVrSdkPath` is provided.
-- The cached SDK is kept between release runs, while only temporary download/extract files are removed after each run.
-- The portable app does not download or discover OpenVR SDK at runtime.
-- At runtime, only SteamVR itself is detected, mainly so VRCHOTAS can find and run `vrpathreg.exe`.
+Portable packaging details, bundled driver payload behavior, and OpenVR SDK usage are documented in [docs/release-packaging.md](docs/release-packaging.md).
 
 Recommended startup order:
 
