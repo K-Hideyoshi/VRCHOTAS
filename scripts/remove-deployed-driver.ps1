@@ -25,13 +25,17 @@ function Get-SteamPath {
 			try {
 				$subKey = $baseKey.OpenSubKey($registryCandidate.Path)
 				try {
-					$steamPath = $subKey?.GetValue("SteamPath")
-					if (-not [string]::IsNullOrWhiteSpace($steamPath)) {
-						return $steamPath
+					if ($null -ne $subKey) {
+						$steamPath = $subKey.GetValue("SteamPath")
+						if (-not [string]::IsNullOrWhiteSpace($steamPath)) {
+							return $steamPath
+						}
 					}
 				}
 				finally {
-					$subKey?.Dispose()
+					if ($null -ne $subKey) {
+						$subKey.Dispose()
+					}
 				}
 			}
 			finally {
@@ -100,7 +104,11 @@ function Remove-ActivateMultipleDriversSetting {
 	}
 
 	$config = Get-Content -Path $steamVrSettingsPath -Raw | ConvertFrom-Json
-	$steamVrConfig = $config.PSObject.Properties["steamvr"]?.Value
+	$steamVrConfig = $null
+	$steamVrProperty = $config.PSObject.Properties["steamvr"]
+	if ($null -ne $steamVrProperty) {
+		$steamVrConfig = $steamVrProperty.Value
+	}
 	if ($null -eq $steamVrConfig) {
 		Write-Host "No steamvr section was found in: $steamVrSettingsPath"
 		return
