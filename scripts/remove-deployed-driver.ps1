@@ -7,14 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $driverRoot = Join-Path $env:LOCALAPPDATA "openvr\drivers\vrchotas"
 
-function Get-VrPathRegPath {
-	if (-not [string]::IsNullOrWhiteSpace($env:STEAMVR_PATH)) {
-		$candidate = Join-Path $env:STEAMVR_PATH "bin\win64\vrpathreg.exe"
-		if (Test-Path $candidate) {
-			return $candidate
-		}
-	}
-
+function Get-SteamPath {
 	$registryCandidates = @(
 		@{ Hive = "CurrentUser"; View = "Registry64"; Path = "Software\Valve\Steam" },
 		@{ Hive = "CurrentUser"; View = "Registry32"; Path = "Software\Valve\Steam" },
@@ -34,10 +27,7 @@ function Get-VrPathRegPath {
 				try {
 					$steamPath = $subKey?.GetValue("SteamPath")
 					if (-not [string]::IsNullOrWhiteSpace($steamPath)) {
-						$candidate = Join-Path $steamPath "steamapps\common\SteamVR\bin\win64\vrpathreg.exe"
-						if (Test-Path $candidate) {
-							return $candidate
-						}
+						return $steamPath
 					}
 				}
 				finally {
@@ -57,6 +47,36 @@ function Get-VrPathRegPath {
 			continue
 		}
 
+		$candidate = Join-Path $basePath "Steam"
+		if (Test-Path $candidate) {
+			return $candidate
+		}
+	}
+
+	return $null
+}
+
+function Get-VrPathRegPath {
+	if (-not [string]::IsNullOrWhiteSpace($env:STEAMVR_PATH)) {
+		$candidate = Join-Path $env:STEAMVR_PATH "bin\win64\vrpathreg.exe"
+		if (Test-Path $candidate) {
+			return $candidate
+		}
+	}
+
+	$steamPath = Get-SteamPath
+	if (-not [string]::IsNullOrWhiteSpace($steamPath)) {
+		$candidate = Join-Path $steamPath "steamapps\common\SteamVR\bin\win64\vrpathreg.exe"
+		if (Test-Path $candidate) {
+			return $candidate
+		}
+	}
+
+	foreach ($basePath in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+		if ([string]::IsNullOrWhiteSpace($basePath)) {
+			continue
+		}
+
 		$candidate = Join-Path $basePath "Steam\steamapps\common\SteamVR\bin\win64\vrpathreg.exe"
 		if (Test-Path $candidate) {
 			return $candidate
@@ -64,6 +84,35 @@ function Get-VrPathRegPath {
 	}
 
 	return $null
+}
+
+function Remove-ActivateMultipleDriversSetting {
+	$steamPath = Get-SteamPath
+	if ([string]::IsNullOrWhiteSpace($steamPath)) {
+		Write-Warning "Steam installation path was not found automatically. steamvr.vrsettings cleanup was skipped."
+		return
+	}
+
+	$steamVrSettingsPath = Join-Path $steamPath "config\steamvr.vrsettings"
+	if (-not (Test-Path $steamVrSettingsPath)) {
+		Write-Host "SteamVR settings file was not found at: $steamVrSettingsPath"
+		return
+	}
+
+	$config = Get-Content -Path $steamVrSettingsPath -Raw | ConvertFrom-Json
+	$steamVrConfig = $config.PSObject.Properties["steamvr"]?.Value
+	if ($null -eq $steamVrConfig) {
+		Write-Host "No steamvr section was found in: $steamVrSettingsPath"
+		return
+	}
+
+	if ($steamVrConfig.PSObject.Properties.Remove("activateMultipleDrivers")) {
+		Write-Host "Removing activateMultipleDrivers from: $steamVrSettingsPath"
+		$config | ConvertTo-Json -Depth 100 | Set-Content -Path $steamVrSettingsPath
+		return
+	}
+
+	Write-Host "activateMultipleDrivers was not present in: $steamVrSettingsPath"
 }
 
 $vrPathRegPath = Get-VrPathRegPath
@@ -90,5 +139,7 @@ if (-not $SkipFileDeletion) {
 else {
 	Write-Host "Skipping deployed driver file deletion."
 }
+
+Remove-ActivateMultipleDriversSetting
 
 Write-Host "Driver cleanup completed."

@@ -671,6 +671,15 @@ namespace VRCHOTAS
             Activate();
         }
 
+        public void RestoreFromSingletonActivation()
+        {
+            ShowFromTray();
+
+            Topmost = true;
+            Topmost = false;
+            Focus();
+        }
+
         private void OnNotifyIconMouseDoubleClick(object? sender, Forms.MouseEventArgs e)
         {
             if (e.Button == Forms.MouseButtons.Left)

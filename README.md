@@ -125,26 +125,23 @@ Release packaging instructions were moved to [docs/release-packaging.md](docs/re
 
 The portable package uses this startup behavior:
 
-- On app startup, VRCHOTAS silently tries to detect SteamVR.
+- On app startup, VRCHOTAS tries to detect SteamVR.
 - When SteamVR is found, VRCHOTAS copies the bundled C++ driver payload into `%LOCALAPPDATA%\openvr\drivers\vrchotas`.
 - VRCHOTAS then runs `vrpathreg.exe adddriver` automatically.
+- VRCHOTAS automatically modifies `<Steam>\config\steamvr.vrsettings` to set `"steamvr.activateMultipleDrivers": true`.
 - No manual deployment step is required for the normal portable release.
 
-Portable packaging details, bundled driver payload behavior, and OpenVR SDK usage are documented in [docs/release-packaging.md](docs/release-packaging.md).
+For local development, `VirtualDriver\deploy_driver.bat Release` is still available if you want to deploy the driver manually outside the packaged app flow.
 
 Recommended startup order:
 
 1. Extract VRCHOTAS.
-2. Start VRCHOTAS once so the silent driver deployment can run.
-3. Confirm devices, mappings, driver sync rate, and driver heartbeat in the UI.
-4. Start or restart SteamVR.
-5. Verify the virtual controllers in SteamVR and confirm the driver is registered:
-
-   ```powershell
-   & "$env:STEAMVR_PATH\bin\win64\vrpathreg.exe" showdrivers
-   ```
-
-For local development, `VirtualDriver\deploy_driver.bat Release` is still available if you want to deploy the driver manually outside the packaged app flow.
+2. Close SteamVR and Steam completely.
+3. Start VRCHOTAS ...
+4. Confirm devices and mappings are configured in the UI.
+5. Start or restart SteamVR.
+6. Confirm driver sync rate and driver heartbeat in the VRCHOTAS UI.
+7. Turn master switch ON, Verify the virtual controllers in SteamVR...
 
 ## How to Undo Deployment
 
@@ -201,6 +198,7 @@ For local development, `VirtualDriver\deploy_driver.bat Release` is still availa
   - `%LOCALAPPDATA%\openvr\drivers\vrchotas\bin\win64\driver_vrchotas.dll`
   - `%LOCALAPPDATA%\openvr\drivers\vrchotas\resources\input\vrchotas_virtual_profile.json`
 - Restart SteamVR after deployment.
+- Ensure `activateMultipleDrivers` is set to `true` in `<Steam>\config\steamvr.vrsettings` (VRCHOTAS configures this automatically on first run).
 
 ### SteamVR loads the driver, but input does not react as expected
 
@@ -215,6 +213,8 @@ For local development, `VirtualDriver\deploy_driver.bat Release` is still availa
 - Confirm whether the mapping targets are pose position or velocity targets.
 - Use `Recenter Hand` if you need to reset the current hand reference point.
 - Review the application logs for mapping and pose state output.
+
+For more detailed troubleshooting guidance and diagnostic tools, see [docs/troubleshooting.md](docs/troubleshooting.md), which includes quick diagnostic scripts, step-by-step solutions for common issues, advanced troubleshooting techniques, and performance optimization tips.
 
 ## License
 

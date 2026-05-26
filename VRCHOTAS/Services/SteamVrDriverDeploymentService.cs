@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using VRCHOTAS.Logging;
 
 namespace VRCHOTAS.Services;
@@ -38,6 +39,7 @@ public sealed class SteamVrDriverDeploymentService
 
             DeployPayload(payload);
             RegisterDriver(vrPathRegPath);
+            TryModifySteamVrSettings();
             _logger.Info(nameof(SteamVrDriverDeploymentService), $"SteamVR driver deployed to '{DriverTargetRoot}'.");
         }
         catch (Exception ex)
@@ -271,4 +273,71 @@ public sealed class SteamVrDriverDeploymentService
     }
 
     private readonly record struct DriverPayload(string ManifestPath, string DriverDllPath, string InputDirectoryPath);
+
+    private void TryModifySteamVrSettings()
+    {
+        try
+        {
+            var steamVrSettingsPath = ResolveSteamVrSettingsPath();
+            if (string.IsNullOrEmpty(steamVrSettingsPath) || !File.Exists(steamVrSettingsPath))
+            {
+                _logger.Debug(nameof(SteamVrDriverDeploymentService), $"steamvr.vrsettings file not found at expected location: {steamVrSettingsPath}");
+                return;
+            }
+
+            ModifySteamVrSettings(steamVrSettingsPath);
+            _logger.Info(nameof(SteamVrDriverDeploymentService), "Successfully modified steamvr.vrsettings to enable multiple drivers.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(nameof(SteamVrDriverDeploymentService), "Failed to modify steamvr.vrsettings file.", ex);
+        }
+    }
+
+    private string ResolveSteamVrSettingsPath()
+    {
+        // Try STEAMVR_PATH environment variable first
+        var steamVrPath = Environment.GetEnvironmentVariable("STEAMVR_PATH");
+        if (!string.IsNullOrWhiteSpace(steamVrPath))
+        {
+            var path = Path.Combine(steamVrPath, "config", "steamvr.vrsettings");
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        // Try registered Steam paths
+        foreach (var steamPath in EnumerateRegisteredSteamPaths())
+        {
+            var path = Path.Combine(steamPath, "config", "steamvr.vrsettings");
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void ModifySteamVrSettings(string steamVrSettingsPath)
+    {
+        // Read the file content
+        var json = File.ReadAllText(steamVrSettingsPath);
+        var jObject = JObject.Parse(json);
+
+        // Ensure the steamvr node exists
+        if (jObject["steamvr"] == null)
+        {
+            jObject["steamvr"] = new JObject();
+        }
+
+        // Set activateMultipleDrivers to true
+        jObject["steamvr"]!["activateMultipleDrivers"] = true;
+
+        // Write the modified content back
+        var modifiedJson = jObject.ToString(Newtonsoft.Json.Formatting.Indented);
+        File.WriteAllText(steamVrSettingsPath, modifiedJson);
+    }
 }
+

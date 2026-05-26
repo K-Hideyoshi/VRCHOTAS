@@ -51,8 +51,20 @@ Outputs:
   - `driver.vrdrivermanifest`
   - `bin\win64\driver_vrchotas.dll`
   - `resources\input\...`
-- On first app start, `SteamVrDriverDeploymentService` reads that bundled `DriverPayload` directory and deploys it into the local OpenVR driver directory.
+- On first app start, `SteamVrDriverDeploymentService` reads that bundled `DriverPayload` directory and performs the following automatic steps:
+  1. Deploys the bundled driver files into the local OpenVR driver directory (`%LOCALAPPDATA%\openvr\drivers\vrchotas`)
+  2. Registers the driver with SteamVR using `vrpathreg.exe adddriver`
+  3. Automatically modifies `<Steam>\config\steamvr.vrsettings` to enable multiple driver support by setting `"activateMultipleDrivers": true` in the `steamvr` configuration section
 
+### Automatic SteamVR Configuration
+
+During deployment, VRCHOTAS automatically updates the SteamVR settings file to ensure multiple drivers can run simultaneously:
+
+- The service locates `steamvr.vrsettings` by checking the `STEAMVR_PATH` environment variable first, then falling back to Steam registry paths
+- If found, it reads the JSON file, ensures the `steamvr` section exists, and sets `"activateMultipleDrivers": true`
+- The modified JSON file is written back with proper formatting and indentation
+- If this step fails (missing file, permissions, or JSON parse errors), a warning is logged but deployment continues
+- Manual configuration of `steamvr.vrsettings` is still possible if the automatic step does not complete successfully
 ## Resetting a Test Deployment
 
 Use this script to remove the registered SteamVR driver and delete the deployed local driver files before testing deployment again:
@@ -66,6 +78,14 @@ If you want to keep the deployed files but remove only the SteamVR registration:
 ```powershell
 .\scripts\remove-deployed-driver.ps1 -SkipFileDeletion
 ```
+
+### Resetting SteamVR Settings After Undeployment
+
+If you need to revert the `activateMultipleDrivers` change after removing VRCHOTAS:
+
+- The setting is not automatically reverted when the driver is removed
+- To disable multiple driver support, manually edit `<Steam>\config\steamvr.vrsettings` and set `"activateMultipleDrivers": false` (or remove the property entirely if other applications don't require it)
+- Alternatively, delete the entire `steamvr.vrsettings` file and let SteamVR regenerate it with default settings on next startup
 
 Note:
 
