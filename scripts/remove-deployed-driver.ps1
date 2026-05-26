@@ -114,7 +114,9 @@ function Remove-ActivateMultipleDriversSetting {
 		return
 	}
 
-	if ($steamVrConfig.PSObject.Properties.Remove("activateMultipleDrivers")) {
+	$activateMultipleDriversProperty = $steamVrConfig.PSObject.Properties["activateMultipleDrivers"]
+	if ($null -ne $activateMultipleDriversProperty) {
+		$steamVrConfig.PSObject.Properties.Remove("activateMultipleDrivers")
 		Write-Host "Removing activateMultipleDrivers from: $steamVrSettingsPath"
 		$config | ConvertTo-Json -Depth 100 | Set-Content -Path $steamVrSettingsPath
 		return
