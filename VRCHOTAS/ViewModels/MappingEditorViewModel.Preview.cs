@@ -171,15 +171,15 @@ public sealed partial class MappingEditorViewModel
             new ControllerPoseTargetOption("Pose position X (m)", ControllerPoseTarget.PositionX),
             new ControllerPoseTargetOption("Pose position Y (m)", ControllerPoseTarget.PositionY),
             new ControllerPoseTargetOption("Pose position Z (m)", ControllerPoseTarget.PositionZ),
-            new ControllerPoseTargetOption("Orientation pitch X (rotation)", ControllerPoseTarget.OrientationPitch),
-            new ControllerPoseTargetOption("Orientation yaw Y (rotation)", ControllerPoseTarget.OrientationYaw),
-            new ControllerPoseTargetOption("Orientation roll Z (rotation)", ControllerPoseTarget.OrientationRoll),
+            new ControllerPoseTargetOption("Orient Pitch (rotation)", ControllerPoseTarget.OrientationPitch),
+            new ControllerPoseTargetOption("Orient Yaw (rotation)", ControllerPoseTarget.OrientationYaw),
+            new ControllerPoseTargetOption("Orient Roll (rotation)", ControllerPoseTarget.OrientationRoll),
             new ControllerPoseTargetOption("Linear velocity X (m/s)", ControllerPoseTarget.LinearVelocityX),
             new ControllerPoseTargetOption("Linear velocity Y (m/s)", ControllerPoseTarget.LinearVelocityY),
             new ControllerPoseTargetOption("Linear velocity Z (m/s)", ControllerPoseTarget.LinearVelocityZ),
-            new ControllerPoseTargetOption("Angular velocity X (rad/s)", ControllerPoseTarget.AngularVelocityX),
-            new ControllerPoseTargetOption("Angular velocity Y (rad/s)", ControllerPoseTarget.AngularVelocityY),
-            new ControllerPoseTargetOption("Angular velocity Z (rad/s)", ControllerPoseTarget.AngularVelocityZ)
+            new ControllerPoseTargetOption("Angular Velocity Pitch (rad/s)", ControllerPoseTarget.AngularVelocityX),
+            new ControllerPoseTargetOption("Angular Velocity Yaw (rad/s)", ControllerPoseTarget.AngularVelocityY),
+            new ControllerPoseTargetOption("Angular Velocity Roll (rad/s)", ControllerPoseTarget.AngularVelocityZ)
         };
     }
 
@@ -190,9 +190,9 @@ public sealed partial class MappingEditorViewModel
             new AxisActionTargetOption("Reset Pos X", ControllerPoseActionTarget.ResetPositionX),
             new AxisActionTargetOption("Reset Pos Y", ControllerPoseActionTarget.ResetPositionY),
             new AxisActionTargetOption("Reset Pos Z", ControllerPoseActionTarget.ResetPositionZ),
-            new AxisActionTargetOption("Reset Orientation Pitch", ControllerPoseActionTarget.ResetOrientPitch),
-            new AxisActionTargetOption("Reset Orientation Roll", ControllerPoseActionTarget.ResetOrientRoll),
-            new AxisActionTargetOption("Reset Orientation Yaw", ControllerPoseActionTarget.ResetOrientYaw),
+            new AxisActionTargetOption("Reset Orient Pitch", ControllerPoseActionTarget.ResetOrientPitch),
+            new AxisActionTargetOption("Reset Orient Roll", ControllerPoseActionTarget.ResetOrientRoll),
+            new AxisActionTargetOption("Reset Orient Yaw", ControllerPoseActionTarget.ResetOrientYaw),
             new AxisActionTargetOption("Reset Hand", ControllerPoseActionTarget.ResetHand)
         };
     }

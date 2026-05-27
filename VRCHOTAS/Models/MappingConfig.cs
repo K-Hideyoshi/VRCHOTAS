@@ -182,8 +182,10 @@ public sealed partial class MappingEntry : ObservableObject
         _ => $"{TargetHand}|{NormalizedTargetKind}"
     };
 
+    [JsonIgnore]
     public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex + 1}";
 
+    [JsonIgnore]
     public string TargetDisplay
     {
         get
@@ -194,14 +196,43 @@ public sealed partial class MappingEntry : ObservableObject
         }
     }
 
+    [JsonIgnore]
+    public string MappingTypeDisplay
+    {
+        get
+        {
+            var sourceType = IsAxisMapping ? "Axis" : "Button";
+            var targetType = GetTargetKindDisplayName();
+            var inverted = IsTargetAxisType() && Invert ? " Inverted" : "";
+            return $"{sourceType} ¡ú {targetType}{inverted}";
+        }
+    }
+
+    private string GetTargetKindDisplayName()
+    {
+        return NormalizedTargetKind switch
+        {
+            MappingTargetKind.AxisInput => "VR Axis",
+            MappingTargetKind.Button => "VR Button",
+            MappingTargetKind.ControllerPose => "Controller Pose",
+            MappingTargetKind.ControllerPoseAction => "Controller Pose Action",
+            _ => NormalizedTargetKind.ToString()
+        };
+    }
+
+    private bool IsTargetAxisType()
+    {
+        return NormalizedTargetKind is MappingTargetKind.AxisInput or MappingTargetKind.ControllerPose;
+    }
+
     private string GetAxisTargetDisplay()
     {
         return TargetAxis switch
         {
-            VirtualAxisTarget.ThumbstickX => "Thumbstick X (-1..1)",
-            VirtualAxisTarget.ThumbstickY => "Thumbstick Y (-1..1)",
-            VirtualAxisTarget.Trigger => "Trigger (0..1)",
-            VirtualAxisTarget.Grip => "Grip (0..1)",
+            VirtualAxisTarget.ThumbstickX => "Thumbstick X",
+            VirtualAxisTarget.ThumbstickY => "Thumbstick Y",
+            VirtualAxisTarget.Trigger => "Trigger",
+            VirtualAxisTarget.Grip => "Grip",
             _ => TargetAxis.ToString()
         };
     }
@@ -223,18 +254,18 @@ public sealed partial class MappingEntry : ObservableObject
     {
         return ResolvedControllerPoseTarget switch
         {
-            ControllerPoseTarget.PositionX => "Pose X (m)",
-            ControllerPoseTarget.PositionY => "Pose Y (m)",
-            ControllerPoseTarget.PositionZ => "Pose Z (m)",
+            ControllerPoseTarget.PositionX => "Pose position X (m)",
+            ControllerPoseTarget.PositionY => "Pose position Y (m)",
+            ControllerPoseTarget.PositionZ => "Pose position Z (m)",
             ControllerPoseTarget.OrientationPitch => "Orient Pitch (rotation)",
             ControllerPoseTarget.OrientationYaw => "Orient Yaw (rotation)",
             ControllerPoseTarget.OrientationRoll => "Orient Roll (rotation)",
-            ControllerPoseTarget.LinearVelocityX => "LinVel X (m/s)",
-            ControllerPoseTarget.LinearVelocityY => "LinVel Y (m/s)",
-            ControllerPoseTarget.LinearVelocityZ => "LinVel Z (m/s)",
-            ControllerPoseTarget.AngularVelocityX => "AngVel X (rad/s)",
-            ControllerPoseTarget.AngularVelocityY => "AngVel Y (rad/s)",
-            ControllerPoseTarget.AngularVelocityZ => "AngVel Z (rad/s)",
+            ControllerPoseTarget.LinearVelocityX => "Linear velocity X (m/s)",
+            ControllerPoseTarget.LinearVelocityY => "Linear velocity Y (m/s)",
+            ControllerPoseTarget.LinearVelocityZ => "Linear velocity Z (m/s)",
+            ControllerPoseTarget.AngularVelocityX => "Angular Velocity Pitch (rad/s)",
+            ControllerPoseTarget.AngularVelocityY => "Angular Velocity Yaw (rad/s)",
+            ControllerPoseTarget.AngularVelocityZ => "Angular Velocity Roll (rad/s)",
             _ => ResolvedControllerPoseTarget.ToString()
         };
     }

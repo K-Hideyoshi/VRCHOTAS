@@ -128,7 +128,7 @@ public sealed class MappingEngine
             return;
         }
 
-        var shouldTrigger = context.Mapping.ToggleMode ? justPressed && isActive : isActive;
+        var shouldTrigger = context.Mapping.ToggleMode ? justPressed && isActive : justPressed;
         if (!shouldTrigger)
         {
             return;
@@ -282,13 +282,22 @@ public sealed class MappingEngine
                 poseScratch.Pz += scaledValue;
                 break;
             case ControllerPoseTarget.OrientationPitch:
-                poseScratch.PitchDeg += scaledValue * DegreesPerRotation;
+                if (!poseScratch.ResetOrientPitchRequested)
+                {
+                    poseScratch.PitchDeg += scaledValue * DegreesPerRotation;
+                }
                 break;
             case ControllerPoseTarget.OrientationYaw:
-                poseScratch.YawDeg += scaledValue * DegreesPerRotation;
+                if (!poseScratch.ResetOrientYawRequested)
+                {
+                    poseScratch.YawDeg += scaledValue * DegreesPerRotation;
+                }
                 break;
             case ControllerPoseTarget.OrientationRoll:
-                poseScratch.RollDeg += scaledValue * DegreesPerRotation;
+                if (!poseScratch.ResetOrientRollRequested)
+                {
+                    poseScratch.RollDeg += scaledValue * DegreesPerRotation;
+                }
                 break;
             case ControllerPoseTarget.LinearVelocityX:
                 poseScratch.Vx += scaledValue;
@@ -300,13 +309,22 @@ public sealed class MappingEngine
                 poseScratch.Vz += scaledValue;
                 break;
             case ControllerPoseTarget.AngularVelocityX:
-                poseScratch.Wx += scaledValue;
+                if (!poseScratch.ResetOrientPitchRequested)
+                {
+                    poseScratch.Wx += scaledValue;
+                }
                 break;
             case ControllerPoseTarget.AngularVelocityY:
-                poseScratch.Wy += scaledValue;
+                if (!poseScratch.ResetOrientYawRequested)
+                {
+                    poseScratch.Wy += scaledValue;
+                }
                 break;
             case ControllerPoseTarget.AngularVelocityZ:
-                poseScratch.Wz += scaledValue;
+                if (!poseScratch.ResetOrientRollRequested)
+                {
+                    poseScratch.Wz += scaledValue;
+                }
                 break;
             default:
                 _logger.Debug(nameof(MappingEngine), $"Unhandled target kind: {targetKind}.");
@@ -336,13 +354,6 @@ public sealed class MappingEngine
         }
 
         var isPressed = sourceDevice.Buttons[mapping.SourceButtonIndex];
-        if (!mapping.ToggleMode)
-        {
-            _toggleStates.Remove(mapping);
-            isActive = isPressed;
-            justPressed = isPressed;
-            return true;
-        }
 
         if (!_toggleStates.TryGetValue(mapping, out var state))
         {
@@ -351,6 +362,14 @@ public sealed class MappingEngine
         }
 
         justPressed = isPressed && !state.WasPressed;
+
+        if (!mapping.ToggleMode)
+        {
+            isActive = isPressed;
+            state.WasPressed = isPressed;
+            return true;
+        }
+
         if (justPressed)
         {
             state.IsActive = !state.IsActive;
@@ -409,6 +428,9 @@ public sealed class MappingEngine
         public double Vx, Vy, Vz;
         public double Wx, Wy, Wz;
         public bool ResetRequested;
+        public bool ResetOrientPitchRequested;
+        public bool ResetOrientYawRequested;
+        public bool ResetOrientRollRequested;
     }
 
     private sealed class MappingSession
@@ -605,7 +627,6 @@ public sealed class MappingEngine
             case ControllerPoseActionTarget.ResetOrientYaw:
                 anchor.ResetOrientationAxis(axisAction);
                 ResetOrientationScratchAxis(axisAction, ref scratch);
-                ResetHandOrientation(ref hand);
                 _logger.Debug(nameof(MappingEngine), $"Axis action applied: {axisAction}.");
                 return;
             case ControllerPoseActionTarget.ResetHand:
@@ -662,14 +683,17 @@ public sealed class MappingEngine
             case ControllerPoseActionTarget.ResetOrientPitch:
                 scratch.PitchDeg = 0;
                 scratch.Wx = 0;
+                scratch.ResetOrientPitchRequested = true;
                 break;
             case ControllerPoseActionTarget.ResetOrientRoll:
                 scratch.RollDeg = 0;
                 scratch.Wz = 0;
+                scratch.ResetOrientRollRequested = true;
                 break;
             case ControllerPoseActionTarget.ResetOrientYaw:
                 scratch.YawDeg = 0;
                 scratch.Wy = 0;
+                scratch.ResetOrientYawRequested = true;
                 break;
         }
     }

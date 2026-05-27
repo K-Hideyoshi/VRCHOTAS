@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
         mc:Ignorable="d"
-         Title="{Binding WindowTitle}" Height="760" Width="1480"
+         Title="{Binding WindowTitle}" Height="760" Width="1580"
          Icon="icons/logo_bg_crop_outer.ico">
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveConfigCommand}" />
@@ -65,10 +65,11 @@
         <Style x:Key="MappingCellStyle" TargetType="DataGridCell">
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="6,0,6,0" />
+            <Setter Property="Padding" Value="8,6,8,6" />
             <Setter Property="Foreground" Value="#FF111111" />
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="White" />
                     <Setter Property="BorderBrush" Value="#FF2563EB" />
                     <Setter Property="BorderThickness" Value="1.5" />
                     <Setter Property="Foreground" Value="#FF111111" />
@@ -77,9 +78,19 @@
         </Style>
         <Style x:Key="MappingSourceGroupCellStyle" TargetType="DataGridCell" BasedOn="{StaticResource MappingCellStyle}">
             <Setter Property="Background" Value="{Binding SourceDuplicateBackground}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="White" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="MappingTargetGroupCellStyle" TargetType="DataGridCell" BasedOn="{StaticResource MappingCellStyle}">
             <Setter Property="Background" Value="{Binding TargetDuplicateBackground}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="White" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="MasterSwitchButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#FFF0F2F5" />
@@ -245,8 +256,8 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.3*" />
-                <ColumnDefinition Width="4.7*" />
+                <ColumnDefinition Width="2.0*" />
+                <ColumnDefinition Width="5.0*" />
             </Grid.ColumnDefinitions>
 
             <ScrollViewer Grid.Column="0" Margin="0,0,12,0" VerticalScrollBarVisibility="Auto">
@@ -511,6 +522,16 @@
                         <DataGridTextColumn x:Name="TargetControlColumn" Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="170">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingTargetGroupCellStyle" />
+                            </DataGridTextColumn.CellStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn x:Name="TypeColumn" Header="Type" Binding="{Binding MappingTypeDisplay}" Width="Auto">
+                            <DataGridTextColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingCellStyle" />
                             </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
