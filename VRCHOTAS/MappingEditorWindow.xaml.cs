@@ -138,7 +138,7 @@ public partial class MappingEditorWindow : Window
 
         if (_viewModel.TrySetNumericEditorValue(fieldName, textBox.Text))
         {
-            textBox.Text = _viewModel.GetNumericEditorText(fieldName);
+            textBox.SetCurrentValue(Controls.TextBox.TextProperty, _viewModel.GetNumericEditorText(fieldName));
             _numericEditorOriginalTexts[textBox] = textBox.Text;
             return;
         }
@@ -155,7 +155,7 @@ public partial class MappingEditorWindow : Window
                 : string.Empty;
         }
 
-        textBox.Text = originalText;
+        textBox.SetCurrentValue(Controls.TextBox.TextProperty, originalText);
         textBox.SelectAll();
     }
 

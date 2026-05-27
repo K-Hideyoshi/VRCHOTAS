@@ -89,12 +89,10 @@ public sealed partial class MappingEditorViewModel
         var shaped = MappingEngine.MapAxisValue(input, Deadzone, Curve, 1.0, Invert, AxisRange);
         return SelectedTargetKind == MappingTargetKind.AxisInput
             ? MappingEngine.MapAxisValue(input, Deadzone, Curve, Saturation, Invert, AxisRange)
-            : shaped * Math.Clamp(Saturation, 0.0, 5.0);
+            : shaped * Saturation;
     }
 
-    private double ResolvePlotYRangeMax() => AxisRange == AxisRangeKind.Unidirectional
-        ? Math.Max(1.0, Math.Clamp(Saturation, 0.0, 5.0))
-        : Math.Max(1.0, Math.Clamp(Saturation, 0.0, 5.0));
+    private double ResolvePlotYRangeMax() => Math.Max(Saturation, 0.0001);
 
     private bool TryGetPreviewInput(JoystickDeviceState? device, out double input)
     {

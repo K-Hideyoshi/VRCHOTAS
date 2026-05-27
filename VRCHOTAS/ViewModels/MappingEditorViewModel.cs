@@ -30,6 +30,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private double _deadzone;
     private double _curve;
     private double _saturation = 1.0;
+    private double _saturationSliderMaximum = 5.0;
     private double _fullPressThreshold = 0.95;
     private bool _invert;
     private double _currentInputValue;
@@ -131,6 +132,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             if (SetProperty(ref _hasDetectedSource, value))
             {
                 OnPropertyChanged(nameof(CanEditTarget));
+                OnPropertyChanged(nameof(SourceDetectionInstruction));
             }
         }
     }
@@ -151,7 +153,13 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     public bool IsListening
     {
         get => _isListening;
-        set => SetProperty(ref _isListening, value);
+        set
+        {
+            if (SetProperty(ref _isListening, value))
+            {
+                OnPropertyChanged(nameof(SourceDetectionInstruction));
+            }
+        }
     }
 
     public string SourceDeviceId
@@ -272,11 +280,20 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         get => _saturation;
         set
         {
-            if (SetProperty(ref _saturation, value))
+            var normalizedValue = Math.Max(0.0, value);
+            EnsureSaturationSliderMaximum(normalizedValue);
+
+            if (SetProperty(ref _saturation, normalizedValue))
             {
                 RebuildCurvePlot();
             }
         }
+    }
+
+    public double SaturationSliderMaximum
+    {
+        get => _saturationSliderMaximum;
+        private set => SetProperty(ref _saturationSliderMaximum, value);
     }
 
     public bool Invert
@@ -340,9 +357,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         }
     }
 
-    public string PlotYMaxLabel => PlotYRangeMax.ToString("F2");
+    public string PlotYMaxLabel => Saturation.ToString("F2");
 
-    public string PlotYMinLabel => AxisRange == AxisRangeKind.Unidirectional ? "0.00" : (-PlotYRangeMax).ToString("F2");
+    public string PlotYMinLabel => AxisRange == AxisRangeKind.Unidirectional ? "0.00" : (-Saturation).ToString("F2");
 
     public string CurvePlotPoints
     {
@@ -356,11 +373,15 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             ? $"{SourceDeviceName} / Button {SourceButtonIndex + 1}"
             : $"{SourceDeviceName} / Axis {SourceAxis}";
 
+    public string SourceDetectionInstruction => HasDetectedSource
+        ? "Use Reset button to listen for a new input."
+        : "Change a button state or move an axis quickly on the device to select input source.";
+
     public bool CanEditTarget => HasDetectedSource;
 
     public string GetNumericEditorText(string fieldName)
     {
-        return GetNumericFieldValue(fieldName).ToString("F2", CultureInfo.CurrentCulture);
+        return GetNumericFieldValue(fieldName).ToString(GetNumericFieldFormat(fieldName), CultureInfo.CurrentCulture);
     }
 
     public bool TrySetNumericEditorValue(string fieldName, string? text)
@@ -405,14 +426,29 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         _ => 0.0
     };
 
+    private static string GetNumericFieldFormat(string fieldName) => fieldName switch
+    {
+        nameof(Deadzone) or nameof(Curve) or nameof(Saturation) => "F3",
+        _ => "F2"
+    };
+
     private (double Min, double Max) GetNumericFieldRange(string fieldName) => fieldName switch
     {
         nameof(FullPressThreshold) => (0.0, 1.0),
         nameof(Deadzone) => (0.0, 0.8),
         nameof(Curve) => (-1.0, 1.0),
-        nameof(Saturation) => (0.0, 5.0),
+        nameof(Saturation) => (0.0, double.MaxValue),
         _ => (double.NaN, double.NaN)
     };
+
+    private void EnsureSaturationSliderMaximum(double value)
+    {
+        var nextMaximum = Math.Max(SaturationSliderMaximum, Math.Max(5.0, value));
+        if (nextMaximum > SaturationSliderMaximum)
+        {
+            SaturationSliderMaximum = nextMaximum;
+        }
+    }
 
     private void SyncAxisRangeWithTarget()
     {

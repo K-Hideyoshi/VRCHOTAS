@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
         Title="Mapping Editor"
-        Height="760"
         Width="560"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Window.Resources>
@@ -17,26 +17,38 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Source Detection" FontWeight="Bold" />
+        <GroupBox Grid.Row="0" Grid.ColumnSpan="2" Header="Source Detection" Margin="0,0,0,12">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Text="Use Re-detect to listen for a source input. Change a button state or move an axis quickly on the source device while detection is active." />
+                <TextBlock Grid.Row="0"
+                           Grid.ColumnSpan="2"
+                           Margin="0,0,0,8"
+                           Text="{Binding SourceDetectionInstruction}"
+                           TextWrapping="Wrap" />
 
-        <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Detected Source:" />
-        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
-            <TextBlock VerticalAlignment="Center" Text="{Binding SourceSummary}" />
-            <Button Width="90" Margin="12,0,0,0" Content="Re-detect" Click="ClearDetectionClick" Visibility="{Binding HasDetectedSource, Converter={StaticResource BooleanToVisibilityConverter}}" />
-        </StackPanel>
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Detected Source:" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock VerticalAlignment="Center" Text="{Binding SourceSummary}" />
+                    <Button Width="90" Margin="12,0,0,0" Content="Reset" Click="ClearDetectionClick" Visibility="{Binding HasDetectedSource, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+            </Grid>
+        </GroupBox>
 
-        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Target" Margin="0,12,0,0" IsEnabled="{Binding CanEditTarget}">
+        <GroupBox Grid.Row="1" Grid.ColumnSpan="2" Header="Target" Margin="0,0,0,10" IsEnabled="{Binding CanEditTarget}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="140" />
@@ -50,16 +62,16 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target:" />
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
                 <ComboBox Grid.Row="0" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
+                          ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
+
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target Type:" />
+                <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding AvailableTargetKindOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedTargetKind}" />
-
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
-                          ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
 
                 <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
@@ -92,7 +104,7 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="4" Grid.RowSpan="2" Grid.ColumnSpan="2" Header="Curves" Margin="0,10,0,0" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Curves" Margin="0,0,0,10" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="140" />
@@ -105,22 +117,18 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,8" Text="Invert:" />
-                <CheckBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" Margin="0,0,0,8" IsChecked="{Binding Invert}" />
-
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8" Text="Deadzone:" />
-                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,8" Text="Deadzone:" />
+                <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <Slider x:Name="CurvePreviewWidthSourceSlider" Grid.Column="0" Minimum="0.0" Maximum="0.8" Value="{Binding Deadzone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
                     <TextBox Grid.Column="1"
                              Margin="10,0,0,0"
-                             Text="{Binding Deadzone, StringFormat=F2, Mode=OneWay}"
+                             Text="{Binding Deadzone, StringFormat=F3, Mode=OneWay}"
                              VerticalContentAlignment="Center"
                              HorizontalContentAlignment="Right"
                              Tag="Deadzone"
@@ -129,8 +137,8 @@
                              PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8" Text="Curve:" />
-                <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8" Text="Curve:" />
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />
@@ -138,7 +146,7 @@
                     <Slider Grid.Column="0" Minimum="-1.0" Maximum="1.0" Value="{Binding Curve, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
                     <TextBox Grid.Column="1"
                              Margin="10,0,0,0"
-                             Text="{Binding Curve, StringFormat=F2, Mode=OneWay}"
+                             Text="{Binding Curve, StringFormat=F3, Mode=OneWay}"
                              VerticalContentAlignment="Center"
                              HorizontalContentAlignment="Right"
                              Tag="Curve"
@@ -147,16 +155,16 @@
                              PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Text="Saturation:" />
-                <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,8">
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8" Text="Saturation:" />
+                <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />
                     </Grid.ColumnDefinitions>
-                    <Slider Grid.Column="0" Minimum="0.0" Maximum="5.0" Value="{Binding Saturation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="{Binding SaturationSliderMaximum}" Value="{Binding Saturation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TickFrequency="0.01" IsSnapToTickEnabled="False" />
                     <TextBox Grid.Column="1"
                              Margin="10,0,0,0"
-                             Text="{Binding Saturation, StringFormat=F2, Mode=OneWay}"
+                             Text="{Binding Saturation, StringFormat=F3, Mode=OneWay}"
                              VerticalContentAlignment="Center"
                              HorizontalContentAlignment="Right"
                              Tag="Saturation"
@@ -165,31 +173,47 @@
                              PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="4" VerticalAlignment="Top" Margin="0,0,0,8" Text="Curve Preview (x -> y):" />
-                <Border Grid.Row="4" Grid.Column="1" Grid.RowSpan="2" BorderBrush="Gray" BorderThickness="1" Width="210" Height="210" HorizontalAlignment="Left">
-                    <Canvas Width="200" Height="200" Margin="4">
-                        <TextBlock Canvas.Left="2" Canvas.Top="2" Text="{Binding PlotYMaxLabel}" FontSize="10" Foreground="Gray" />
-                        <TextBlock Canvas.Left="2" Canvas.Top="188" Text="{Binding PlotYMinLabel}" FontSize="10" Foreground="Gray" />
-                        <Line X1="0" Y1="100" X2="200" Y2="100" Stroke="Gray" StrokeThickness="1" />
-                        <Line X1="100" Y1="0" X2="100" Y2="200" Stroke="Gray" StrokeThickness="1" />
-                        <Polyline Points="{Binding CurvePlotPoints}" Stroke="DeepSkyBlue" StrokeThickness="2" />
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Text="Invert:" />
+                <CheckBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Margin="0,0,0,8" IsChecked="{Binding Invert}" />
 
-                        <Ellipse Width="12" Height="12" Fill="Red" Canvas.Left="{Binding CurrentInputPlotX}" Canvas.Top="{Binding CurrentInputPlotY}">
-                            <Ellipse.RenderTransform>
-                                <TranslateTransform X="-6" Y="-6" />
-                            </Ellipse.RenderTransform>
-                        </Ellipse>
+                <TextBlock Grid.Row="4" VerticalAlignment="Top" Margin="0,0,0,8" Text="Curve Preview:" />
+                <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="60" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0"
+                            BorderBrush="Gray"
+                            BorderThickness="1"
+                            Width="{Binding ElementName=CurvePreviewWidthSourceSlider, Path=ActualWidth}"
+                            Height="{Binding ElementName=CurvePreviewWidthSourceSlider, Path=ActualWidth}"
+                            HorizontalAlignment="Left">
+                        <Viewbox Stretch="Fill">
+                            <Canvas Width="200" Height="200" Margin="4">
+                                <TextBlock Canvas.Left="2" Canvas.Top="2" Text="{Binding PlotYMaxLabel}" FontSize="10" Foreground="Gray" />
+                                <TextBlock Canvas.Left="2" Canvas.Top="188" Text="{Binding PlotYMinLabel}" FontSize="10" Foreground="Gray" />
+                                <Line X1="0" Y1="100" X2="200" Y2="100" Stroke="Gray" StrokeThickness="1" />
+                                <Line X1="100" Y1="0" X2="100" Y2="200" Stroke="Gray" StrokeThickness="1" />
+                                <Polyline Points="{Binding CurvePlotPoints}" Stroke="DeepSkyBlue" StrokeThickness="2" />
 
-                        <Ellipse Width="6" Height="6" Fill="Yellow" Stroke="Black" StrokeThickness="0.6" Canvas.Left="{Binding CurrentOutputPlotX}" Canvas.Top="{Binding CurrentOutputPlotY}">
-                            <Ellipse.RenderTransform>
-                                <TranslateTransform X="-3" Y="-3" />
-                            </Ellipse.RenderTransform>
-                        </Ellipse>
-                    </Canvas>
-                </Border>
+                                <Ellipse Width="12" Height="12" Fill="Red" Canvas.Left="{Binding CurrentInputPlotX}" Canvas.Top="{Binding CurrentInputPlotY}">
+                                    <Ellipse.RenderTransform>
+                                        <TranslateTransform X="-6" Y="-6" />
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
 
-                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,8,0,0" Text="Input / Mapped Output:" />
-                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                                <Ellipse Width="6" Height="6" Fill="Yellow" Stroke="Black" StrokeThickness="0.6" Canvas.Left="{Binding CurrentOutputPlotX}" Canvas.Top="{Binding CurrentOutputPlotY}">
+                                    <Ellipse.RenderTransform>
+                                        <TranslateTransform X="-3" Y="-3" />
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+                </Grid>
+
+                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,8,0,0" Text="Input / Mapped Output:" />
+                <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                     <TextBlock VerticalAlignment="Center" Text="Input:" />
                     <TextBlock VerticalAlignment="Center" Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />
                     <TextBlock VerticalAlignment="Center" Text="Mapped Output:" />
@@ -198,7 +222,7 @@
             </Grid>
         </GroupBox>
 
-        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
             <Button Width="90" Margin="0,0,8,0" Content="Save" Click="SaveClick" />
             <Button Width="90" Content="Cancel" IsCancel="True" />
         </StackPanel>

@@ -409,7 +409,7 @@ public sealed class MappingEngine
         value = NormalizeAxisInput(value, axisRange);
         var clampedDeadzone = Math.Clamp(deadzone, 0.0, 0.8);
         var clampedCurve = Math.Clamp(curve, -1.0, 1.0);
-        var clampedSaturation = Math.Clamp(saturation, 0.0, 5.0);
+        var clampedSaturation = Math.Max(0.0, saturation);
 
         var sign = Math.Sign(value);
         var abs = Math.Abs(value);
