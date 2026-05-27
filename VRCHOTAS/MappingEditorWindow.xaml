@@ -60,6 +60,9 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
@@ -83,8 +86,25 @@
                           Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                            ItemsSource="{Binding ButtonTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetButton}" />
 
-                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="Controller Pose Target:" Visibility="{Binding ShowControllerPosePicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="4" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
+                          Visibility="{Binding ShowControllerPosePicker, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          ItemsSource="{Binding ControllerPoseTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPose}" />
+
+                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,6" Text="Controller Pose Action:" Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <ComboBox Grid.Row="5" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
+                          Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          ItemsSource="{Binding AxisActionTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPoseAction}" />
+
+                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,0,0,6" Text="Toggle Mode:" Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <CheckBox Grid.Row="6" Grid.Column="1"
+                          HorizontalAlignment="Left"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding ToggleMode}"
+                          Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <TextBlock Grid.Row="7" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Grid Grid.Row="7" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />

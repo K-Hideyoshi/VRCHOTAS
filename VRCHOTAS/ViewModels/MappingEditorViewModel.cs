@@ -27,11 +27,14 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private AxisRangeKind _axisRange = AxisRangeKind.Bidirectional;
     private VirtualAxisTarget _targetAxis = VirtualAxisTarget.ThumbstickX;
     private VirtualButtonTarget _targetButton = VirtualButtonTarget.ThumbstickClick;
+    private ControllerPoseTarget _targetControllerPose = ControllerPoseTarget.PositionX;
+    private ControllerPoseActionTarget _targetControllerPoseAction = ControllerPoseActionTarget.ResetPositionX;
     private double _deadzone;
     private double _curve;
     private double _saturation = 1.0;
     private double _saturationSliderMaximum = 5.0;
     private double _fullPressThreshold = 0.95;
+    private bool _toggleMode;
     private bool _invert;
     private double _currentInputValue;
     private double _currentOutputValue;
@@ -48,6 +51,8 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         TargetKindOptions = BuildTargetKindOptions();
         AxisTargetOptions = BuildAxisTargetOptions();
         ButtonTargetOptions = BuildButtonTargetOptions();
+        ControllerPoseTargetOptions = BuildControllerPoseTargetOptions();
+        AxisActionTargetOptions = BuildAxisActionTargetOptions();
 
         if (existing is null)
         {
@@ -56,7 +61,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             return;
         }
 
-        SelectedTargetKind = existing.ResolvedTargetKind;
+        SelectedTargetKind = existing.NormalizedTargetKind;
         SourceDeviceId = existing.SourceDeviceId;
         SourceDeviceName = existing.SourceDeviceName;
         HasDetectedSource = !string.IsNullOrWhiteSpace(existing.SourceDeviceId) && !string.IsNullOrWhiteSpace(existing.SourceDeviceName);
@@ -67,7 +72,10 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         AxisRange = existing.AxisRange;
         TargetAxis = existing.TargetAxis;
         TargetButton = existing.TargetButton;
+        TargetControllerPose = existing.ResolvedControllerPoseTarget;
+        TargetControllerPoseAction = existing.TargetControllerPoseAction;
         FullPressThreshold = existing.FullPressThreshold;
+        ToggleMode = existing.ToggleMode;
         Deadzone = existing.Deadzone;
         Curve = existing.Curve;
         Saturation = existing.Saturation;
@@ -79,17 +87,19 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     public IReadOnlyList<TargetKindOption> TargetKindOptions { get; }
     public IReadOnlyList<AxisTargetOption> AxisTargetOptions { get; }
     public IReadOnlyList<ButtonTargetOption> ButtonTargetOptions { get; }
+    public IReadOnlyList<ControllerPoseTargetOption> ControllerPoseTargetOptions { get; }
+    public IReadOnlyList<AxisActionTargetOption> AxisActionTargetOptions { get; }
     public IReadOnlyList<TargetKindOption> AvailableTargetKindOptions =>
         IsSourceButtonDetected
             ? TargetKindOptions
-            : TargetKindOptions.Where(option => option.Kind != MappingTargetKind.Button).ToArray();
+            : TargetKindOptions.Where(option => option.Kind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)).ToArray();
 
     public MappingTargetKind SelectedTargetKind
     {
         get => _selectedTargetKind;
         set
         {
-            if (_hasDetectedSource && !_isSourceButtonDetected && value == MappingTargetKind.Button)
+            if (_hasDetectedSource && !_isSourceButtonDetected && value is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
             {
                 return;
             }
@@ -99,6 +109,10 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(UsesAxisSource));
                 OnPropertyChanged(nameof(ShowAxisPicker));
                 OnPropertyChanged(nameof(ShowButtonPicker));
+                OnPropertyChanged(nameof(ShowControllerPosePicker));
+                OnPropertyChanged(nameof(ShowAxisActionPicker));
+                OnPropertyChanged(nameof(ShowToggleMode));
+                OnPropertyChanged(nameof(ShowFullPressThreshold));
                 OnPropertyChanged(nameof(SourceSummary));
 
                 if (value == MappingTargetKind.AxisInput)
@@ -109,12 +123,18 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         }
     }
 
-    /// <summary>True when the mapping reads a joystick axis (all targets except VR Button).</summary>
-    public bool UsesAxisSource => SelectedTargetKind != MappingTargetKind.Button;
+    /// <summary>True when the current target uses continuous shaping controls.</summary>
+    public bool UsesAxisSource => SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction);
 
     public bool ShowAxisPicker => SelectedTargetKind == MappingTargetKind.AxisInput;
 
     public bool ShowButtonPicker => SelectedTargetKind == MappingTargetKind.Button;
+
+    public bool ShowControllerPosePicker => SelectedTargetKind == MappingTargetKind.ControllerPose;
+
+    public bool ShowAxisActionPicker => SelectedTargetKind == MappingTargetKind.ControllerPoseAction;
+
+    public bool ShowToggleMode => HasDetectedSource && IsSourceButtonDetected && SelectedTargetKind != MappingTargetKind.ControllerPoseAction;
 
     public IReadOnlyList<VirtualTargetHand> HandTargets { get; } = new[] { VirtualTargetHand.Left, VirtualTargetHand.Right };
 
@@ -132,6 +152,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             if (SetProperty(ref _hasDetectedSource, value))
             {
                 OnPropertyChanged(nameof(CanEditTarget));
+                OnPropertyChanged(nameof(ShowToggleMode));
                 OnPropertyChanged(nameof(SourceDetectionInstruction));
             }
         }
@@ -144,8 +165,16 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         {
             if (SetProperty(ref _isSourceButtonDetected, value))
             {
+                if (!value)
+                {
+                    ToggleMode = false;
+                }
+
                 OnPropertyChanged(nameof(SourceSummary));
                 OnPropertyChanged(nameof(AvailableTargetKindOptions));
+                OnPropertyChanged(nameof(ShowControllerPosePicker));
+                OnPropertyChanged(nameof(ShowAxisActionPicker));
+                OnPropertyChanged(nameof(ShowToggleMode));
             }
         }
     }
@@ -242,10 +271,28 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         set => SetProperty(ref _targetButton, value);
     }
 
+    public ControllerPoseTarget TargetControllerPose
+    {
+        get => _targetControllerPose;
+        set => SetProperty(ref _targetControllerPose, value);
+    }
+
+    public ControllerPoseActionTarget TargetControllerPoseAction
+    {
+        get => _targetControllerPoseAction;
+        set => SetProperty(ref _targetControllerPoseAction, value);
+    }
+
     public double FullPressThreshold
     {
         get => _fullPressThreshold;
         set => SetProperty(ref _fullPressThreshold, Math.Clamp(value, 0.0, 1.0));
+    }
+
+    public bool ToggleMode
+    {
+        get => _toggleMode;
+        set => SetProperty(ref _toggleMode, value && IsSourceButtonDetected);
     }
 
     public bool ShowFullPressThreshold => SelectedTargetKind == MappingTargetKind.AxisInput

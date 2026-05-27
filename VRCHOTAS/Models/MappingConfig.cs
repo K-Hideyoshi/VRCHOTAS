@@ -34,6 +34,33 @@ public enum VirtualButtonTarget
     RecenterHand = 4
 }
 
+public enum ControllerPoseTarget
+{
+    PositionX = 0,
+    PositionY = 1,
+    PositionZ = 2,
+    OrientationPitch = 3,
+    OrientationYaw = 4,
+    OrientationRoll = 5,
+    LinearVelocityX = 6,
+    LinearVelocityY = 7,
+    LinearVelocityZ = 8,
+    AngularVelocityX = 9,
+    AngularVelocityY = 10,
+    AngularVelocityZ = 11
+}
+
+public enum ControllerPoseActionTarget
+{
+    ResetPositionX = 0,
+    ResetPositionY = 1,
+    ResetPositionZ = 2,
+    ResetOrientPitch = 3,
+    ResetOrientRoll = 4,
+    ResetOrientYaw = 5,
+    ResetHand = 6
+}
+
 public enum MappingTargetKind
 {
     AxisInput = 0,
@@ -55,7 +82,10 @@ public enum MappingTargetKind
     /// <summary>Angular velocity about +Y (rad/s).</summary>
     AngularVelocityY = 12,
     /// <summary>Angular velocity about +Z (rad/s).</summary>
-    AngularVelocityZ = 13
+    AngularVelocityZ = 13,
+    AxisAction = 14,
+    ControllerPose = 15,
+    ControllerPoseAction = 16
 }
 
 public sealed partial class MappingEntry : ObservableObject
@@ -92,7 +122,10 @@ public sealed partial class MappingEntry : ObservableObject
     public AxisRangeKind AxisRange { get; set; } = AxisRangeKind.Bidirectional;
     public VirtualAxisTarget TargetAxis { get; set; } = VirtualAxisTarget.ThumbstickX;
     public VirtualButtonTarget TargetButton { get; set; } = VirtualButtonTarget.ThumbstickClick;
+    public ControllerPoseTarget TargetControllerPose { get; set; } = ControllerPoseTarget.PositionX;
+    public ControllerPoseActionTarget TargetControllerPoseAction { get; set; } = ControllerPoseActionTarget.ResetPositionX;
     public double FullPressThreshold { get; set; } = 0.95;
+    public bool ToggleMode { get; set; }
     public double Deadzone { get; set; }
     public double Curve { get; set; }
     public double Saturation { get; set; } = 1.0;
@@ -101,6 +134,18 @@ public sealed partial class MappingEntry : ObservableObject
     [JsonIgnore]
     public MappingTargetKind ResolvedTargetKind =>
         TargetKind ?? (IsAxisMapping ? MappingTargetKind.AxisInput : MappingTargetKind.Button);
+
+    [JsonIgnore]
+    public MappingTargetKind NormalizedTargetKind => ResolvedTargetKind == MappingTargetKind.AxisAction
+        ? MappingTargetKind.ControllerPoseAction
+        : IsLegacyControllerPoseKind(ResolvedTargetKind)
+            ? MappingTargetKind.ControllerPose
+            : ResolvedTargetKind;
+
+    [JsonIgnore]
+    public ControllerPoseTarget ResolvedControllerPoseTarget => IsLegacyControllerPoseKind(ResolvedTargetKind)
+        ? MapLegacyControllerPoseTarget(ResolvedTargetKind)
+        : TargetControllerPose;
 
     [JsonIgnore]
     public string SourceControlDisplay => IsAxisMapping ? $"Axis {SourceAxis}" : $"Button {SourceButtonIndex + 1}";
@@ -115,34 +160,26 @@ public sealed partial class MappingEntry : ObservableObject
     {
         get
         {
-            var k = ResolvedTargetKind;
+            var k = NormalizedTargetKind;
             return k switch
             {
                 MappingTargetKind.AxisInput => GetAxisTargetDisplay(),
                 MappingTargetKind.Button => GetButtonTargetDisplay(),
-                MappingTargetKind.PosePositionX => "Pose X (m)",
-                MappingTargetKind.PosePositionY => "Pose Y (m)",
-                MappingTargetKind.PosePositionZ => "Pose Z (m)",
-                MappingTargetKind.PoseOrientationX => "Orient Pitch X (rotation)",
-                MappingTargetKind.PoseOrientationY => "Orient Yaw Y (rotation)",
-                MappingTargetKind.PoseOrientationZ => "Orient Roll Z (rotation)",
-                MappingTargetKind.LinearVelocityX => "LinVel X (m/s)",
-                MappingTargetKind.LinearVelocityY => "LinVel Y (m/s)",
-                MappingTargetKind.LinearVelocityZ => "LinVel Z (m/s)",
-                MappingTargetKind.AngularVelocityX => "AngVel X (rad/s)",
-                MappingTargetKind.AngularVelocityY => "AngVel Y (rad/s)",
-                MappingTargetKind.AngularVelocityZ => "AngVel Z (rad/s)",
+                MappingTargetKind.ControllerPose => GetControllerPoseDisplay(),
+                MappingTargetKind.ControllerPoseAction => GetControllerPoseActionDisplay(),
                 _ => k.ToString()
             };
         }
     }
 
     [JsonIgnore]
-    public string TargetGroupingKey => ResolvedTargetKind switch
+    public string TargetGroupingKey => NormalizedTargetKind switch
     {
         MappingTargetKind.AxisInput => $"{TargetHand}|Axis|{TargetAxis}",
         MappingTargetKind.Button => $"{TargetHand}|Button|{TargetButton}",
-        _ => $"{TargetHand}|{ResolvedTargetKind}"
+        MappingTargetKind.ControllerPose => $"{TargetHand}|ControllerPose|{ResolvedControllerPoseTarget}",
+        MappingTargetKind.ControllerPoseAction => $"{TargetHand}|ControllerPoseAction|{TargetControllerPoseAction}",
+        _ => $"{TargetHand}|{NormalizedTargetKind}"
     };
 
     public string SourceDisplay => IsAxisMapping ? $"{SourceDeviceName} / Axis {SourceAxis}" : $"{SourceDeviceName} / Button {SourceButtonIndex + 1}";
@@ -152,7 +189,7 @@ public sealed partial class MappingEntry : ObservableObject
         get
         {
             var hand = TargetHand == VirtualTargetHand.Right ? "Right" : "Left";
-            var k = ResolvedTargetKind;
+            var k = NormalizedTargetKind;
             return $"{hand} / {TargetControlDisplay}";
         }
     }
@@ -181,6 +218,60 @@ public sealed partial class MappingEntry : ObservableObject
             _ => TargetButton.ToString()
         };
     }
+
+    private string GetControllerPoseDisplay()
+    {
+        return ResolvedControllerPoseTarget switch
+        {
+            ControllerPoseTarget.PositionX => "Pose X (m)",
+            ControllerPoseTarget.PositionY => "Pose Y (m)",
+            ControllerPoseTarget.PositionZ => "Pose Z (m)",
+            ControllerPoseTarget.OrientationPitch => "Orient Pitch (rotation)",
+            ControllerPoseTarget.OrientationYaw => "Orient Yaw (rotation)",
+            ControllerPoseTarget.OrientationRoll => "Orient Roll (rotation)",
+            ControllerPoseTarget.LinearVelocityX => "LinVel X (m/s)",
+            ControllerPoseTarget.LinearVelocityY => "LinVel Y (m/s)",
+            ControllerPoseTarget.LinearVelocityZ => "LinVel Z (m/s)",
+            ControllerPoseTarget.AngularVelocityX => "AngVel X (rad/s)",
+            ControllerPoseTarget.AngularVelocityY => "AngVel Y (rad/s)",
+            ControllerPoseTarget.AngularVelocityZ => "AngVel Z (rad/s)",
+            _ => ResolvedControllerPoseTarget.ToString()
+        };
+    }
+
+    private string GetControllerPoseActionDisplay()
+    {
+        return TargetControllerPoseAction switch
+        {
+            ControllerPoseActionTarget.ResetPositionX => "Reset Pos X",
+            ControllerPoseActionTarget.ResetPositionY => "Reset Pos Y",
+            ControllerPoseActionTarget.ResetPositionZ => "Reset Pos Z",
+            ControllerPoseActionTarget.ResetOrientPitch => "Reset Orient Pitch",
+            ControllerPoseActionTarget.ResetOrientRoll => "Reset Orient Roll",
+            ControllerPoseActionTarget.ResetOrientYaw => "Reset Orient Yaw",
+            ControllerPoseActionTarget.ResetHand => "Reset Hand",
+            _ => TargetControllerPoseAction.ToString()
+        };
+    }
+
+    private static bool IsLegacyControllerPoseKind(MappingTargetKind targetKind) => targetKind is >= MappingTargetKind.PosePositionX and <= MappingTargetKind.AngularVelocityZ;
+
+    private static ControllerPoseTarget MapLegacyControllerPoseTarget(MappingTargetKind targetKind) => targetKind switch
+    {
+        MappingTargetKind.PosePositionX => ControllerPoseTarget.PositionX,
+        MappingTargetKind.PosePositionY => ControllerPoseTarget.PositionY,
+        MappingTargetKind.PosePositionZ => ControllerPoseTarget.PositionZ,
+        MappingTargetKind.PoseOrientationX => ControllerPoseTarget.OrientationPitch,
+        MappingTargetKind.PoseOrientationY => ControllerPoseTarget.OrientationYaw,
+        MappingTargetKind.PoseOrientationZ => ControllerPoseTarget.OrientationRoll,
+        MappingTargetKind.LinearVelocityX => ControllerPoseTarget.LinearVelocityX,
+        MappingTargetKind.LinearVelocityY => ControllerPoseTarget.LinearVelocityY,
+        MappingTargetKind.LinearVelocityZ => ControllerPoseTarget.LinearVelocityZ,
+        MappingTargetKind.AngularVelocityX => ControllerPoseTarget.AngularVelocityX,
+        MappingTargetKind.AngularVelocityY => ControllerPoseTarget.AngularVelocityY,
+        MappingTargetKind.AngularVelocityZ => ControllerPoseTarget.AngularVelocityZ,
+        _ => ControllerPoseTarget.PositionX
+    };
 }
 
 public sealed class AppConfiguration

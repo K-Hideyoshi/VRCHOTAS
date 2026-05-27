@@ -12,9 +12,9 @@ public sealed partial class MappingEditorViewModel
             throw new InvalidOperationException("No source input has been detected.");
         }
 
-        if (!IsSourceButtonDetected && SelectedTargetKind == MappingTargetKind.Button)
+        if (!IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
         {
-            throw new InvalidOperationException("Axis source cannot be mapped to a button target.");
+            throw new InvalidOperationException("Axis source cannot be mapped to a button-driven target.");
         }
 
         var isAxis = !IsSourceButtonDetected;
@@ -30,7 +30,10 @@ public sealed partial class MappingEditorViewModel
             AxisRange = AxisRange,
             TargetAxis = TargetAxis,
             TargetButton = TargetButton,
+            TargetControllerPose = TargetControllerPose,
+            TargetControllerPoseAction = TargetControllerPoseAction,
             FullPressThreshold = FullPressThreshold,
+            ToggleMode = ToggleMode && IsSourceButtonDetected,
             Deadzone = Deadzone,
             Curve = Curve,
             Saturation = Saturation,
@@ -134,18 +137,8 @@ public sealed partial class MappingEditorViewModel
         {
             new TargetKindOption("VR Axis", MappingTargetKind.AxisInput),
             new TargetKindOption("VR Button", MappingTargetKind.Button),
-            new TargetKindOption("Pose position X (m)", MappingTargetKind.PosePositionX),
-            new TargetKindOption("Pose position Y (m)", MappingTargetKind.PosePositionY),
-            new TargetKindOption("Pose position Z (m)", MappingTargetKind.PosePositionZ),
-            new TargetKindOption("Orientation pitch X (rotation)", MappingTargetKind.PoseOrientationX),
-            new TargetKindOption("Orientation yaw Y (rotation)", MappingTargetKind.PoseOrientationY),
-            new TargetKindOption("Orientation roll Z (rotation)", MappingTargetKind.PoseOrientationZ),
-            new TargetKindOption("Linear velocity X (m/s)", MappingTargetKind.LinearVelocityX),
-            new TargetKindOption("Linear velocity Y (m/s)", MappingTargetKind.LinearVelocityY),
-            new TargetKindOption("Linear velocity Z (m/s)", MappingTargetKind.LinearVelocityZ),
-            new TargetKindOption("Angular velocity X (rad/s)", MappingTargetKind.AngularVelocityX),
-            new TargetKindOption("Angular velocity Y (rad/s)", MappingTargetKind.AngularVelocityY),
-            new TargetKindOption("Angular velocity Z (rad/s)", MappingTargetKind.AngularVelocityZ)
+            new TargetKindOption("Controller Pose", MappingTargetKind.ControllerPose),
+            new TargetKindOption("Controller Pose Action", MappingTargetKind.ControllerPoseAction)
         };
     }
 
@@ -167,8 +160,40 @@ public sealed partial class MappingEditorViewModel
             new ButtonTargetOption("Thumbstick Click", VirtualButtonTarget.ThumbstickClick),
             new ButtonTargetOption("Primary Face Button (A/X)", VirtualButtonTarget.PrimaryFaceButton),
             new ButtonTargetOption("Secondary Face Button (B/Y)", VirtualButtonTarget.SecondaryFaceButton),
-            new ButtonTargetOption("System Button", VirtualButtonTarget.System),
-            new ButtonTargetOption("Recenter Hand", VirtualButtonTarget.RecenterHand)
+            new ButtonTargetOption("System Button", VirtualButtonTarget.System)
+        };
+    }
+
+    private static IReadOnlyList<ControllerPoseTargetOption> BuildControllerPoseTargetOptions()
+    {
+        return new[]
+        {
+            new ControllerPoseTargetOption("Pose position X (m)", ControllerPoseTarget.PositionX),
+            new ControllerPoseTargetOption("Pose position Y (m)", ControllerPoseTarget.PositionY),
+            new ControllerPoseTargetOption("Pose position Z (m)", ControllerPoseTarget.PositionZ),
+            new ControllerPoseTargetOption("Orientation pitch X (rotation)", ControllerPoseTarget.OrientationPitch),
+            new ControllerPoseTargetOption("Orientation yaw Y (rotation)", ControllerPoseTarget.OrientationYaw),
+            new ControllerPoseTargetOption("Orientation roll Z (rotation)", ControllerPoseTarget.OrientationRoll),
+            new ControllerPoseTargetOption("Linear velocity X (m/s)", ControllerPoseTarget.LinearVelocityX),
+            new ControllerPoseTargetOption("Linear velocity Y (m/s)", ControllerPoseTarget.LinearVelocityY),
+            new ControllerPoseTargetOption("Linear velocity Z (m/s)", ControllerPoseTarget.LinearVelocityZ),
+            new ControllerPoseTargetOption("Angular velocity X (rad/s)", ControllerPoseTarget.AngularVelocityX),
+            new ControllerPoseTargetOption("Angular velocity Y (rad/s)", ControllerPoseTarget.AngularVelocityY),
+            new ControllerPoseTargetOption("Angular velocity Z (rad/s)", ControllerPoseTarget.AngularVelocityZ)
+        };
+    }
+
+    private static IReadOnlyList<AxisActionTargetOption> BuildAxisActionTargetOptions()
+    {
+        return new[]
+        {
+            new AxisActionTargetOption("Reset Pos X", ControllerPoseActionTarget.ResetPositionX),
+            new AxisActionTargetOption("Reset Pos Y", ControllerPoseActionTarget.ResetPositionY),
+            new AxisActionTargetOption("Reset Pos Z", ControllerPoseActionTarget.ResetPositionZ),
+            new AxisActionTargetOption("Reset Orientation Pitch", ControllerPoseActionTarget.ResetOrientPitch),
+            new AxisActionTargetOption("Reset Orientation Roll", ControllerPoseActionTarget.ResetOrientRoll),
+            new AxisActionTargetOption("Reset Orientation Yaw", ControllerPoseActionTarget.ResetOrientYaw),
+            new AxisActionTargetOption("Reset Hand", ControllerPoseActionTarget.ResetHand)
         };
     }
 }

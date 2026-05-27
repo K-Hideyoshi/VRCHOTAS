@@ -37,3 +37,27 @@ public sealed class ButtonTargetOption
     public string Label { get; }
     public VirtualButtonTarget Target { get; }
 }
+
+public sealed class AxisActionTargetOption
+{
+    public AxisActionTargetOption(string label, ControllerPoseActionTarget target)
+    {
+        Label = label;
+        Target = target;
+    }
+
+    public string Label { get; }
+    public ControllerPoseActionTarget Target { get; }
+}
+
+public sealed class ControllerPoseTargetOption
+{
+    public ControllerPoseTargetOption(string label, ControllerPoseTarget target)
+    {
+        Label = label;
+        Target = target;
+    }
+
+    public string Label { get; }
+    public ControllerPoseTarget Target { get; }
+}
