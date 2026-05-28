@@ -1,0 +1,31 @@
+<Window x:Class="VRCHOTAS.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="About VRCHOTAS"
+        Width="420"
+        Height="240"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="VRCHOTAS" FontSize="24" FontWeight="Bold" />
+            <TextBlock x:Name="VersionTextBlock" Margin="0,8,0,12" FontSize="14" />
+            <TextBlock Margin="0,0,0,6" Text="Project" FontWeight="SemiBold" />
+            <TextBlock>
+                <Hyperlink NavigateUri="https://github.com/K-Hideyoshi/VRCHOTAS" RequestNavigate="OnProjectLinkNavigate">
+                    <Run Text="https://github.com/K-Hideyoshi/VRCHOTAS" />
+                </Hyperlink>
+            </TextBlock>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="OK" Width="88" IsDefault="True" IsCancel="True" Click="OnOkClick" />
+        </StackPanel>
+    </Grid>
+</Window>

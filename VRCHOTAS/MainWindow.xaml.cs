@@ -24,6 +24,7 @@ namespace VRCHOTAS
         private readonly MainViewModel _viewModel;
         private readonly Forms.NotifyIcon _notifyIcon;
         private LogWindow? _logWindow;
+        private PosePreviewWindow? _posePreviewWindow;
         private bool _isExitRequested;
         private bool _hasShownTrayHint;
         private WpfPoint _mappingDragStartPoint;
@@ -619,13 +620,58 @@ namespace VRCHOTAS
             return null;
         }
 
-        private void OnHotkeysMenuClick(object sender, RoutedEventArgs e)
+        private void OnPreferencesMenuClick(object sender, RoutedEventArgs e)
         {
-            var dialog = new HotkeysWindow(_viewModel, _viewModel.Preferences)
+            var dialog = new PreferencesWindow(_viewModel, _viewModel.Preferences)
             {
                 Owner = this
             };
             dialog.ShowDialog();
+        }
+
+        private void OnPosePreviewMenuClick(object sender, RoutedEventArgs e)
+        {
+            if (_posePreviewWindow is not null)
+            {
+                _posePreviewWindow.Activate();
+                return;
+            }
+
+            _posePreviewWindow = new PosePreviewWindow(_viewModel)
+            {
+                Owner = this
+            };
+
+            _posePreviewWindow.Closed += (_, _) => _posePreviewWindow = null;
+            _posePreviewWindow.Show();
+        }
+
+        private void OnUserGuideMenuClick(object sender, RoutedEventArgs e)
+        {
+            OpenUrl("https://github.com/K-Hideyoshi/VRCHOTAS/wiki");
+        }
+
+        private void OnAboutMenuClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new AboutWindow
+            {
+                Owner = this
+            };
+            dialog.ShowDialog();
+        }
+
+        private void OnReportIssueMenuClick(object sender, RoutedEventArgs e)
+        {
+            OpenUrl("https://github.com/K-Hideyoshi/VRCHOTAS/issues");
+        }
+
+        private static void OpenUrl(string url)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
         }
 
         private void ExitApplicationClick(object sender, RoutedEventArgs e)
@@ -705,6 +751,7 @@ namespace VRCHOTAS
             Closing -= OnClosing;
             _notifyIcon.MouseDoubleClick -= OnNotifyIconMouseDoubleClick;
             _notifyIcon.Dispose();
+            _posePreviewWindow?.Close();
             _logWindow?.Close();
             _viewModel.Dispose();
         }

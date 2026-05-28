@@ -170,6 +170,12 @@ public sealed partial class MainViewModel
         _hotkeyPreferences = preferences ?? new HotkeyPreferences();
     }
 
+    public void ApplyEulerAnglePreferences(EulerAnglePreferences preferences)
+    {
+        _eulerAnglePreferences = preferences?.Clone() ?? new EulerAnglePreferences();
+        _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
+    }
+
     private static string EnsureJsonFileName(string fileName)
     {
         return fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";

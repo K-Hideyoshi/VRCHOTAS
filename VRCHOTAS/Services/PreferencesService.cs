@@ -19,7 +19,7 @@ public sealed class PreferencesService
     }
 
     /// <summary>
-    /// Creates preferences.json on first run with default configuration name and empty hotkey slots.
+    /// Creates preferences.json on first run with default configuration name and default app preferences.
     /// </summary>
     public void EnsurePreferencesFileReady()
     {
@@ -60,7 +60,8 @@ public sealed class PreferencesService
                 {
                     DefaultConfigurationFileName = root["defaultConfigurationFileName"]?.Value<string>()
                         ?? root["DefaultConfigurationFileName"]?.Value<string>(),
-                    Hotkeys = hotkeysToken.ToObject<HotkeyPreferences>() ?? new HotkeyPreferences()
+                    Hotkeys = hotkeysToken.ToObject<HotkeyPreferences>() ?? new HotkeyPreferences(),
+                    EulerAngles = root["eulerAngles"]?.ToObject<EulerAnglePreferences>() ?? new EulerAnglePreferences()
                 };
             }
 
@@ -124,6 +125,23 @@ public sealed class PreferencesService
         }
 
         doc.Hotkeys = hotkeys ?? new HotkeyPreferences();
+        SaveDocument(doc);
+    }
+
+    public EulerAnglePreferences LoadEulerAngles()
+    {
+        return LoadDocument().EulerAngles ?? new EulerAnglePreferences();
+    }
+
+    public void SaveEulerAngles(EulerAnglePreferences preferences)
+    {
+        var doc = LoadDocument();
+        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
+        {
+            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
+        }
+
+        doc.EulerAngles = preferences?.Clone() ?? new EulerAnglePreferences();
         SaveDocument(doc);
     }
 }

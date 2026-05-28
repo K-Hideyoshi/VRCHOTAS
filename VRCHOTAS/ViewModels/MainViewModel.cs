@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly SteamVrDriverDeploymentService _steamVrDriverDeploymentService;
     private readonly HotkeyRuntime _hotkeyRuntime = new();
     private HotkeyPreferences _hotkeyPreferences = new();
+    private EulerAnglePreferences _eulerAnglePreferences = new();
     private readonly SharedMemoryStateChannel? _ipc;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _deviceRefreshTimer;
@@ -165,6 +166,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _steamVrDriverDeploymentService = new SteamVrDriverDeploymentService(_logger);
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
+        _eulerAnglePreferences = _preferencesService.LoadEulerAngles();
+        _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
         _steamVrDriverDeploymentService.TryDeployOnStartup();
 
         try
@@ -261,6 +264,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public RawJoystickState GetLatestStateSnapshot() => Volatile.Read(ref _latestState);
+
+    public VirtualControllerState GetLatestMappedStateSnapshot()
+    {
+        var state = _lastMappedState;
+        state.EnsureInitialized();
+        return state;
+    }
+
+    public EulerAnglePreferences GetEulerAnglePreferencesSnapshot()
+    {
+        return _eulerAnglePreferences.Clone();
+    }
 
     public void MoveMappingUp(MappingEntry mapping)
     {

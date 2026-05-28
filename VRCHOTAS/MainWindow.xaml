@@ -133,15 +133,15 @@
         </Grid.RowDefinitions>
 
         <Menu Grid.Row="0">
-            <MenuItem Header="Configuration">
+            <MenuItem Header="Files">
                 <MenuItem Header="New"
                           InputGestureText="Ctrl+N"
                           Command="{x:Static ApplicationCommands.New}" />
                 <Separator />
                 <MenuItem Header="Save" Command="{Binding SaveConfigCommand}" InputGestureText="Ctrl+S" />
                 <MenuItem Header="Save As..." Click="SaveAsConfigurationClick" InputGestureText="Ctrl+Shift+S" />
-                <MenuItem Header="Show Config Folder" Click="RevealConfigFolderClick" />
                 <Separator />
+                <MenuItem Header="Show Configuration Folder" Click="RevealConfigFolderClick" />
                 <MenuItem Header="Refresh Configuration List" Command="{Binding RefreshConfigListCommand}" />
 
                 <MenuItem Header="Load Configuration">
@@ -174,15 +174,19 @@
                     </MenuItem.ItemContainerStyle>
                 </MenuItem>
 
-                <MenuItem Header="Preference">
-                    <MenuItem Header="Hotkeys" Click="OnHotkeysMenuClick" />
-                </MenuItem>
+                <Separator />
+                <MenuItem Header="Preferences" Click="OnPreferencesMenuClick" />
+                <Separator />
+                <MenuItem Header="Exit" Click="ExitApplicationClick" />
             </MenuItem>
             <MenuItem Header="View">
                 <MenuItem Header="Open Log Window" Command="{Binding OpenLogWindowCommand}" />
+                <MenuItem Header="Pose Preview" Click="OnPosePreviewMenuClick" />
             </MenuItem>
-            <MenuItem Header="Application">
-                <MenuItem Header="Exit" Click="ExitApplicationClick" />
+            <MenuItem Header="Help">
+                <MenuItem Header="User Guide" Click="OnUserGuideMenuClick" />
+                <MenuItem Header="About VRCHOTAS" Click="OnAboutMenuClick" />
+                <MenuItem Header="Report Issue &amp; Advice" Click="OnReportIssueMenuClick" />
             </MenuItem>
         </Menu>
 

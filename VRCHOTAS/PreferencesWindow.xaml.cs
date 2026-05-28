@@ -8,11 +8,12 @@ using VRCHOTAS.ViewModels;
 
 namespace VRCHOTAS;
 
-public partial class HotkeysWindow : Window
+public partial class PreferencesWindow : Window
 {
     private readonly MainViewModel _main;
     private readonly PreferencesService _preferencesService;
-    private readonly HotkeyPreferences _model;
+    private readonly HotkeyPreferences _hotkeys;
+    private readonly EulerAnglePreferences _eulerAngles;
     private IDisposable? _suspendScope;
     private DispatcherTimer? _joyTimer;
     private RawJoystickState? _joyPrev;
@@ -23,13 +24,15 @@ public partial class HotkeysWindow : Window
     private bool _nextLocked;
     private bool _masterLocked;
 
-    public HotkeysWindow(MainViewModel main, PreferencesService preferencesService)
+    public PreferencesWindow(MainViewModel main, PreferencesService preferencesService)
     {
         InitializeComponent();
         _main = main;
         _preferencesService = preferencesService;
-        _model = CloneHotkeys(preferencesService.LoadHotkeys());
+        _hotkeys = CloneHotkeys(preferencesService.LoadHotkeys());
+        _eulerAngles = preferencesService.LoadEulerAngles().Clone();
         ApplyTextsFromModel();
+        ApplyEulerSelectionFromModel();
     }
 
     private static HotkeyPreferences CloneHotkeys(HotkeyPreferences source)
@@ -40,12 +43,68 @@ public partial class HotkeysWindow : Window
 
     private void ApplyTextsFromModel()
     {
-        PreviousConfigBox.Text = FormatHotkey(_model.PreviousConfiguration);
-        NextConfigBox.Text = FormatHotkey(_model.NextConfiguration);
-        MasterSwitchBox.Text = FormatHotkey(_model.ToggleMasterSwitch);
-        SetLockedUi(0, _model.PreviousConfiguration.Kind != HotkeyInputKind.None);
-        SetLockedUi(1, _model.NextConfiguration.Kind != HotkeyInputKind.None);
-        SetLockedUi(2, _model.ToggleMasterSwitch.Kind != HotkeyInputKind.None);
+        PreviousConfigBox.Text = FormatHotkey(_hotkeys.PreviousConfiguration);
+        NextConfigBox.Text = FormatHotkey(_hotkeys.NextConfiguration);
+        MasterSwitchBox.Text = FormatHotkey(_hotkeys.ToggleMasterSwitch);
+        SetLockedUi(0, _hotkeys.PreviousConfiguration.Kind != HotkeyInputKind.None);
+        SetLockedUi(1, _hotkeys.NextConfiguration.Kind != HotkeyInputKind.None);
+        SetLockedUi(2, _hotkeys.ToggleMasterSwitch.Kind != HotkeyInputKind.None);
+    }
+
+    private void ApplyEulerSelectionFromModel()
+    {
+        switch (_eulerAngles.Order)
+        {
+            case EulerAngleOrder.PitchYawRoll:
+                PitchYawRollRadio.IsChecked = true;
+                break;
+            case EulerAngleOrder.PitchRollYaw:
+                PitchRollYawRadio.IsChecked = true;
+                break;
+            case EulerAngleOrder.YawPitchRoll:
+                YawPitchRollRadio.IsChecked = true;
+                break;
+            case EulerAngleOrder.YawRollPitch:
+                YawRollPitchRadio.IsChecked = true;
+                break;
+            case EulerAngleOrder.RollPitchYaw:
+                RollPitchYawRadio.IsChecked = true;
+                break;
+            case EulerAngleOrder.RollYawPitch:
+                RollYawPitchRadio.IsChecked = true;
+                break;
+            default:
+                YawPitchRollRadio.IsChecked = true;
+                break;
+        }
+
+        if (_eulerAngles.AxisReference == EulerAngleAxisReference.World)
+        {
+            WorldAxesRadio.IsChecked = true;
+        }
+        else
+        {
+            LocalAxesRadio.IsChecked = true;
+        }
+    }
+
+    private void SyncEulerSelectionToModel()
+    {
+        _eulerAngles.Order = PitchYawRollRadio.IsChecked == true
+            ? EulerAngleOrder.PitchYawRoll
+            : PitchRollYawRadio.IsChecked == true
+                ? EulerAngleOrder.PitchRollYaw
+                : YawPitchRollRadio.IsChecked == true
+                    ? EulerAngleOrder.YawPitchRoll
+                    : YawRollPitchRadio.IsChecked == true
+                        ? EulerAngleOrder.YawRollPitch
+                        : RollPitchYawRadio.IsChecked == true
+                            ? EulerAngleOrder.RollPitchYaw
+                            : EulerAngleOrder.RollYawPitch;
+
+        _eulerAngles.AxisReference = WorldAxesRadio.IsChecked == true
+            ? EulerAngleAxisReference.World
+            : EulerAngleAxisReference.Local;
     }
 
     private string FormatHotkey(HotkeyBinding binding)
@@ -203,17 +262,17 @@ public partial class HotkeysWindow : Window
         switch (slot)
         {
             case 0:
-                _model.PreviousConfiguration = binding;
+                _hotkeys.PreviousConfiguration = binding;
                 PreviousConfigBox.Text = text;
                 SetLockedUi(0, true);
                 break;
             case 1:
-                _model.NextConfiguration = binding;
+                _hotkeys.NextConfiguration = binding;
                 NextConfigBox.Text = text;
                 SetLockedUi(1, true);
                 break;
             case 2:
-                _model.ToggleMasterSwitch = binding;
+                _hotkeys.ToggleMasterSwitch = binding;
                 MasterSwitchBox.Text = text;
                 SetLockedUi(2, true);
                 break;
@@ -321,29 +380,32 @@ public partial class HotkeysWindow : Window
 
     private void OnClearPreviousClick(object sender, RoutedEventArgs e)
     {
-        _model.PreviousConfiguration = new HotkeyBinding();
+        _hotkeys.PreviousConfiguration = new HotkeyBinding();
         PreviousConfigBox.Text = string.Empty;
         SetLockedUi(0, false);
     }
 
     private void OnClearNextClick(object sender, RoutedEventArgs e)
     {
-        _model.NextConfiguration = new HotkeyBinding();
+        _hotkeys.NextConfiguration = new HotkeyBinding();
         NextConfigBox.Text = string.Empty;
         SetLockedUi(1, false);
     }
 
     private void OnClearMasterClick(object sender, RoutedEventArgs e)
     {
-        _model.ToggleMasterSwitch = new HotkeyBinding();
+        _hotkeys.ToggleMasterSwitch = new HotkeyBinding();
         MasterSwitchBox.Text = string.Empty;
         SetLockedUi(2, false);
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
-        _preferencesService.SaveHotkeys(_model);
-        _main.ApplyHotkeyPreferences(_preferencesService.LoadHotkeys());
+        SyncEulerSelectionToModel();
+        _preferencesService.SaveHotkeys(_hotkeys);
+        _preferencesService.SaveEulerAngles(_eulerAngles);
+        _main.ApplyHotkeyPreferences(_hotkeys);
+        _main.ApplyEulerAnglePreferences(_eulerAngles);
         DialogResult = true;
         Close();
     }
