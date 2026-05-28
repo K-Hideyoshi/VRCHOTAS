@@ -206,6 +206,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -216,6 +217,11 @@
                 <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock Text="Driver Sync Rate:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
                     <TextBlock Text="{Binding DriverSyncRateDisplay}" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="Output Mode:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding ControllerOutputModeDisplay}" VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
 

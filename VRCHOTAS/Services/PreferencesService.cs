@@ -61,7 +61,8 @@ public sealed class PreferencesService
                     DefaultConfigurationFileName = root["defaultConfigurationFileName"]?.Value<string>()
                         ?? root["DefaultConfigurationFileName"]?.Value<string>(),
                     Hotkeys = hotkeysToken.ToObject<HotkeyPreferences>() ?? new HotkeyPreferences(),
-                    EulerAngles = root["eulerAngles"]?.ToObject<EulerAnglePreferences>() ?? new EulerAnglePreferences()
+                    EulerAngles = root["eulerAngles"]?.ToObject<EulerAnglePreferences>() ?? new EulerAnglePreferences(),
+                    ControllerOutputMode = root["controllerOutputMode"]?.ToObject<ControllerOutputMode?>() ?? ControllerOutputMode.FullVirtual
                 };
             }
 
@@ -142,6 +143,23 @@ public sealed class PreferencesService
         }
 
         doc.EulerAngles = preferences?.Clone() ?? new EulerAnglePreferences();
+        SaveDocument(doc);
+    }
+
+    public ControllerOutputMode LoadControllerOutputMode()
+    {
+        return LoadDocument().ControllerOutputMode;
+    }
+
+    public void SaveControllerOutputMode(ControllerOutputMode mode)
+    {
+        var doc = LoadDocument();
+        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
+        {
+            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
+        }
+
+        doc.ControllerOutputMode = mode;
         SaveDocument(doc);
     }
 }

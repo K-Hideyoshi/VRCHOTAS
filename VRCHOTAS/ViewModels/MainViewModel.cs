@@ -29,6 +29,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly HotkeyRuntime _hotkeyRuntime = new();
     private HotkeyPreferences _hotkeyPreferences = new();
     private EulerAnglePreferences _eulerAnglePreferences = new();
+    private ControllerOutputMode _controllerOutputMode = ControllerOutputMode.FullVirtual;
     private readonly SharedMemoryStateChannel? _ipc;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _deviceRefreshTimer;
@@ -61,6 +62,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<ConfigurationMenuItem> LoadConfigurationMenuItems { get; } = new();
     public ObservableCollection<ConfigurationMenuItem> DefaultConfigurationMenuItems { get; } = new();
+    public IReadOnlyList<ControllerOutputModeOption> ControllerOutputModeOptions { get; } =
+    [
+        new ControllerOutputModeOption("Full Virtual", ControllerOutputMode.FullVirtual),
+        new ControllerOutputModeOption("Left Real + Right Virtual", ControllerOutputMode.HybridKeepLeftReal),
+        new ControllerOutputModeOption("Left Virtual + Right Real", ControllerOutputMode.HybridKeepRightReal)
+    ];
 
     public PreferencesService Preferences => _preferencesService;
 
@@ -138,6 +145,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string MappingEnabledStatusText => IsMappingEnabled ? "Master ON" : "Master OFF";
 
+    public ControllerOutputMode ControllerOutputMode
+    {
+        get => _controllerOutputMode;
+        set => SetControllerOutputMode(value, true);
+    }
+
+    public bool IsHybridControllerOutputMode => ControllerOutputMode is ControllerOutputMode.HybridKeepLeftReal or ControllerOutputMode.HybridKeepRightReal;
+
+    public string ControllerOutputModeDisplay => ControllerOutputMode switch
+    {
+        ControllerOutputMode.HybridKeepLeftReal => "Left Real + Right Virtual",
+        ControllerOutputMode.HybridKeepRightReal => "Left Virtual + Right Real",
+        _ => "Full Virtual"
+    };
+
     /// <summary>Driver sync rate averaged over the last 5 seconds (updated every 5s).</summary>
     public string DriverSyncRateDisplay
     {
@@ -167,6 +189,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
         _eulerAnglePreferences = _preferencesService.LoadEulerAngles();
+        _controllerOutputMode = _preferencesService.LoadControllerOutputMode();
         _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
         _steamVrDriverDeploymentService.TryDeployOnStartup();
 
@@ -275,6 +298,32 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public EulerAnglePreferences GetEulerAnglePreferencesSnapshot()
     {
         return _eulerAnglePreferences.Clone();
+    }
+
+    public ControllerOutputMode GetControllerOutputModeSnapshot() => _controllerOutputMode;
+
+    public void ApplyControllerOutputMode(ControllerOutputMode mode)
+    {
+        SetControllerOutputMode(mode, false);
+    }
+
+    private void SetControllerOutputMode(ControllerOutputMode mode, bool markDirty)
+    {
+        if (_controllerOutputMode == mode)
+        {
+            return;
+        }
+
+        _controllerOutputMode = mode;
+        OnPropertyChanged(nameof(ControllerOutputMode));
+        OnPropertyChanged(nameof(IsHybridControllerOutputMode));
+        OnPropertyChanged(nameof(ControllerOutputModeDisplay));
+
+        if (markDirty)
+        {
+            MarkConfigurationDirty();
+            _logger.Info(nameof(MainViewModel), $"Controller output mode changed to: {mode}");
+        }
     }
 
     public void MoveMappingUp(MappingEntry mapping)

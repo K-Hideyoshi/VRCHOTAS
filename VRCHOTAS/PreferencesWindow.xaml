@@ -1,4 +1,4 @@
-<Window x:Class="VRCHOTAS.PreferencesWindow"
+﻿<Window x:Class="VRCHOTAS.PreferencesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Preferences"
@@ -99,12 +99,12 @@
 
                         <GroupBox Header="Tait-Bryan order" Margin="0,0,0,12">
                             <StackPanel Margin="12,8">
-                                <RadioButton x:Name="PitchYawRollRadio" GroupName="EulerOrder" Content="Pitch → Yaw → Roll (X → Y → Z)" Margin="0,0,0,6" />
-                                <RadioButton x:Name="PitchRollYawRadio" GroupName="EulerOrder" Content="Pitch → Roll → Yaw (X → Z → Y)" Margin="0,0,0,6" />
-                                <RadioButton x:Name="YawPitchRollRadio" GroupName="EulerOrder" Content="Yaw → Pitch → Roll (Y → X → Z)" Margin="0,0,0,6" />
-                                <RadioButton x:Name="YawRollPitchRadio" GroupName="EulerOrder" Content="Yaw → Roll → Pitch (Y → Z → X)" Margin="0,0,0,6" />
-                                <RadioButton x:Name="RollPitchYawRadio" GroupName="EulerOrder" Content="Roll → Pitch → Yaw (Z → X → Y)" Margin="0,0,0,6" />
-                                <RadioButton x:Name="RollYawPitchRadio" GroupName="EulerOrder" Content="Roll → Yaw → Pitch (Z → Y → X)" />
+                                <RadioButton x:Name="PitchYawRollRadio" GroupName="EulerOrder" Content="Pitch &#8594; Yaw &#8594; Roll (X &#8594; Y &#8594; Z)" Margin="0,0,0,6" />
+                                <RadioButton x:Name="PitchRollYawRadio" GroupName="EulerOrder" Content="Pitch &#8594; Roll &#8594; Yaw (X &#8594; Z &#8594; Y)" Margin="0,0,0,6" />
+                                <RadioButton x:Name="YawPitchRollRadio" GroupName="EulerOrder" Content="Yaw &#8594; Pitch &#8594; Roll (Y &#8594; X &#8594; Z)" Margin="0,0,0,6" />
+                                <RadioButton x:Name="YawRollPitchRadio" GroupName="EulerOrder" Content="Yaw &#8594; Roll &#8594; Pitch (Y &#8594; Z &#8594; X)" Margin="0,0,0,6" />
+                                <RadioButton x:Name="RollPitchYawRadio" GroupName="EulerOrder" Content="Roll &#8594; Pitch &#8594; Yaw (Z &#8594; X &#8594; Y)" Margin="0,0,0,6" />
+                                <RadioButton x:Name="RollYawPitchRadio" GroupName="EulerOrder" Content="Roll &#8594; Yaw &#8594; Pitch (Z &#8594; Y &#8594; X)" />
                             </StackPanel>
                         </GroupBox>
 
@@ -117,6 +117,29 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <TabItem Header="Controller Output">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Margin="0,0,0,12"
+                                   TextWrapping="Wrap"
+                                   Text="Choose whether VRCHOTAS should provide both virtual controllers or leave one hand entirely to the native real controller in SteamVR." />
+
+                        <GroupBox Header="Output mode">
+                            <StackPanel Margin="12,8">
+                                <RadioButton x:Name="FullVirtualModeRadio" GroupName="ControllerOutputMode" Content="Full Virtual" Margin="0,0,0,6" />
+                                <RadioButton x:Name="HybridKeepLeftRealRadio" GroupName="ControllerOutputMode" Content="Left Real + Right Virtual" Margin="0,0,0,6" />
+                                <RadioButton x:Name="HybridKeepRightRealRadio" GroupName="ControllerOutputMode" Content="Left Virtual + Right Real" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <TextBlock Margin="0,12,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="DimGray"
+                                   Text="In hybrid modes, the real-hand side is not mirrored by VRCHOTAS. SteamVR keeps using the native physical controller directly, while VRCHOTAS only drives the virtual hand on the other side." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -125,3 +148,4 @@
         </StackPanel>
     </Grid>
 </Window>
+

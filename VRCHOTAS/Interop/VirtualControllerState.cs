@@ -5,7 +5,9 @@ namespace VRCHOTAS.Interop;
 public enum VirtualPoseSource : byte
 {
     Mapped = 0,
-    MirrorRealControllers = 1
+    MirrorRealControllers = 1,
+    HybridKeepLeftReal = 2,
+    HybridKeepRightReal = 3
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

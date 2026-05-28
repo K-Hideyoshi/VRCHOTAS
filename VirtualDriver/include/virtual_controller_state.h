@@ -25,7 +25,9 @@ namespace vrchotas
     enum class VirtualPoseSource : std::uint8_t
     {
         Mapped = 0,
-        MirrorRealControllers = 1
+        MirrorRealControllers = 1,
+        HybridKeepLeftReal = 2,
+        HybridKeepRightReal = 3
     };
 
 #pragma pack(push, 1)

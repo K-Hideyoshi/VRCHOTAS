@@ -9,7 +9,9 @@ const char* RoleToString(vr::ETrackedControllerRole role);
 
 bool HasMeaningfulInput(const vrchotas::ControllerHandState& hand);
 
-bool ShouldUseMirroredRealControllerPose(const vrchotas::VirtualControllerState& state);
+bool ShouldUseVirtualController(const vrchotas::VirtualControllerState& state, vr::ETrackedControllerRole role);
+
+bool ShouldKeepRealController(const vrchotas::VirtualControllerState& state, vr::ETrackedControllerRole role);
 
 const char* PoseSourceToString(vrchotas::VirtualPoseSource poseSource);
 

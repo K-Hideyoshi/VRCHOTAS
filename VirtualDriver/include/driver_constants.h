@@ -5,7 +5,7 @@
 namespace vrchotas::driver
 {
 inline constexpr std::int32_t kMappedHandSelectionPriority = 1000;
-inline constexpr std::int32_t kMirroredHandSelectionPriority = -1000;
+inline constexpr std::int32_t kRealControllerPreferredHandSelectionPriority = -1000;
 inline constexpr const char kControllerType[] = "oculus_touch";
 inline constexpr const char kInputProfilePath[] = "{vrchotas}/input/vrchotas_virtual_profile.json";
 inline constexpr const char kTrackingSystemName[] = "vrchotas";
