@@ -15,11 +15,17 @@ public sealed class MappingEngine
     private readonly HandPoseAnchorState _leftAnchor = new();
     private readonly HandPoseAnchorState _rightAnchor = new();
     private readonly Dictionary<MappingEntry, ToggleState> _toggleStates = new();
+    private EulerAnglePreferences _eulerAnglePreferences = new();
 
     public MappingEngine(IAppLogger logger)
     {
         _logger = logger;
         _lastMapTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    public void ApplyEulerAnglePreferences(EulerAnglePreferences preferences)
+    {
+        _eulerAnglePreferences = preferences?.Clone() ?? new EulerAnglePreferences();
     }
 
     public VirtualControllerState Map(RawJoystickState rawState, IEnumerable<MappingEntry> mappings, VirtualControllerState? previousState = null)
@@ -404,6 +410,7 @@ public sealed class MappingEngine
             anchor.PitchDeg + scratch.PitchDeg,
             anchor.YawDeg + scratch.YawDeg,
             anchor.RollDeg + scratch.RollDeg,
+            _eulerAnglePreferences,
             quat);
         hand.Quaternion = quat;
     }
