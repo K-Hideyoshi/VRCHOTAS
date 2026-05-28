@@ -14,6 +14,7 @@ public partial class PreferencesWindow : Window
     private readonly PreferencesService _preferencesService;
     private readonly HotkeyPreferences _hotkeys;
     private readonly EulerAnglePreferences _eulerAngles;
+    private ControllerOutputMode _controllerOutputMode;
     private IDisposable? _suspendScope;
     private DispatcherTimer? _joyTimer;
     private RawJoystickState? _joyPrev;
@@ -31,8 +32,10 @@ public partial class PreferencesWindow : Window
         _preferencesService = preferencesService;
         _hotkeys = CloneHotkeys(preferencesService.LoadHotkeys());
         _eulerAngles = preferencesService.LoadEulerAngles().Clone();
+        _controllerOutputMode = preferencesService.LoadControllerOutputMode();
         ApplyTextsFromModel();
         ApplyEulerSelectionFromModel();
+        ApplyControllerOutputModeSelectionFromModel();
     }
 
     private static HotkeyPreferences CloneHotkeys(HotkeyPreferences source)
@@ -105,6 +108,31 @@ public partial class PreferencesWindow : Window
         _eulerAngles.AxisReference = WorldAxesRadio.IsChecked == true
             ? EulerAngleAxisReference.World
             : EulerAngleAxisReference.Local;
+    }
+
+    private void ApplyControllerOutputModeSelectionFromModel()
+    {
+        switch (_controllerOutputMode)
+        {
+            case ControllerOutputMode.HybridKeepLeftReal:
+                HybridKeepLeftRealRadio.IsChecked = true;
+                break;
+            case ControllerOutputMode.HybridKeepRightReal:
+                HybridKeepRightRealRadio.IsChecked = true;
+                break;
+            default:
+                FullVirtualModeRadio.IsChecked = true;
+                break;
+        }
+    }
+
+    private void SyncControllerOutputModeSelectionToModel()
+    {
+        _controllerOutputMode = HybridKeepLeftRealRadio.IsChecked == true
+            ? ControllerOutputMode.HybridKeepLeftReal
+            : HybridKeepRightRealRadio.IsChecked == true
+                ? ControllerOutputMode.HybridKeepRightReal
+                : ControllerOutputMode.FullVirtual;
     }
 
     private string FormatHotkey(HotkeyBinding binding)
@@ -402,10 +430,13 @@ public partial class PreferencesWindow : Window
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
         SyncEulerSelectionToModel();
+        SyncControllerOutputModeSelectionToModel();
         _preferencesService.SaveHotkeys(_hotkeys);
         _preferencesService.SaveEulerAngles(_eulerAngles);
+        _preferencesService.SaveControllerOutputMode(_controllerOutputMode);
         _main.ApplyHotkeyPreferences(_hotkeys);
         _main.ApplyEulerAnglePreferences(_eulerAngles);
+        _main.ApplyControllerOutputMode(_controllerOutputMode);
         DialogResult = true;
         Close();
     }

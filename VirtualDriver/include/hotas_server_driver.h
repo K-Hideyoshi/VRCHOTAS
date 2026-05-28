@@ -19,7 +19,7 @@ public:
 private:
     bool ShouldExposeVirtualControllers(const vrchotas::VirtualControllerState& snapshot) const;
     void EnsureVirtualControllersRegistered();
-    void SetVirtualControllersConnected(bool connected);
+    void SetVirtualControllersConnected(bool leftConnected, bool rightConnected);
 
     HANDLE _mapping{ nullptr };
     HANDLE _mutex{ nullptr };
@@ -32,7 +32,8 @@ private:
     bool _loggedMutexWaitFailure{ false };
     bool _loggedButtonAxisMirrorLimitation{ false };
     bool _loggedWaitingForAppHeartbeat{ false };
-    bool _lastDesiredControllerConnection{ false };
+    bool _lastDesiredLeftControllerConnection{ false };
+    bool _lastDesiredRightControllerConnection{ false };
     bool _lastLeftRealControllerFound{ false };
     bool _lastRightRealControllerFound{ false };
     vrchotas::VirtualPoseSource _lastLoggedPoseSource{ vrchotas::VirtualPoseSource::Mapped };

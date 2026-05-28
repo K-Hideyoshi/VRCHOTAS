@@ -123,9 +123,7 @@ public sealed partial class MainViewModel
             var mapped = isMappingEnabled
                 ? _mappingEngine.Map(latestState, mappings, _lastMappedState)
                 : VirtualControllerState.CreateDefault();
-            mapped.PoseSource = isMappingEnabled
-                ? VirtualPoseSource.Mapped
-                : VirtualPoseSource.MirrorRealControllers;
+            mapped.PoseSource = ResolveVirtualPoseSource(isMappingEnabled);
             _lastMappedState = mapped;
             _ipc?.Write(mapped);
         }
@@ -133,6 +131,21 @@ public sealed partial class MainViewModel
         {
             _logger.Error(nameof(MainViewModel), "Frame update failed.", ex);
         }
+    }
+
+    private VirtualPoseSource ResolveVirtualPoseSource(bool isMappingEnabled)
+    {
+        if (!isMappingEnabled)
+        {
+            return VirtualPoseSource.MirrorRealControllers;
+        }
+
+        return _controllerOutputMode switch
+        {
+            ControllerOutputMode.HybridKeepLeftReal => VirtualPoseSource.HybridKeepLeftReal,
+            ControllerOutputMode.HybridKeepRightReal => VirtualPoseSource.HybridKeepRightReal,
+            _ => VirtualPoseSource.Mapped
+        };
     }
 
     private HashSet<string> BuildJoystickHotkeyConflictSet()

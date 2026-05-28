@@ -62,20 +62,21 @@ void HotasServerDriver::EnsureVirtualControllersRegistered()
     _loggedWaitingForAppHeartbeat = false;
     if (_controllersRegistered)
     {
-        SetVirtualControllersConnected(true);
+        SetVirtualControllersConnected(true, true);
     }
 }
 
-void HotasServerDriver::SetVirtualControllersConnected(bool connected)
+void HotasServerDriver::SetVirtualControllersConnected(bool leftConnected, bool rightConnected)
 {
     if (!_left || !_right)
     {
         return;
     }
 
-    _left->SetDeviceConnected(connected);
-    _right->SetDeviceConnected(connected);
-    _lastDesiredControllerConnection = connected;
+    _left->SetDeviceConnected(leftConnected);
+    _right->SetDeviceConnected(rightConnected);
+    _lastDesiredLeftControllerConnection = leftConnected;
+    _lastDesiredRightControllerConnection = rightConnected;
 }
 
 vr::EVRInitError HotasServerDriver::Init(vr::IVRDriverContext* pDriverContext)
@@ -200,10 +201,10 @@ void HotasServerDriver::RunFrame()
                 _loggedWaitingForAppHeartbeat = true;
             }
 
-            if (_controllersRegistered && _lastDesiredControllerConnection)
+            if (_controllersRegistered && (_lastDesiredLeftControllerConnection || _lastDesiredRightControllerConnection))
             {
                 DriverLog("[vrchotas] VRCHOTAS heartbeat lost. Marking virtual controllers disconnected.");
-                SetVirtualControllersConnected(false);
+                SetVirtualControllersConnected(false, false);
             }
 
             _consecutiveMutexWaitFailures = 0;
@@ -216,120 +217,64 @@ void HotasServerDriver::RunFrame()
             return;
         }
 
-        if (!_loggedButtonAxisMirrorLimitation)
-        {
-            DriverLog("[vrchotas] Real-controller button/axis mirroring is unavailable in current OpenVR driver APIs. In MirrorRealControllers mode, virtual button/axis values are forced to neutral.");
-            _loggedButtonAxisMirrorLimitation = true;
-        }
+        const bool useVirtualLeft = ShouldUseVirtualController(snapshot, vr::TrackedControllerRole_LeftHand);
+        const bool useVirtualRight = ShouldUseVirtualController(snapshot, vr::TrackedControllerRole_RightHand);
 
         if (snapshot.pose_source != _lastLoggedPoseSource)
         {
             DriverLogF("[vrchotas] Pose handoff mode changed: %s", PoseSourceToString(snapshot.pose_source));
-            if (snapshot.pose_source == vrchotas::VirtualPoseSource::MirrorRealControllers)
-            {
-                SetVirtualControllersConnected(false);
-                _left->ForceReannounceHandSelectionPriority(vrchotas::driver::kMirroredHandSelectionPriority, "mirror-mode-enter");
-                _right->ForceReannounceHandSelectionPriority(vrchotas::driver::kMirroredHandSelectionPriority, "mirror-mode-enter");
-                _consecutiveMutexWaitFailures = 0;
-                _lastLoggedPoseSource = snapshot.pose_source;
-                return;
-            }
-
-            SetVirtualControllersConnected(false);
             _left->PrepareForReconnect();
             _right->PrepareForReconnect();
-            SetVirtualControllersConnected(true);
-            _left->ForceReannounceHandSelectionPriority(vrchotas::driver::kMappedHandSelectionPriority, "mapped-mode-enter");
-            _right->ForceReannounceHandSelectionPriority(vrchotas::driver::kMappedHandSelectionPriority, "mapped-mode-enter");
         }
 
-        if (!_lastDesiredControllerConnection)
+        if (useVirtualLeft != _lastDesiredLeftControllerConnection || useVirtualRight != _lastDesiredRightControllerConnection)
         {
-            SetVirtualControllersConnected(true);
+            SetVirtualControllersConnected(useVirtualLeft, useVirtualRight);
         }
 
-        const std::int32_t handSelectionPriority = ShouldUseMirroredRealControllerPose(snapshot)
-            ? vrchotas::driver::kMirroredHandSelectionPriority
-            : vrchotas::driver::kMappedHandSelectionPriority;
+        const std::int32_t leftHandSelectionPriority = useVirtualLeft
+            ? vrchotas::driver::kMappedHandSelectionPriority
+            : vrchotas::driver::kRealControllerPreferredHandSelectionPriority;
+        const std::int32_t rightHandSelectionPriority = useVirtualRight
+            ? vrchotas::driver::kMappedHandSelectionPriority
+            : vrchotas::driver::kRealControllerPreferredHandSelectionPriority;
 
         if (snapshot.pose_source != _lastLoggedPoseSource)
         {
-            _left->ForceReannounceHandSelectionPriority(handSelectionPriority, "pose-source-changed");
-            _right->ForceReannounceHandSelectionPriority(handSelectionPriority, "pose-source-changed");
+            _left->ForceReannounceHandSelectionPriority(leftHandSelectionPriority, "pose-source-changed");
+            _right->ForceReannounceHandSelectionPriority(rightHandSelectionPriority, "pose-source-changed");
             DriverLogF(
-                "[vrchotas] Hand selection routing (mode=%s): virtualPriority=%d leftRealIndex=%u rightRealIndex=%u",
+                "[vrchotas] Hand selection routing (mode=%s): leftVirtual=%s rightVirtual=%s leftPriority=%d rightPriority=%d",
                 PoseSourceToString(snapshot.pose_source),
-                handSelectionPriority,
-                _lastLeftRealControllerIndex,
-                _lastRightRealControllerIndex);
+                useVirtualLeft ? "true" : "false",
+                useVirtualRight ? "true" : "false",
+                leftHandSelectionPriority,
+                rightHandSelectionPriority);
             _lastLoggedPoseSource = snapshot.pose_source;
         }
 
-        _left->SetHandSelectionPriority(handSelectionPriority, PoseSourceToString(snapshot.pose_source));
-        _right->SetHandSelectionPriority(handSelectionPriority, PoseSourceToString(snapshot.pose_source));
-
-        vr::DriverPose_t mirroredLeftPose{};
-        vr::DriverPose_t mirroredRightPose{};
-        const vr::DriverPose_t* leftPoseOverride = nullptr;
-        const vr::DriverPose_t* rightPoseOverride = nullptr;
-        vr::TrackedDeviceIndex_t realLeftDeviceIndex = vr::k_unTrackedDeviceIndexInvalid;
-        vr::TrackedDeviceIndex_t realRightDeviceIndex = vr::k_unTrackedDeviceIndexInvalid;
-
-        std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> trackedPoses{};
-
-        if (ShouldUseMirroredRealControllerPose(snapshot))
-        {
-            vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, trackedPoses.data(), static_cast<std::uint32_t>(trackedPoses.size()));
-        }
-
-        if (ShouldUseMirroredRealControllerPose(snapshot))
-        {
-            const auto leftFound = TryFindRealControllerPose(
-                vr::TrackedControllerRole_LeftHand,
-                trackedPoses.data(),
-                static_cast<std::uint32_t>(trackedPoses.size()),
-                mirroredLeftPose,
-                &realLeftDeviceIndex);
-            const auto rightFound = TryFindRealControllerPose(
-                vr::TrackedControllerRole_RightHand,
-                trackedPoses.data(),
-                static_cast<std::uint32_t>(trackedPoses.size()),
-                mirroredRightPose,
-                &realRightDeviceIndex);
-
-            if (leftFound)
-            {
-                leftPoseOverride = &mirroredLeftPose;
-            }
-
-            if (rightFound)
-            {
-                rightPoseOverride = &mirroredRightPose;
-            }
-
-            if (leftFound != _lastLeftRealControllerFound || rightFound != _lastRightRealControllerFound
-                || realLeftDeviceIndex != _lastLeftRealControllerIndex || realRightDeviceIndex != _lastRightRealControllerIndex)
-            {
-                DriverLogF(
-                    "[vrchotas] Real controller discovery (mode=%s): left=%s(index=%u) right=%s(index=%u)",
-                    PoseSourceToString(snapshot.pose_source),
-                    leftFound ? "found" : "missing",
-                    leftFound ? realLeftDeviceIndex : vr::k_unTrackedDeviceIndexInvalid,
-                    rightFound ? "found" : "missing",
-                    rightFound ? realRightDeviceIndex : vr::k_unTrackedDeviceIndexInvalid);
-
-                _lastLeftRealControllerFound = leftFound;
-                _lastRightRealControllerFound = rightFound;
-                _lastLeftRealControllerIndex = leftFound ? realLeftDeviceIndex : vr::k_unTrackedDeviceIndexInvalid;
-                _lastRightRealControllerIndex = rightFound ? realRightDeviceIndex : vr::k_unTrackedDeviceIndexInvalid;
-            }
-        }
+        _left->SetHandSelectionPriority(leftHandSelectionPriority, PoseSourceToString(snapshot.pose_source));
+        _right->SetHandSelectionPriority(rightHandSelectionPriority, PoseSourceToString(snapshot.pose_source));
 
         const auto& leftInput = snapshot.left;
         const auto& rightInput = snapshot.right;
 
-        _left->UpdateState(leftInput, leftPoseOverride);
-        _right->UpdateState(rightInput, rightPoseOverride);
+        if (!_loggedButtonAxisMirrorLimitation && (ShouldKeepRealController(snapshot, vr::TrackedControllerRole_LeftHand)
+            || ShouldKeepRealController(snapshot, vr::TrackedControllerRole_RightHand)))
+        {
+            DriverLog("[vrchotas] Hybrid mode keeps one real controller active directly in SteamVR. VRCHOTAS does not mirror or override that hand; it only drives the opposite virtual hand.");
+            _loggedButtonAxisMirrorLimitation = true;
+        }
+
+        if (useVirtualLeft)
+        {
+            _left->UpdateState(leftInput, nullptr);
+        }
+
+        if (useVirtualRight)
+        {
+            _right->UpdateState(rightInput, nullptr);
+        }
         _consecutiveMutexWaitFailures = 0;
         return;
     }

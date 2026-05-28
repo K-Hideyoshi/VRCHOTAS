@@ -63,16 +63,41 @@ bool HasMeaningfulInput(const vrchotas::ControllerHandState& hand)
     return false;
 }
 
-bool ShouldUseMirroredRealControllerPose(const vrchotas::VirtualControllerState& state)
+bool ShouldUseVirtualController(const vrchotas::VirtualControllerState& state, vr::ETrackedControllerRole role)
 {
-    return state.pose_source == vrchotas::VirtualPoseSource::MirrorRealControllers;
+    switch (state.pose_source)
+    {
+    case vrchotas::VirtualPoseSource::MirrorRealControllers:
+        return false;
+    case vrchotas::VirtualPoseSource::HybridKeepLeftReal:
+        return role != vr::TrackedControllerRole_LeftHand;
+    case vrchotas::VirtualPoseSource::HybridKeepRightReal:
+        return role != vr::TrackedControllerRole_RightHand;
+    case vrchotas::VirtualPoseSource::Mapped:
+    default:
+        return true;
+    }
+}
+
+bool ShouldKeepRealController(const vrchotas::VirtualControllerState& state, vr::ETrackedControllerRole role)
+{
+    return !ShouldUseVirtualController(state, role);
 }
 
 const char* PoseSourceToString(vrchotas::VirtualPoseSource poseSource)
 {
-    return poseSource == vrchotas::VirtualPoseSource::MirrorRealControllers
-        ? "MirrorRealControllers"
-        : "Mapped";
+    switch (poseSource)
+    {
+    case vrchotas::VirtualPoseSource::MirrorRealControllers:
+        return "MirrorRealControllers";
+    case vrchotas::VirtualPoseSource::HybridKeepLeftReal:
+        return "HybridKeepLeftReal";
+    case vrchotas::VirtualPoseSource::HybridKeepRightReal:
+        return "HybridKeepRightReal";
+    case vrchotas::VirtualPoseSource::Mapped:
+    default:
+        return "Mapped";
+    }
 }
 
 bool TryGetTrackedDeviceStringProperty(vr::TrackedDeviceIndex_t deviceIndex, vr::ETrackedDeviceProperty property, std::string& value)

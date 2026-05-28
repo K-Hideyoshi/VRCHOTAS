@@ -61,3 +61,15 @@ public sealed class ControllerPoseTargetOption
     public string Label { get; }
     public ControllerPoseTarget Target { get; }
 }
+
+public sealed class ControllerOutputModeOption
+{
+    public ControllerOutputModeOption(string label, ControllerOutputMode mode)
+    {
+        Label = label;
+        Mode = mode;
+    }
+
+    public string Label { get; }
+    public ControllerOutputMode Mode { get; }
+}

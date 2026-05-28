@@ -11,6 +11,13 @@ public enum VirtualTargetHand
     Right = 1
 }
 
+public enum ControllerOutputMode
+{
+    FullVirtual = 0,
+    HybridKeepLeftReal = 1,
+    HybridKeepRightReal = 2
+}
+
 public enum AxisRangeKind
 {
     Bidirectional = 0,

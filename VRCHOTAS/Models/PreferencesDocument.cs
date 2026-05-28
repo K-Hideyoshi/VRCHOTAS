@@ -16,6 +16,9 @@ public sealed class PreferencesDocument
     [JsonProperty("eulerAngles")]
     public EulerAnglePreferences EulerAngles { get; set; } = new();
 
+    [JsonProperty("controllerOutputMode")]
+    public ControllerOutputMode ControllerOutputMode { get; set; } = ControllerOutputMode.FullVirtual;
+
     public string GetNormalizedDefaultFileName()
     {
         var name = string.IsNullOrWhiteSpace(DefaultConfigurationFileName)
