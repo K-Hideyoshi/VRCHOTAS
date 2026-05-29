@@ -95,9 +95,9 @@
                     <StackPanel Margin="12">
                         <TextBlock Margin="0,0,0,12"
                                    TextWrapping="Wrap"
-                                   Text="Choose how pitch, yaw, and roll are composed into the controller orientation. The selected order is applied top-to-bottom." />
+                                   Text="Choose how pitch, yaw, and roll are composed into the controller orientation." />
 
-                        <GroupBox Header="Tait-Bryan order" Margin="0,0,0,12">
+                        <GroupBox Header="Tait-Bryan Angles" Margin="0,0,0,12">
                             <StackPanel Margin="12,8">
                                 <RadioButton x:Name="PitchYawRollRadio" GroupName="EulerOrder" Content="Pitch &#8594; Yaw &#8594; Roll (X &#8594; Y &#8594; Z)" Margin="0,0,0,6" />
                                 <RadioButton x:Name="PitchRollYawRadio" GroupName="EulerOrder" Content="Pitch &#8594; Roll &#8594; Yaw (X &#8594; Z &#8594; Y)" Margin="0,0,0,6" />
@@ -118,25 +118,20 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Controller Output">
+            <TabItem Header="Controller Mode">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
                         <TextBlock Margin="0,0,0,12"
                                    TextWrapping="Wrap"
                                    Text="Choose whether VRCHOTAS should provide both virtual controllers or leave one hand entirely to the native real controller in SteamVR." />
 
-                        <GroupBox Header="Output mode">
+                        <GroupBox Header="Controller Mode">
                             <StackPanel Margin="12,8">
                                 <RadioButton x:Name="FullVirtualModeRadio" GroupName="ControllerOutputMode" Content="Full Virtual" Margin="0,0,0,6" />
                                 <RadioButton x:Name="HybridKeepLeftRealRadio" GroupName="ControllerOutputMode" Content="Left Real + Right Virtual" Margin="0,0,0,6" />
                                 <RadioButton x:Name="HybridKeepRightRealRadio" GroupName="ControllerOutputMode" Content="Left Virtual + Right Real" />
                             </StackPanel>
                         </GroupBox>
-
-                        <TextBlock Margin="0,12,0,0"
-                                   TextWrapping="Wrap"
-                                   Foreground="DimGray"
-                                   Text="In hybrid modes, the real-hand side is not mirrored by VRCHOTAS. SteamVR keeps using the native physical controller directly, while VRCHOTAS only drives the virtual hand on the other side." />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -144,6 +139,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="OK" Width="88" Margin="0,0,8,0" IsDefault="True" Click="OnOkClick" />
+            <Button Content="Apply" Width="88" Margin="0,0,8,0" Click="OnApplyClick" />
             <Button Content="Cancel" Width="88" IsCancel="True" />
         </StackPanel>
     </Grid>

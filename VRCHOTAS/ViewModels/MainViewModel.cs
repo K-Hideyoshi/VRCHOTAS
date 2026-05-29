@@ -33,8 +33,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly SharedMemoryStateChannel? _ipc;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _deviceRefreshTimer;
+    private readonly CancellationTokenSource _deviceRefreshCancellation = new();
     private readonly CancellationTokenSource _frameLoopCancellation = new();
     private readonly Task _frameLoopTask;
+    private Task? _deviceRefreshTask;
 
     private RawJoystickState _latestState = new();
     private VirtualControllerState _lastMappedState = VirtualControllerState.CreateDefault();
@@ -46,11 +48,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isMappingEnabled;
     private int _deviceShellRefreshQueued;
     private int _deviceMonitorRefreshQueued;
+    private int _deviceRefreshInProgress;
     private int _joystickPollCountInWindow;
     private long _rateWindowStartTicks = Environment.TickCount64;
     private string _driverSyncRateDisplay = "—";
     private string _driverHeartbeatStatusDisplay = "No signal";
     private MappingEntry? _lastAutoSelectedMapping;
+    private bool _isLocateMappingEnabled = true;
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -79,6 +83,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public IRelayCommand OpenAddMappingDialogCommand { get; }
     public IRelayCommand OpenEditMappingDialogCommand { get; }
     public IRelayCommand DeleteSelectedMappingCommand { get; }
+    public IRelayCommand ToggleLocateMappingCommand { get; }
     public IRelayCommand ToggleMappingEnabledCommand { get; }
     public IRelayCommand<string> LoadConfigByNameCommand { get; }
     public IRelayCommand<string> SetDefaultConfigByNameCommand { get; }
@@ -145,6 +150,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string MappingEnabledStatusText => IsMappingEnabled ? "Master ON" : "Master OFF";
 
+    public bool IsLocateMappingEnabled
+    {
+        get => _isLocateMappingEnabled;
+        set
+        {
+            if (!SetProperty(ref _isLocateMappingEnabled, value))
+            {
+                return;
+            }
+
+            if (!value)
+            {
+                _lastAutoSelectedMapping = null;
+            }
+
+            _preferencesService.SaveLocateMappingEnabled(value);
+            _logger.Info(nameof(MainViewModel), $"Locate Mapping {(value ? "enabled" : "disabled")}.");
+        }
+    }
+
     public ControllerOutputMode ControllerOutputMode
     {
         get => _controllerOutputMode;
@@ -171,8 +196,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string DriverHeartbeatStatusDisplay
     {
         get => _driverHeartbeatStatusDisplay;
-        private set => SetProperty(ref _driverHeartbeatStatusDisplay, value);
+        private set
+        {
+            if (SetProperty(ref _driverHeartbeatStatusDisplay, value))
+            {
+                OnPropertyChanged(nameof(DriverHeartbeatStatusBrush));
+            }
+        }
     }
+
+    public MediaBrush DriverHeartbeatStatusBrush => string.Equals(DriverHeartbeatStatusDisplay, "OK", StringComparison.OrdinalIgnoreCase)
+        ? MediaBrushes.ForestGreen
+        : MediaBrushes.Firebrick;
 
     public MainViewModel()
     {
@@ -190,6 +225,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
         _eulerAnglePreferences = _preferencesService.LoadEulerAngles();
         _controllerOutputMode = _preferencesService.LoadControllerOutputMode();
+        _isLocateMappingEnabled = _preferencesService.LoadLocateMappingEnabled();
         _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
         _steamVrDriverDeploymentService.TryDeployOnStartup();
 
@@ -211,6 +247,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OpenAddMappingDialogCommand = new RelayCommand(() => MappingEditorRequested?.Invoke(this, new MappingEditorRequestEventArgs(null)));
         OpenEditMappingDialogCommand = new RelayCommand(OpenEditMappingDialog);
         DeleteSelectedMappingCommand = new RelayCommand(DeleteSelectedMapping);
+        ToggleLocateMappingCommand = new RelayCommand(() => IsLocateMappingEnabled = !IsLocateMappingEnabled);
         ToggleMappingEnabledCommand = new RelayCommand(() => IsMappingEnabled = !IsMappingEnabled);
         LoadConfigByNameCommand = new RelayCommand<string>(LoadConfigurationByName);
         SetDefaultConfigByNameCommand = new RelayCommand<string>(SetDefaultConfigurationByName);
@@ -237,17 +274,48 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _joystickService.RefreshDevices();
 
         _deviceRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _deviceRefreshTimer.Tick += (_, _) =>
-        {
-            _joystickService.RefreshDevices();
-            _joystickService.TryAcquireDisconnectedDevices();
-        };
+        _deviceRefreshTimer.Tick += (_, _) => _deviceRefreshTask = RefreshDevicesInBackgroundAsync();
         _deviceRefreshTimer.Start();
 
         _frameLoopTask = Task.Run(() => RunFrameLoopAsync(_frameLoopCancellation.Token));
     }
 
     public HashSet<string> GetJoystickHotkeyConflictKeysForCapture() => BuildJoystickHotkeyConflictSet();
+
+    private async Task RefreshDevicesInBackgroundAsync()
+    {
+        if (_deviceRefreshCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _deviceRefreshInProgress, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                _deviceRefreshCancellation.Token.ThrowIfCancellationRequested();
+                _joystickService.RefreshDevices();
+                _deviceRefreshCancellation.Token.ThrowIfCancellationRequested();
+                _joystickService.TryAcquireDisconnectedDevices();
+            }, _deviceRefreshCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_deviceRefreshCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(nameof(MainViewModel), "Background device refresh failed.", ex);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _deviceRefreshInProgress, 0);
+        }
+    }
 
     public void SaveMappingFromDialog(MappingEntry mapping, MappingEntry? original)
     {
@@ -561,7 +629,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Deadzone = mapping.Deadzone,
             Curve = mapping.Curve,
             Saturation = mapping.Saturation,
+            InputInvert = mapping.InputInvert,
             Invert = mapping.Invert,
+            Description = mapping.Description,
             IsSourceDeviceConnected = mapping.IsSourceDeviceConnected,
             IsTemporarilyDisabled = mapping.IsTemporarilyDisabled
         };
@@ -570,7 +640,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _deviceRefreshTimer.Stop();
+        _deviceRefreshCancellation.Cancel();
         _frameLoopCancellation.Cancel();
+
+        try
+        {
+            _deviceRefreshTask?.GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+        }
 
         try
         {
@@ -589,6 +668,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             filter.PropertyChanged -= OnLogLevelFilterChanged;
         }
 
+        _deviceRefreshCancellation.Dispose();
         _frameLoopCancellation.Dispose();
         _joystickService.Dispose();
         _ipc?.Dispose();

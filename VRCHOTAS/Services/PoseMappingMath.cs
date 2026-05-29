@@ -18,7 +18,7 @@ internal static class PoseMappingMath
         const double toRad = Math.PI / 180.0;
 
         var rotation = Quaternion.Identity;
-        foreach (var step in GetSteps(preferences?.Order ?? EulerAngleOrder.YawPitchRoll, pitchXDeg, yawYDeg, rollZDeg))
+        foreach (var step in GetSteps(preferences?.Order ?? EulerAngleOrder.PitchRollYaw, pitchXDeg, yawYDeg, rollZDeg))
         {
             var angleRadians = (float)(step.AngleDegrees * toRad);
             if (Math.Abs(angleRadians) < float.Epsilon)

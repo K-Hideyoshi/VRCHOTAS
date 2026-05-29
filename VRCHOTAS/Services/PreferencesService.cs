@@ -62,7 +62,8 @@ public sealed class PreferencesService
                         ?? root["DefaultConfigurationFileName"]?.Value<string>(),
                     Hotkeys = hotkeysToken.ToObject<HotkeyPreferences>() ?? new HotkeyPreferences(),
                     EulerAngles = root["eulerAngles"]?.ToObject<EulerAnglePreferences>() ?? new EulerAnglePreferences(),
-                    ControllerOutputMode = root["controllerOutputMode"]?.ToObject<ControllerOutputMode?>() ?? ControllerOutputMode.FullVirtual
+                    ControllerOutputMode = root["controllerOutputMode"]?.ToObject<ControllerOutputMode?>() ?? ControllerOutputMode.FullVirtual,
+                    LocateMappingEnabled = root["locateMappingEnabled"]?.ToObject<bool?>() ?? true
                 };
             }
 
@@ -160,6 +161,23 @@ public sealed class PreferencesService
         }
 
         doc.ControllerOutputMode = mode;
+        SaveDocument(doc);
+    }
+
+    public bool LoadLocateMappingEnabled()
+    {
+        return LoadDocument().LocateMappingEnabled;
+    }
+
+    public void SaveLocateMappingEnabled(bool enabled)
+    {
+        var doc = LoadDocument();
+        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
+        {
+            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
+        }
+
+        doc.LocateMappingEnabled = enabled;
         SaveDocument(doc);
     }
 }

@@ -12,10 +12,15 @@ public sealed partial class MainViewModel
     private const int DriverHeartbeatMaxAgeMs = 5000;
     private const int JoystickRateWindowMs = 5000;
     private const double ActiveMappingAxisSpeedThreshold = 2.5;
+    private const int LocateAxisSelectionMinimumIntervalMilliseconds = 500;
+    private static readonly TimeSpan LocateAxisSelectionMinimumInterval = TimeSpan.FromMilliseconds(LocateAxisSelectionMinimumIntervalMilliseconds);
     private bool _driverHeartbeatAlive;
     private bool? _lastPublishedDriverHeartbeatAlive;
     private RawJoystickState? _lastSelectionDetectionState;
     private DateTime _lastSelectionDetectionUtc;
+    private string? _lastActivatedLocateSourceKey;
+    private string? _lastAxisLocateSourceKey;
+    private DateTime _lastAxisLocateSelectionUtc;
 
     private async Task RunFrameLoopAsync(CancellationToken cancellationToken)
     {
@@ -179,22 +184,45 @@ public sealed partial class MainViewModel
         var previousState = _lastSelectionDetectionState;
         var now = DateTime.UtcNow;
 
+        if (!IsLocateMappingEnabled)
+        {
+            _lastSelectionDetectionState = latestState;
+            _lastSelectionDetectionUtc = now;
+            _lastActivatedLocateSourceKey = null;
+            _lastAutoSelectedMapping = null;
+            return;
+        }
+
+        string? activeSourceKey = null;
         MappingEntry? candidate = null;
         if (previousState is not null)
         {
             var elapsedSeconds = (now - _lastSelectionDetectionUtc).TotalSeconds;
             if (elapsedSeconds > 0)
             {
-                candidate = FindActiveMapping(latestState, previousState, elapsedSeconds);
+                activeSourceKey = FindActiveSourceKey(latestState, previousState, elapsedSeconds);
+                if (!string.IsNullOrWhiteSpace(activeSourceKey)
+                    && !string.Equals(activeSourceKey, _lastActivatedLocateSourceKey, StringComparison.Ordinal)
+                    && !ShouldThrottleAxisLocate(activeSourceKey, now))
+                {
+                    candidate = FindNextMappingForSource(activeSourceKey);
+                }
             }
         }
 
         _lastSelectionDetectionState = latestState;
         _lastSelectionDetectionUtc = now;
+        _lastActivatedLocateSourceKey = activeSourceKey;
 
-        if (candidate is null || ReferenceEquals(candidate, _lastAutoSelectedMapping))
+        if (candidate is null)
         {
             return;
+        }
+
+        if (candidate.IsAxisMapping)
+        {
+            _lastAxisLocateSourceKey = candidate.SourceGroupingKey;
+            _lastAxisLocateSelectionUtc = now;
         }
 
         _lastAutoSelectedMapping = candidate;
@@ -207,7 +235,7 @@ public sealed partial class MainViewModel
         }, DispatcherPriority.Input);
     }
 
-    private MappingEntry? FindActiveMapping(RawJoystickState currentState, RawJoystickState previousState, double elapsedSeconds)
+    private string? FindActiveSourceKey(RawJoystickState currentState, RawJoystickState previousState, double elapsedSeconds)
     {
         foreach (var mapping in Mappings)
         {
@@ -241,7 +269,7 @@ public sealed partial class MainViewModel
 
                 if (!previousDevice.Buttons[mapping.SourceButtonIndex] && currentDevice.Buttons[mapping.SourceButtonIndex])
                 {
-                    return mapping;
+                    return mapping.SourceGroupingKey;
                 }
 
                 continue;
@@ -256,10 +284,56 @@ public sealed partial class MainViewModel
             var axisSpeed = Math.Abs(currentAxisValue - previousAxisValue) / elapsedSeconds;
             if (axisSpeed > ActiveMappingAxisSpeedThreshold)
             {
-                return mapping;
+                return mapping.SourceGroupingKey;
             }
         }
 
         return null;
+    }
+
+    private bool ShouldThrottleAxisLocate(string sourceGroupingKey, DateTime now)
+    {
+        if (!IsAxisSourceGroupingKey(sourceGroupingKey))
+        {
+            return false;
+        }
+
+        if (!string.Equals(sourceGroupingKey, _lastAxisLocateSourceKey, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return now - _lastAxisLocateSelectionUtc < LocateAxisSelectionMinimumInterval;
+    }
+
+    private bool IsAxisSourceGroupingKey(string sourceGroupingKey)
+    {
+        return Mappings.Any(mapping => mapping.IsAxisMapping
+            && string.Equals(mapping.SourceGroupingKey, sourceGroupingKey, StringComparison.Ordinal));
+    }
+
+    private MappingEntry? FindNextMappingForSource(string sourceGroupingKey)
+    {
+        var matchingMappings = Mappings
+            .Where(mapping => string.Equals(mapping.SourceGroupingKey, sourceGroupingKey, StringComparison.Ordinal))
+            .ToArray();
+        if (matchingMappings.Length == 0)
+        {
+            return null;
+        }
+
+        if (_lastAutoSelectedMapping is null
+            || !string.Equals(_lastAutoSelectedMapping.SourceGroupingKey, sourceGroupingKey, StringComparison.Ordinal))
+        {
+            return matchingMappings[0];
+        }
+
+        var currentIndex = Array.IndexOf(matchingMappings, _lastAutoSelectedMapping);
+        if (currentIndex < 0)
+        {
+            return matchingMappings[0];
+        }
+
+        return matchingMappings[(currentIndex + 1) % matchingMappings.Length];
     }
 }

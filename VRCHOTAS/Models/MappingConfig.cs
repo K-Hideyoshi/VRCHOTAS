@@ -136,7 +136,11 @@ public sealed partial class MappingEntry : ObservableObject
     public double Deadzone { get; set; }
     public double Curve { get; set; }
     public double Saturation { get; set; } = 1.0;
+    public bool InputInvert { get; set; }
     public bool Invert { get; set; }
+
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? Description { get; set; }
 
     [JsonIgnore]
     public MappingTargetKind ResolvedTargetKind =>
@@ -209,27 +213,22 @@ public sealed partial class MappingEntry : ObservableObject
         get
         {
             var sourceType = IsAxisMapping ? "Axis" : "Button";
-            var targetType = GetTargetKindDisplayName();
-            var inverted = IsTargetAxisType() && Invert ? " Inverted" : "";
-            return $"{sourceType} ¡ú {targetType}{inverted}";
+            var targetType = GetTargetTypeLabel(NormalizedTargetKind);
+            var toggleSuffix = ToggleMode ? " Toggled" : string.Empty;
+            return $"{sourceType} -> {targetType}{toggleSuffix}";
         }
     }
 
-    private string GetTargetKindDisplayName()
+    public static string GetTargetTypeLabel(MappingTargetKind targetKind)
     {
-        return NormalizedTargetKind switch
+        return targetKind switch
         {
-            MappingTargetKind.AxisInput => "VR Axis",
-            MappingTargetKind.Button => "VR Button",
-            MappingTargetKind.ControllerPose => "Controller Pose",
-            MappingTargetKind.ControllerPoseAction => "Controller Pose Action",
-            _ => NormalizedTargetKind.ToString()
+            MappingTargetKind.AxisInput => "Axis",
+            MappingTargetKind.Button => "Button",
+            MappingTargetKind.ControllerPose => "Pose",
+            MappingTargetKind.ControllerPoseAction => "Pose Action",
+            _ => targetKind.ToString()
         };
-    }
-
-    private bool IsTargetAxisType()
-    {
-        return NormalizedTargetKind is MappingTargetKind.AxisInput or MappingTargetKind.ControllerPose;
     }
 
     private string GetAxisTargetDisplay()

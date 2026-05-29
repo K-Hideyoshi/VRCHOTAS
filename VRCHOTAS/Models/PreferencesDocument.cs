@@ -19,6 +19,9 @@ public sealed class PreferencesDocument
     [JsonProperty("controllerOutputMode")]
     public ControllerOutputMode ControllerOutputMode { get; set; } = ControllerOutputMode.FullVirtual;
 
+    [JsonProperty("locateMappingEnabled")]
+    public bool LocateMappingEnabled { get; set; } = true;
+
     public string GetNormalizedDefaultFileName()
     {
         var name = string.IsNullOrWhiteSpace(DefaultConfigurationFileName)

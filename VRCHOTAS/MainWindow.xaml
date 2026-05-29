@@ -4,9 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:VRCHOTAS.Converters"
-        mc:Ignorable="d"
-         Title="{Binding WindowTitle}" Height="760" Width="1580"
-         Icon="icons/logo_bg_crop_outer.ico">
+         mc:Ignorable="d"
+          Title="{Binding WindowTitle}" Height="760" Width="1320"
+          Icon="icons/logo_bg_crop_outer.ico">
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveConfigCommand}" />
         <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsConfigCommand}" />
@@ -50,6 +50,47 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="RootBorder" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="LocateMappingToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Background" Value="#FFF6F7F9" />
+            <Setter Property="BorderBrush" Value="#FFD0D5DD" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#FF1F2937" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="RootBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFEAECEF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFDDE2E7" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFEAF2FF" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#FF2563EB" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder" Property="Opacity" Value="0.6" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -125,7 +166,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
+    <Grid x:Name="RootGrid" Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -180,12 +221,12 @@
                 <MenuItem Header="Exit" Click="ExitApplicationClick" />
             </MenuItem>
             <MenuItem Header="View">
-                <MenuItem Header="Open Log Window" Command="{Binding OpenLogWindowCommand}" />
+                <MenuItem Header="Log Window" Command="{Binding OpenLogWindowCommand}" />
                 <MenuItem Header="Pose Preview" Click="OnPosePreviewMenuClick" />
             </MenuItem>
             <MenuItem Header="Help">
-                <MenuItem Header="User Guide" Click="OnUserGuideMenuClick" />
                 <MenuItem Header="About VRCHOTAS" Click="OnAboutMenuClick" />
+                <MenuItem Header="User Guide" Click="OnUserGuideMenuClick" />
                 <MenuItem Header="Report Issue &amp; Advice" Click="OnReportIssueMenuClick" />
             </MenuItem>
         </Menu>
@@ -202,27 +243,25 @@
                 <TextBlock Text="{Binding DeviceStatusSummary}" TextWrapping="Wrap" />
             </StackPanel>
 
-            <Grid Grid.Column="1" Margin="12,0" VerticalAlignment="Stretch">
+            <Grid Grid.Column="1" Margin="12,0" VerticalAlignment="Stretch" HorizontalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="180" />
+                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Driver Heartbeat:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding DriverHeartbeatStatusDisplay}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Driver Heartbeat:" VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Margin="0,0,12,0" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DriverHeartbeatStatusDisplay}" Foreground="{Binding DriverHeartbeatStatusBrush}" VerticalAlignment="Center" HorizontalAlignment="Left" />
 
-                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Driver Sync Rate:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding DriverSyncRateDisplay}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Sync Rate:" VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Margin="0,0,12,0" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DriverSyncRateDisplay}" VerticalAlignment="Center" HorizontalAlignment="Left" />
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Output Mode:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding ControllerOutputModeDisplay}" VerticalAlignment="Center" />
-                </StackPanel>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Controller Mode:" VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Margin="0,0,12,0" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ControllerOutputModeDisplay}" VerticalAlignment="Center" HorizontalAlignment="Left" />
             </Grid>
 
             <Grid Grid.Column="2" Margin="12,0,0,0">
@@ -254,19 +293,38 @@
         </Grid>
 
         <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.0*" />
+                <ColumnDefinition x:Name="DeviceMonitorColumn" Width="380" />
                 <ColumnDefinition Width="5.0*" />
             </Grid.ColumnDefinitions>
 
-            <ScrollViewer Grid.Column="0" Margin="0,0,12,0" VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding DeviceGroups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="Gray" BorderThickness="1" Margin="0,0,0,10" Padding="8">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding DeviceName}" FontWeight="Bold" />
-                                    <TextBlock Text="{Binding DeviceId}" FontStyle="Italic" FontSize="11" Margin="0,0,0,6" />
+            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,8">
+                <Button x:Name="DeviceMonitorToggleButton"
+                        Style="{StaticResource IconButtonStyle}"
+                        Margin="0"
+                        Click="DeviceMonitorToggleButtonClick"
+                        ToolTip="Collapse or restore device monitor">
+                    <Image x:Name="DeviceMonitorToggleIcon"
+                           Width="18"
+                           Height="18"
+                           Stretch="Uniform"
+                           Source="pack://application:,,,/icons/contract-left-line.png" />
+                </Button>
+            </StackPanel>
+
+            <Grid x:Name="DeviceMonitorPanel" Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
+                <ScrollViewer x:Name="DeviceMonitorScrollViewer" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding DeviceGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="Gray" BorderThickness="1" Margin="0,0,0,10" Padding="8">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding DeviceName}" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding DeviceId}" FontStyle="Italic" FontSize="11" Margin="0,0,0,6" />
 
                                     <TextBlock Text="Axes"
                                                FontWeight="Bold"
@@ -398,20 +456,22 @@
                                                Margin="0,4,0,0"
                                                FontStyle="Italic"
                                                Visibility="{Binding HasPhysicalInputs, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
 
-            <Grid Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <Button Style="{StaticResource IconButtonStyle}" Command="{Binding OpenAddMappingDialogCommand}" ToolTip="Add Mapping">
                         <Image Width="20" Height="20" Stretch="Uniform" Source="pack://application:,,,/icons/file-add-line.png" />
                     </Button>
@@ -423,20 +483,75 @@
                     </Button>
                 </StackPanel>
 
-                <Grid Grid.Row="1">
-                    <DataGrid x:Name="MappingsGrid"
-                              ItemsSource="{Binding Mappings}"
-                              SelectedItem="{Binding SelectedMapping}"
-                              AutoGenerateColumns="False"
-                              CanUserAddRows="False"
-                              IsReadOnly="True"
-                              SelectionMode="Single"
-                              SelectionUnit="FullRow"
-                              AllowDrop="True"
-                               Loaded="MappingsGridLoaded"
-                              DragOver="MappingsGridDragOver"
-                              DragLeave="MappingsGridDragLeave"
-                              Drop="MappingsGridDrop">
+                <Border Grid.Column="2"
+                        Padding="4"
+                        BorderBrush="#FFD0D5DD"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Background="#FFF8FAFC">
+                    <ToggleButton Style="{StaticResource LocateMappingToggleButtonStyle}"
+                                  IsChecked="{Binding IsLocateMappingEnabled, Mode=TwoWay}"
+                                  ToolTip="Auto focus on activated mapping">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="18"
+                                   Height="18"
+                                   Stretch="Uniform"
+                                   Source="pack://application:,,,/icons/focus-3-line.png"
+                                   RenderTransformOrigin="0.5,0.5">
+                                <Image.RenderTransform>
+                                    <RotateTransform Angle="0" />
+                                </Image.RenderTransform>
+                                <Image.Style>
+                                    <Style TargetType="Image">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLocateMappingEnabled}" Value="True">
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard x:Name="LocateMappingSpinStoryboard">
+                                                        <Storyboard RepeatBehavior="Forever">
+                                                            <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle"
+                                                                             From="0"
+                                                                             To="360"
+                                                                             Duration="0:0:1.2" />
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions>
+                                                    <StopStoryboard BeginStoryboardName="LocateMappingSpinStoryboard" />
+                                                </DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsLocateMappingEnabled}" Value="False">
+                                                <Setter Property="RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="0" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Image.Style>
+                            </Image>
+                        </StackPanel>
+                    </ToggleButton>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="1" Grid.Column="1">
+                <DataGrid x:Name="MappingsGrid"
+                          ItemsSource="{Binding Mappings}"
+                          SelectedItem="{Binding SelectedMapping}"
+                          Tag="True"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          SelectionMode="Single"
+                          SelectionUnit="FullRow"
+                          AllowDrop="True"
+                          Loaded="MappingsGridLoaded"
+                          Sorting="MappingsGridSorting"
+                          DragOver="MappingsGridDragOver"
+                          DragLeave="MappingsGridDragLeave"
+                          Drop="MappingsGridDrop">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Setter Property="MinHeight" Value="36" />
@@ -453,23 +568,46 @@
                             <StaticResource ResourceKey="MappingCellStyle" />
                         </DataGrid.CellStyle>
                         <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="" Width="28">
+                        <DataGridTemplateColumn Header="" Width="28" CanUserSort="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Border Background="Transparent"
-                                            Cursor="SizeAll"
+                                            IsEnabled="{Binding ElementName=MappingsGrid, Path=Tag}"
                                             PreviewMouseLeftButtonDown="MappingDragHandleMouseLeftButtonDown"
                                             PreviewMouseMove="MappingDragHandleMouseMove">
                                         <TextBlock Text="☰"
                                                    FontSize="13"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   ToolTip="Drag to reorder" />
+                                                   ToolTip="Drag to reorder">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#FF111111" />
+                                                    <Setter Property="Opacity" Value="1" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ElementName=MappingsGrid, Path=Tag}" Value="False">
+                                                            <Setter Property="Foreground" Value="#FF98A2B3" />
+                                                            <Setter Property="Opacity" Value="0.8" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Cursor" Value="SizeAll" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ElementName=MappingsGrid, Path=Tag}" Value="False">
+                                                        <Setter Property="Cursor" Value="Arrow" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                     </Border>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="" Width="34">
+                        <DataGridTemplateColumn Header="" Width="34" CanUserSort="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Ellipse Width="12"
@@ -488,7 +626,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn x:Name="SourceDeviceColumn" Header="Source Device" Binding="{Binding SourceDeviceName}" Width="140">
+                        <DataGridTextColumn x:Name="SourceDeviceColumn" Header="Source Device" Binding="{Binding SourceDeviceName}" SortMemberPath="SourceDeviceName" Width="140">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingSourceGroupCellStyle" />
                             </DataGridTextColumn.CellStyle>
@@ -498,7 +636,7 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="SourceControlColumn" Header="Source Button/Axis" Binding="{Binding SourceControlDisplay}" Width="140">
+                        <DataGridTextColumn x:Name="SourceControlColumn" Header="Source Input" Binding="{Binding SourceControlDisplay}" SortMemberPath="SourceControlDisplay" Width="140">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingSourceGroupCellStyle" />
                             </DataGridTextColumn.CellStyle>
@@ -508,7 +646,7 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="TargetHandColumn" Header="Target Hand" Binding="{Binding TargetHand}" Width="90">
+                        <DataGridTextColumn x:Name="TargetHandColumn" Header="Target Hand" Binding="{Binding TargetHand}" SortMemberPath="TargetHand" Width="90">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingTargetGroupCellStyle" />
                             </DataGridTextColumn.CellStyle>
@@ -518,7 +656,7 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="TargetControlColumn" Header="Target Button/Axis" Binding="{Binding TargetControlDisplay}" Width="170">
+                        <DataGridTextColumn x:Name="TargetControlColumn" Header="Target Input" Binding="{Binding TargetControlDisplay}" SortMemberPath="TargetControlDisplay" Width="170">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingTargetGroupCellStyle" />
                             </DataGridTextColumn.CellStyle>
@@ -528,7 +666,7 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="TypeColumn" Header="Type" Binding="{Binding MappingTypeDisplay}" Width="Auto">
+                        <DataGridTextColumn x:Name="TypeColumn" Header="Mapping Type" Binding="{Binding MappingTypeDisplay}" SortMemberPath="MappingTypeDisplay" Width="Auto">
                             <DataGridTextColumn.CellStyle>
                                 <StaticResource ResourceKey="MappingCellStyle" />
                             </DataGridTextColumn.CellStyle>
@@ -538,7 +676,20 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTemplateColumn Header="Actions" Width="154">
+                        <DataGridTemplateColumn x:Name="DescriptionColumn" Header="Description" Width="220" CanUserSort="False" Visibility="Collapsed">
+                            <DataGridTemplateColumn.CellStyle>
+                                <StaticResource ResourceKey="MappingCellStyle" />
+                            </DataGridTemplateColumn.CellStyle>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Description}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTipOpening="DescriptionTextBlockToolTipOpening" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Actions" Width="154" CanUserSort="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -561,11 +712,11 @@
                                                 </Image.Style>
                                             </Image>
                                         </Button>
-                                        <Button Style="{StaticResource MappingActionButtonStyle}" ToolTip="Copy" Click="CopyMappingClick">
-                                            <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/file-copy-2-fill.png" />
-                                        </Button>
                                         <Button Style="{StaticResource MappingActionButtonStyle}" ToolTip="Edit" Click="EditMappingClick">
                                             <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/file-edit-fill.png" />
+                                        </Button>
+                                        <Button Style="{StaticResource MappingActionButtonStyle}" ToolTip="Copy" Click="CopyMappingClick">
+                                            <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/file-copy-2-fill.png" />
                                         </Button>
                                         <Button Style="{StaticResource MappingActionButtonStyle}" Margin="0" ToolTip="Delete" Click="DeleteMappingClick">
                                             <Image Width="16" Height="16" Stretch="Uniform" Source="pack://application:,,,/icons/delete-bin-line.png" />
@@ -584,7 +735,6 @@
                             Visibility="Collapsed"
                             IsHitTestVisible="False"
                             Panel.ZIndex="1" />
-                </Grid>
             </Grid>
         </Grid>
     </Grid>

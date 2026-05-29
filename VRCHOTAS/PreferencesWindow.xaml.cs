@@ -77,7 +77,7 @@ public partial class PreferencesWindow : Window
                 RollYawPitchRadio.IsChecked = true;
                 break;
             default:
-                YawPitchRollRadio.IsChecked = true;
+                PitchRollYawRadio.IsChecked = true;
                 break;
         }
 
@@ -429,6 +429,18 @@ public partial class PreferencesWindow : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
+        ApplyPreferences();
+        DialogResult = true;
+        Close();
+    }
+
+    private void OnApplyClick(object sender, RoutedEventArgs e)
+    {
+        ApplyPreferences();
+    }
+
+    private void ApplyPreferences()
+    {
         SyncEulerSelectionToModel();
         SyncControllerOutputModeSelectionToModel();
         _preferencesService.SaveHotkeys(_hotkeys);
@@ -437,8 +449,6 @@ public partial class PreferencesWindow : Window
         _main.ApplyHotkeyPreferences(_hotkeys);
         _main.ApplyEulerAnglePreferences(_eulerAngles);
         _main.ApplyControllerOutputMode(_controllerOutputMode);
-        DialogResult = true;
-        Close();
     }
 
     protected override void OnClosed(EventArgs e)

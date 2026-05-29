@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Windows.Data;
+using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 using Controls = System.Windows.Controls;
 using WpfExecutedRoutedEventArgs = System.Windows.Input.ExecutedRoutedEventArgs;
@@ -21,12 +23,19 @@ namespace VRCHOTAS
 {
     public partial class MainWindow : Window
     {
+        private const double DefaultExpandedDeviceMonitorWidth = 380;
+        private const double CollapsedDeviceMonitorWidth = 42;
+        private const double DescriptionColumnWidth = 220;
+        private static readonly BitmapImage CollapseDeviceMonitorIcon = CreatePackBitmap("pack://application:,,,/icons/contract-left-line.png");
+        private static readonly BitmapImage ExpandDeviceMonitorIcon = CreatePackBitmap("pack://application:,,,/icons/expand-right-fill.png");
         private readonly MainViewModel _viewModel;
         private readonly Forms.NotifyIcon _notifyIcon;
         private LogWindow? _logWindow;
         private PosePreviewWindow? _posePreviewWindow;
         private bool _isExitRequested;
         private bool _hasShownTrayHint;
+        private bool _isDeviceMonitorCollapsed;
+        private double _expandedDeviceMonitorWidth = DefaultExpandedDeviceMonitorWidth;
         private WpfPoint _mappingDragStartPoint;
         private MappingEntry? _mappingDragCandidate;
         private int? _mappingDropTargetIndex;
@@ -42,13 +51,21 @@ namespace VRCHOTAS
             _viewModel.SaveAsRequested += OnSaveAsRequested;
             _viewModel.Mappings.CollectionChanged += OnMappingsCollectionChanged;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            Loaded += OnLoaded;
             Closing += OnClosing;
             Closed += OnClosed;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            UpdateDeviceMonitorLayout();
+            QueueWindowWidthAdjustment();
         }
 
         private void OnMappingsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             AutoSizeMappingColumns();
+            AdjustWindowWidthToContent();
         }
 
         private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -56,12 +73,101 @@ namespace VRCHOTAS
             if (e.PropertyName == nameof(MainViewModel.SelectedMapping))
             {
                 ScrollSelectedMappingIntoView();
+                return;
+            }
+
+            if (e.PropertyName == nameof(MainViewModel.CurrentConfigurationFileName))
+            {
+                QueueWindowWidthAdjustment();
             }
         }
 
         private void MappingsGridLoaded(object sender, RoutedEventArgs e)
         {
             AutoSizeMappingColumns();
+            UpdateMappingReorderState(sender as Controls.DataGrid);
+            AdjustWindowWidthToContent();
+        }
+
+        private void MappingsGridSorting(object sender, Controls.DataGridSortingEventArgs e)
+        {
+            if (sender is not Controls.DataGrid dataGrid)
+            {
+                return;
+            }
+
+            e.Handled = true;
+
+            var sortMemberPath = GetSortMemberPath(e.Column);
+            if (string.IsNullOrWhiteSpace(sortMemberPath))
+            {
+                return;
+            }
+
+            var view = CollectionViewSource.GetDefaultView(dataGrid.ItemsSource);
+            if (view is null)
+            {
+                return;
+            }
+
+            var nextDirection = e.Column.SortDirection switch
+            {
+                null => ListSortDirection.Ascending,
+                ListSortDirection.Ascending => ListSortDirection.Descending,
+                _ => (ListSortDirection?)null
+            };
+
+            foreach (var column in dataGrid.Columns)
+            {
+                if (!ReferenceEquals(column, e.Column))
+                {
+                    column.SortDirection = null;
+                }
+            }
+
+            view.SortDescriptions.Clear();
+            e.Column.SortDirection = nextDirection;
+
+            if (nextDirection.HasValue)
+            {
+                view.SortDescriptions.Add(new SortDescription(sortMemberPath, nextDirection.Value));
+            }
+
+            view.Refresh();
+            UpdateMappingReorderState(dataGrid);
+        }
+
+        private static void UpdateMappingReorderState(Controls.DataGrid? dataGrid)
+        {
+            if (dataGrid is null)
+            {
+                return;
+            }
+
+            dataGrid.Tag = dataGrid.Columns.All(column => column.SortDirection is null);
+        }
+
+        private bool IsMappingReorderEnabled()
+        {
+            return MappingsGrid.Tag as bool? ?? true;
+        }
+
+        private static string? GetSortMemberPath(Controls.DataGridColumn column)
+        {
+            if (!string.IsNullOrWhiteSpace(column.SortMemberPath))
+            {
+                return column.SortMemberPath;
+            }
+
+            if (column is Controls.DataGridBoundColumn boundColumn
+                && boundColumn.Binding is System.Windows.Data.Binding binding
+                && binding.Path is not null
+                && !string.IsNullOrWhiteSpace(binding.Path.Path))
+            {
+                return binding.Path.Path;
+            }
+
+            return null;
         }
 
         private void AutoSizeMappingColumns()
@@ -75,6 +181,111 @@ namespace VRCHOTAS
             AutoSizeMappingColumn(SourceControlColumn, _viewModel.Mappings.Select(mapping => mapping.SourceControlDisplay), 140, 220);
             AutoSizeMappingColumn(TargetHandColumn, _viewModel.Mappings.Select(mapping => mapping.TargetHand.ToString()), 90, 160);
             AutoSizeMappingColumn(TargetControlColumn, _viewModel.Mappings.Select(mapping => mapping.TargetControlDisplay), 170, 360);
+            AdjustWindowWidthToContent();
+        }
+
+        private void DeviceMonitorToggleButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (!_isDeviceMonitorCollapsed)
+            {
+                _expandedDeviceMonitorWidth = Math.Max(DefaultExpandedDeviceMonitorWidth, DeviceMonitorColumn.ActualWidth);
+            }
+
+            _isDeviceMonitorCollapsed = !_isDeviceMonitorCollapsed;
+            UpdateDeviceMonitorLayout();
+            AdjustWindowWidthToContent();
+        }
+
+        private void UpdateDeviceMonitorLayout()
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            DeviceMonitorColumn.Width = _isDeviceMonitorCollapsed
+                ? new GridLength(CollapsedDeviceMonitorWidth)
+                : new GridLength(Math.Max(DefaultExpandedDeviceMonitorWidth, _expandedDeviceMonitorWidth));
+
+            DeviceMonitorScrollViewer.Visibility = _isDeviceMonitorCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            DeviceMonitorPanel.Margin = _isDeviceMonitorCollapsed ? new Thickness(0, 0, 8, 0) : new Thickness(0, 0, 12, 0);
+            DeviceMonitorToggleIcon.Source = _isDeviceMonitorCollapsed ? ExpandDeviceMonitorIcon : CollapseDeviceMonitorIcon;
+            DescriptionColumn.Width = new Controls.DataGridLength(DescriptionColumnWidth);
+            DescriptionColumn.Visibility = _isDeviceMonitorCollapsed ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private static BitmapImage CreatePackBitmap(string uri)
+        {
+            return new BitmapImage(new Uri(uri, UriKind.Absolute));
+        }
+
+        private void DescriptionTextBlockToolTipOpening(object sender, Controls.ToolTipEventArgs e)
+        {
+            if (sender is not Controls.TextBlock textBlock || string.IsNullOrWhiteSpace(textBlock.Text))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            var formattedText = new FormattedText(
+                textBlock.Text,
+                CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight,
+                new Typeface(textBlock.FontFamily, textBlock.FontStyle, textBlock.FontWeight, textBlock.FontStretch),
+                textBlock.FontSize,
+                System.Windows.Media.Brushes.Black,
+                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+            if (formattedText.Width <= textBlock.ActualWidth)
+            {
+                textBlock.ToolTip = null;
+                e.Handled = true;
+                return;
+            }
+
+            textBlock.ToolTip = textBlock.Text;
+        }
+
+        private void AdjustWindowWidthToContent()
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            UpdateLayout();
+
+            var visibleColumnsWidth = MappingsGrid.Columns
+                .Where(column => column.Visibility == Visibility.Visible)
+                .Sum(column => column.ActualWidth > 0 ? column.ActualWidth : column.Width.DisplayValue);
+
+            var mappingRegionWidth = visibleColumnsWidth + 48;
+            var leftRegionWidth = DeviceMonitorColumn.Width.Value + (_isDeviceMonitorCollapsed ? 8 : 12);
+            var desiredContentWidth = leftRegionWidth + mappingRegionWidth + 24;
+            var nonClientWidth = Math.Max(0, ActualWidth - RootGrid.ActualWidth);
+            var desiredWindowWidth = desiredContentWidth + nonClientWidth;
+            var maxWidth = SystemParameters.WorkArea.Width;
+
+            Width = Math.Min(maxWidth, desiredWindowWidth);
+        }
+
+        private void QueueWindowWidthAdjustment()
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (!IsLoaded)
+                {
+                    return;
+                }
+
+                AutoSizeMappingColumns();
+                AdjustWindowWidthToContent();
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void AutoSizeMappingColumn(Controls.DataGridColumn? column, IEnumerable<string> values, double minWidth, double maxWidth)
@@ -391,6 +602,12 @@ namespace VRCHOTAS
 
         private void MappingDragHandleMouseLeftButtonDown(object sender, WpfMouseButtonEventArgs e)
         {
+            if (!IsMappingReorderEnabled())
+            {
+                _mappingDragCandidate = null;
+                return;
+            }
+
             if (sender is not FrameworkElement element || element.DataContext is not MappingEntry mapping)
             {
                 return;
@@ -403,6 +620,12 @@ namespace VRCHOTAS
 
         private void MappingDragHandleMouseMove(object sender, WpfMouseEventArgs e)
         {
+            if (!IsMappingReorderEnabled())
+            {
+                _mappingDragCandidate = null;
+                return;
+            }
+
             if (e.LeftButton != WpfMouseButtonState.Pressed || _mappingDragCandidate is null)
             {
                 return;
@@ -421,6 +644,14 @@ namespace VRCHOTAS
 
         private void MappingsGridDragOver(object sender, WpfDragEventArgs e)
         {
+            if (!IsMappingReorderEnabled())
+            {
+                HideMappingDropIndicator();
+                e.Effects = WpfDragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
             if (!e.Data.GetDataPresent(typeof(MappingEntry)))
             {
                 HideMappingDropIndicator();
@@ -460,6 +691,12 @@ namespace VRCHOTAS
 
         private void MappingsGridDrop(object sender, WpfDragEventArgs e)
         {
+            if (!IsMappingReorderEnabled())
+            {
+                HideMappingDropIndicator();
+                return;
+            }
+
             if (!e.Data.GetDataPresent(typeof(MappingEntry)))
             {
                 HideMappingDropIndicator();

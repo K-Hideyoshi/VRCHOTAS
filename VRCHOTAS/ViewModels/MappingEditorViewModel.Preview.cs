@@ -37,7 +37,9 @@ public sealed partial class MappingEditorViewModel
             Deadzone = Deadzone,
             Curve = Curve,
             Saturation = Saturation,
-            Invert = Invert
+            InputInvert = InputInvert,
+            Invert = OutputInvert,
+            Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim()
         };
     }
 
@@ -89,9 +91,9 @@ public sealed partial class MappingEditorViewModel
 
     private double ComputeMappedOutput(double input)
     {
-        var shaped = MappingEngine.MapAxisValue(input, Deadzone, Curve, 1.0, Invert, AxisRange);
+        var shaped = MappingEngine.MapAxisValue(input, Deadzone, Curve, 1.0, InputInvert, OutputInvert, AxisRange);
         return SelectedTargetKind == MappingTargetKind.AxisInput
-            ? MappingEngine.MapAxisValue(input, Deadzone, Curve, Saturation, Invert, AxisRange)
+            ? MappingEngine.MapAxisValue(input, Deadzone, Curve, Saturation, InputInvert, OutputInvert, AxisRange)
             : shaped * Saturation;
     }
 
@@ -135,10 +137,10 @@ public sealed partial class MappingEditorViewModel
     {
         return new[]
         {
-            new TargetKindOption("VR Axis", MappingTargetKind.AxisInput),
-            new TargetKindOption("VR Button", MappingTargetKind.Button),
-            new TargetKindOption("Controller Pose", MappingTargetKind.ControllerPose),
-            new TargetKindOption("Controller Pose Action", MappingTargetKind.ControllerPoseAction)
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.AxisInput), MappingTargetKind.AxisInput),
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.Button), MappingTargetKind.Button),
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.ControllerPose), MappingTargetKind.ControllerPose),
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.ControllerPoseAction), MappingTargetKind.ControllerPoseAction)
         };
     }
 

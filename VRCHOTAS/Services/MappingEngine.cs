@@ -239,6 +239,7 @@ public sealed class MappingEngine
             context.Mapping.Deadzone,
             context.Mapping.Curve,
             context.Mapping.Saturation,
+            context.Mapping.InputInvert,
             context.Mapping.Invert,
             ResolveAxisRangeForSource(context.Mapping));
 
@@ -268,6 +269,7 @@ public sealed class MappingEngine
             context.Mapping.Deadzone,
             context.Mapping.Curve,
             1.0,
+            context.Mapping.InputInvert,
             context.Mapping.Invert,
             ResolveAxisRangeForSource(context.Mapping));
 
@@ -790,8 +792,13 @@ public sealed class MappingEngine
         }
     }
 
-    public static double MapAxisValue(double value, double deadzone, double curve, double saturation, bool invert, AxisRangeKind axisRange = AxisRangeKind.Bidirectional)
+    public static double MapAxisValue(double value, double deadzone, double curve, double saturation, bool inputInvert, bool outputInvert, AxisRangeKind axisRange = AxisRangeKind.Bidirectional)
     {
+        if (inputInvert)
+        {
+            value = -value;
+        }
+
         value = NormalizeAxisInput(value, axisRange);
         var clampedDeadzone = Math.Clamp(deadzone, 0.0, 0.8);
         var clampedCurve = Math.Clamp(curve, -1.0, 1.0);
@@ -809,7 +816,7 @@ public sealed class MappingEngine
         var exponent = (1.0 + clampedCurve) / Math.Max(0.0001, 1.0 - clampedCurve);
         var curved = Math.Pow(Math.Clamp(normalized, 0.0, 1.0), exponent);
         var finalValue = curved * sign * clampedSaturation;
-        return invert ? -finalValue : finalValue;
+        return outputInvert ? -finalValue : finalValue;
     }
 
     public static double NormalizeAxisInput(double value, AxisRangeKind axisRange)

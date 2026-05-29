@@ -35,7 +35,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private double _saturationSliderMaximum = 5.0;
     private double _fullPressThreshold = 0.95;
     private bool _toggleMode;
-    private bool _invert;
+    private bool _inputInvert;
+    private bool _outputInvert;
+    private string _description = string.Empty;
     private double _currentInputValue;
     private double _currentOutputValue;
     private double _currentInputPlotX = 100;
@@ -79,7 +81,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         Deadzone = existing.Deadzone;
         Curve = existing.Curve;
         Saturation = existing.Saturation;
-        Invert = existing.Invert;
+        InputInvert = existing.InputInvert;
+        OutputInvert = existing.Invert;
+        Description = existing.Description ?? string.Empty;
 
         RebuildCurvePlot();
     }
@@ -343,16 +347,34 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         private set => SetProperty(ref _saturationSliderMaximum, value);
     }
 
-    public bool Invert
+    public bool InputInvert
     {
-        get => _invert;
+        get => _inputInvert;
         set
         {
-            if (SetProperty(ref _invert, value))
+            if (SetProperty(ref _inputInvert, value))
             {
                 RebuildCurvePlot();
             }
         }
+    }
+
+    public bool OutputInvert
+    {
+        get => _outputInvert;
+        set
+        {
+            if (SetProperty(ref _outputInvert, value))
+            {
+                RebuildCurvePlot();
+            }
+        }
+    }
+
+    public string Description
+    {
+        get => _description;
+        set => SetProperty(ref _description, value ?? string.Empty);
     }
 
     public double CurrentInputValue

@@ -17,6 +17,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140" />
@@ -63,6 +64,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
@@ -96,15 +98,8 @@
                           Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                           ItemsSource="{Binding AxisActionTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPoseAction}" />
 
-                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,0,0,6" Text="Toggle Mode:" Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <CheckBox Grid.Row="6" Grid.Column="1"
-                          HorizontalAlignment="Left"
-                          Margin="0,0,0,6"
-                          IsChecked="{Binding ToggleMode}"
-                          Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
-
-                <TextBlock Grid.Row="7" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Grid Grid.Row="7" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Grid Grid.Row="6" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />
@@ -120,6 +115,20 @@
                              LostKeyboardFocus="NumericValueEditorLostFocus"
                              PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
+
+                <TextBlock Grid.Row="7" VerticalAlignment="Center" Margin="0,0,0,6" Text="Toggle Mode:" Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <CheckBox Grid.Row="7" Grid.Column="1"
+                          HorizontalAlignment="Left"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding ToggleMode}"
+                          Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <TextBlock Grid.Row="8" VerticalAlignment="Center" Margin="0,0,0,6" Text="Description:" />
+                <TextBox Grid.Row="8"
+                         Grid.Column="1"
+                         Margin="0,0,0,6"
+                         VerticalContentAlignment="Center"
+                         Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             </Grid>
         </GroupBox>
@@ -194,7 +203,12 @@
                 </Grid>
 
                 <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Text="Invert:" />
-                <CheckBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Margin="0,0,0,8" IsChecked="{Binding Invert}" />
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                    <CheckBox IsChecked="{Binding InputInvert}" VerticalAlignment="Center" />
+                    <TextBlock Margin="6,0,18,0" VerticalAlignment="Center" Text="Input" />
+                    <CheckBox IsChecked="{Binding OutputInvert}" VerticalAlignment="Center" />
+                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="Output" />
+                </StackPanel>
 
                 <TextBlock Grid.Row="4" VerticalAlignment="Top" Margin="0,0,0,8" Text="Curve Preview:" />
                 <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,8">
@@ -232,7 +246,6 @@
                     </Border>
                 </Grid>
 
-                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,8,0,0" Text="Input / Mapped Output:" />
                 <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                     <TextBlock VerticalAlignment="Center" Text="Input:" />
                     <TextBlock VerticalAlignment="Center" Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />

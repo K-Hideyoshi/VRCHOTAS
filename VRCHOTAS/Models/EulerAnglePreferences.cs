@@ -21,7 +21,7 @@ public enum EulerAngleAxisReference
 public sealed class EulerAnglePreferences
 {
     [JsonProperty("order")]
-    public EulerAngleOrder Order { get; set; } = EulerAngleOrder.YawPitchRoll;
+    public EulerAngleOrder Order { get; set; } = EulerAngleOrder.PitchRollYaw;
 
     [JsonProperty("axisReference")]
     public EulerAngleAxisReference AxisReference { get; set; } = EulerAngleAxisReference.Local;
