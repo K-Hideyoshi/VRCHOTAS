@@ -6,11 +6,14 @@
 #include <fstream>
 #include <mutex>
 #include <cstdlib>
+#include <string>
 #include <openvr_driver.h>
 #include "driver_logging.h"
 
 namespace
 {
+    constexpr std::uintmax_t MaxDriverLogFileSizeBytes = 10u * 1024u * 1024u;
+
     std::filesystem::path ResolveDriverLogFilePath()
     {
         if (const char* localAppData = std::getenv("LOCALAPPDATA"); localAppData && *localAppData)
@@ -61,6 +64,43 @@ namespace
         return logDirectory / "vrchotas-driver.log";
     }
 
+    void TrimDriverLogFileIfNeeded(const std::filesystem::path& logFilePath)
+    {
+        std::error_code errorCode;
+        const auto fileSize = std::filesystem::file_size(logFilePath, errorCode);
+        if (errorCode || fileSize <= MaxDriverLogFileSizeBytes)
+        {
+            return;
+        }
+
+        std::ifstream input(logFilePath, std::ios::binary);
+        if (!input.is_open())
+        {
+            return;
+        }
+
+        input.seekg(static_cast<std::streamoff>(fileSize - MaxDriverLogFileSizeBytes), std::ios::beg);
+
+        std::string retainedContent(static_cast<std::size_t>(MaxDriverLogFileSizeBytes), '\0');
+        input.read(retainedContent.data(), static_cast<std::streamsize>(retainedContent.size()));
+        retainedContent.resize(static_cast<std::size_t>(input.gcount()));
+        input.close();
+
+        const auto newlinePosition = retainedContent.find('\n');
+        if (newlinePosition != std::string::npos && newlinePosition + 1 < retainedContent.size())
+        {
+            retainedContent.erase(0, newlinePosition + 1);
+        }
+
+        std::ofstream output(logFilePath, std::ios::binary | std::ios::trunc);
+        if (!output.is_open())
+        {
+            return;
+        }
+
+        output.write(retainedContent.data(), static_cast<std::streamsize>(retainedContent.size()));
+    }
+
     void AppendDriverFileLog(const char* message)
     {
         static std::mutex logMutex;
@@ -97,6 +137,8 @@ namespace
             localTime.wMilliseconds);
 
         stream << timestamp << ' ' << message << std::endl;
+        stream.close();
+        TrimDriverLogFileIfNeeded(logFilePath);
     }
 }
 

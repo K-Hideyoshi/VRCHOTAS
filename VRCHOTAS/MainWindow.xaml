@@ -298,7 +298,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="DeviceMonitorColumn" Width="380" />
+                <ColumnDefinition x:Name="DeviceMonitorColumn" Width="400" />
                 <ColumnDefinition Width="5.0*" />
             </Grid.ColumnDefinitions>
 

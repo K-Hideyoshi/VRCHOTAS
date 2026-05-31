@@ -247,6 +247,7 @@ public partial class PreferencesWindow : Window
         {
             Kind = HotkeyInputKind.Joystick,
             JoystickDeviceId = deviceId,
+            JoystickDeviceName = ResolveJoystickDeviceName(deviceId),
             JoystickButtonIndex = buttonIndex
         };
 

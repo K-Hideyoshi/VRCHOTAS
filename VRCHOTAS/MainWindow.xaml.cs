@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Threading;
 using System.Windows.Data;
 using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
@@ -23,7 +24,7 @@ namespace VRCHOTAS
 {
     public partial class MainWindow : Window
     {
-        private const double DefaultExpandedDeviceMonitorWidth = 380;
+        private const double DefaultExpandedDeviceMonitorWidth = 400;
         private const double CollapsedDeviceMonitorWidth = 42;
         private const double DescriptionColumnWidth = 220;
         private static readonly BitmapImage CollapseDeviceMonitorIcon = CreatePackBitmap("pack://application:,,,/icons/contract-left-line.png");
@@ -39,6 +40,7 @@ namespace VRCHOTAS
         private WpfPoint _mappingDragStartPoint;
         private MappingEntry? _mappingDragCandidate;
         private int? _mappingDropTargetIndex;
+        private int _windowWidthAdjustmentQueued;
 
         public MainWindow()
         {
@@ -64,8 +66,7 @@ namespace VRCHOTAS
 
         private void OnMappingsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            AutoSizeMappingColumns();
-            AdjustWindowWidthToContent();
+            QueueWindowWidthAdjustment();
         }
 
         private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -84,9 +85,7 @@ namespace VRCHOTAS
 
         private void MappingsGridLoaded(object sender, RoutedEventArgs e)
         {
-            AutoSizeMappingColumns();
             UpdateMappingReorderState(sender as Controls.DataGrid);
-            AdjustWindowWidthToContent();
         }
 
         private void MappingsGridSorting(object sender, Controls.DataGridSortingEventArgs e)
@@ -181,6 +180,7 @@ namespace VRCHOTAS
             AutoSizeMappingColumn(SourceControlColumn, _viewModel.Mappings.Select(mapping => mapping.SourceControlDisplay), 140, 220);
             AutoSizeMappingColumn(TargetHandColumn, _viewModel.Mappings.Select(mapping => mapping.TargetHand.ToString()), 90, 160);
             AutoSizeMappingColumn(TargetControlColumn, _viewModel.Mappings.Select(mapping => mapping.TargetControlDisplay), 170, 360);
+            AutoSizeMappingColumn(TypeColumn, _viewModel.Mappings.Select(mapping => mapping.MappingTypeDisplay), 120, 220);
             AdjustWindowWidthToContent();
         }
 
@@ -259,14 +259,20 @@ namespace VRCHOTAS
                 .Where(column => column.Visibility == Visibility.Visible)
                 .Sum(column => column.ActualWidth > 0 ? column.ActualWidth : column.Width.DisplayValue);
 
-            var mappingRegionWidth = visibleColumnsWidth + 48;
+            var mappingChromeWidth = 12d;
+            mappingChromeWidth += SystemParameters.VerticalScrollBarWidth;
+            var mappingRegionWidth = visibleColumnsWidth + mappingChromeWidth;
             var leftRegionWidth = DeviceMonitorColumn.Width.Value + (_isDeviceMonitorCollapsed ? 8 : 12);
-            var desiredContentWidth = leftRegionWidth + mappingRegionWidth + 24;
+            var desiredContentWidth = leftRegionWidth + mappingRegionWidth;
             var nonClientWidth = Math.Max(0, ActualWidth - RootGrid.ActualWidth);
             var desiredWindowWidth = desiredContentWidth + nonClientWidth;
             var maxWidth = SystemParameters.WorkArea.Width;
+            var targetWidth = Math.Min(maxWidth, desiredWindowWidth);
 
-            Width = Math.Min(maxWidth, desiredWindowWidth);
+            if (Math.Abs(Width - targetWidth) > 0.5)
+            {
+                Width = targetWidth;
+            }
         }
 
         private void QueueWindowWidthAdjustment()
@@ -276,15 +282,27 @@ namespace VRCHOTAS
                 return;
             }
 
+            if (Interlocked.Exchange(ref _windowWidthAdjustmentQueued, 1) == 1)
+            {
+                return;
+            }
+
             Dispatcher.BeginInvoke(() =>
             {
-                if (!IsLoaded)
+                try
                 {
-                    return;
-                }
+                    if (!IsLoaded)
+                    {
+                        return;
+                    }
 
-                AutoSizeMappingColumns();
-                AdjustWindowWidthToContent();
+                    AutoSizeMappingColumns();
+                    AdjustWindowWidthToContent();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _windowWidthAdjustmentQueued, 0);
+                }
             }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
@@ -852,6 +870,32 @@ namespace VRCHOTAS
                 }
 
                 current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private static T? FindDescendant<T>(DependencyObject? current) where T : DependencyObject
+        {
+            if (current is null)
+            {
+                return null;
+            }
+
+            var childrenCount = VisualTreeHelper.GetChildrenCount(current);
+            for (var index = 0; index < childrenCount; index++)
+            {
+                var child = VisualTreeHelper.GetChild(current, index);
+                if (child is T result)
+                {
+                    return result;
+                }
+
+                var nested = FindDescendant<T>(child);
+                if (nested is not null)
+                {
+                    return nested;
+                }
             }
 
             return null;

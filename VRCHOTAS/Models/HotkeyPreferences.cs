@@ -25,6 +25,10 @@ public sealed class HotkeyBinding
     public KeyboardChordBinding? Keyboard { get; set; }
 
     public string? JoystickDeviceId { get; set; }
+
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? JoystickDeviceName { get; set; }
+
     public int JoystickButtonIndex { get; set; }
 }
 

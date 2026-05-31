@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -11,6 +12,8 @@ namespace
 {
     constexpr double kSemanticAxisLogThreshold = 0.01;
     constexpr double kSemanticAxisChangeThreshold = 0.02;
+    constexpr std::uint64_t kReconnectInputSuppressMs = 120;
+    constexpr int kReconnectPoseWarmupFrames = 2;
 
     uint64_t BuildSupportedButtonsMask(vr::ETrackedControllerRole role)
     {
@@ -190,8 +193,8 @@ void HotasControllerDevice::PrepareForReconnect()
 {
     PublishNeutralInputState();
     _controllerHandSelectionPriority = 0;
-    _pendingReconnectRefresh = true;
-    _loggedFirstActiveInput = false;
+    _suppressInputsUntilTickMs = ::GetTickCount64() + kReconnectInputSuppressMs;
+    _remainingReconnectPoseFrames = kReconnectPoseWarmupFrames;
 }
 
 void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& hand, const vr::DriverPose_t* poseOverride)
@@ -207,19 +210,43 @@ void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& han
         _loggedFirstStateUpdate = true;
     }
 
-    if (!_loggedFirstActiveInput && HasMeaningfulInput(hand))
+    if (poseOverride)
     {
-        DriverLogF(
-            "[vrchotas] First active input for %s: button0=%s axis0=%.3f pos=(%.3f, %.3f, %.3f)",
-            _serialNumber,
-            hand.buttons[0] ? "true" : "false",
-            hand.axes[0],
-            hand.position[0],
-            hand.position[1],
-            hand.position[2]);
-        _loggedFirstActiveInput = true;
+        _cachedDriverPose = *poseOverride;
+    }
+    else
+    {
+        FillDriverPoseFromHand(hand, _cachedDriverPose);
     }
 
+    _cachedDriverPose.deviceIsConnected = _deviceConnected;
+    _cachedDriverPose.poseIsValid = _deviceConnected;
+
+    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(_trackedDeviceIndex, _cachedDriverPose, sizeof(vr::DriverPose_t));
+
+    const bool reconnectSuppressionActive = _remainingReconnectPoseFrames > 0 || ::GetTickCount64() < _suppressInputsUntilTickMs;
+    if (_remainingReconnectPoseFrames > 0)
+    {
+        --_remainingReconnectPoseFrames;
+    }
+
+    if (reconnectSuppressionActive)
+    {
+        PublishNeutralInputState();
+        return;
+    }
+
+    if (_suppressInputsUntilTickMs != 0)
+    {
+        _suppressInputsUntilTickMs = 0;
+        _remainingReconnectPoseFrames = 0;
+    }
+
+    PublishActiveInputState(hand);
+}
+
+void HotasControllerDevice::PublishActiveInputState(const vrchotas::ControllerHandState& hand)
+{
     for (int i = 0; i < vrchotas::kButtonCount; ++i)
     {
         if (i >= static_cast<int>(_buttonHandles.size()))
@@ -273,26 +300,6 @@ void HotasControllerDevice::UpdateState(const vrchotas::ControllerHandState& han
             _thumbstickAxisAliasHandles[static_cast<size_t>(i)],
             static_cast<float>(hand.axes[i]),
             0.0);
-    }
-
-    if (poseOverride)
-    {
-        _cachedDriverPose = *poseOverride;
-    }
-    else
-    {
-        FillDriverPoseFromHand(hand, _cachedDriverPose);
-    }
-
-    _cachedDriverPose.deviceIsConnected = _deviceConnected;
-    _cachedDriverPose.poseIsValid = _deviceConnected;
-
-    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(_trackedDeviceIndex, _cachedDriverPose, sizeof(vr::DriverPose_t));
-
-    if (_pendingReconnectRefresh)
-    {
-        PublishNeutralInputState();
-        _pendingReconnectRefresh = false;
     }
 }
 

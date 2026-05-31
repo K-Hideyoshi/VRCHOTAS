@@ -17,6 +17,19 @@ public partial class AboutWindow : Window
 
     private static string GetVersionText()
     {
+        var informationalVersion = Assembly
+            .GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            var plusIndex = informationalVersion.IndexOf('+');
+            return plusIndex >= 0
+                ? informationalVersion[..plusIndex]
+                : informationalVersion;
+        }
+
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         if (version is null)
         {

@@ -29,6 +29,7 @@ private:
     static constexpr size_t kThumbstickAliasAxisCount = 2;
     static constexpr size_t kTouchAliasButtonCount = 3;
     void CreateInputComponents(vr::PropertyContainerHandle_t container);
+    void PublishActiveInputState(const vrchotas::ControllerHandState& hand);
     void PublishNeutralInputState();
     void ResetCachedPose();
 
@@ -46,8 +47,8 @@ private:
     vr::DriverPose_t _cachedDriverPose{};
     std::int32_t _controllerHandSelectionPriority{ 0 };
     bool _deviceConnected{ true };
-    bool _pendingReconnectRefresh{ false };
+    std::uint64_t _suppressInputsUntilTickMs{ 0 };
+    int _remainingReconnectPoseFrames{ 0 };
     bool _loggedFirstStateUpdate{ false };
-    bool _loggedFirstActiveInput{ false };
     bool _hasLoggedSemanticInputs{ false };
 };

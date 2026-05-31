@@ -41,10 +41,17 @@
                            Text="{Binding SourceDetectionInstruction}"
                            TextWrapping="Wrap" />
 
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Detected Source:" />
-                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock VerticalAlignment="Center" Text="{Binding SourceSummary}" />
-                    <Button Width="90" Margin="12,0,0,0" Content="Reset" Click="ClearDetectionClick" Visibility="{Binding HasDetectedSource, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="1" VerticalAlignment="Top" Text="Detected Source:" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical">
+                    <TextBlock VerticalAlignment="Center"
+                               Text="{Binding SourceSummary}"
+                               TextWrapping="Wrap" />
+                    <Button Width="90"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Content="Reset"
+                            Click="ClearDetectionClick"
+                            Visibility="{Binding HasDetectedSource, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>
             </Grid>
         </GroupBox>

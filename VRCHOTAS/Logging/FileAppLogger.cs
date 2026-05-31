@@ -5,10 +5,12 @@ namespace VRCHOTAS.Logging;
 
 public sealed class FileAppLogger : IAppLogger, IDisposable
 {
-    private const int MaxRetainedLogFiles = 100;
+    private const int MaxRetainedLogFiles = 20;
+    private const long MaxLogDirectorySizeBytes = 20L * 1024 * 1024;
 
     private readonly object _sync = new();
     private readonly StreamWriter _writer;
+    private readonly string _logDirectory;
 
     public event Action<LogEntry>? EntryWritten;
     public string CurrentLogFilePath { get; }
@@ -33,9 +35,10 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
                 Directory.CreateDirectory(logDir);
             }
 
+            _logDirectory = logDir;
             CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
-            CleanupOldLogFiles(logDir);
+            CleanupOldLogFiles();
         }
         catch
         {
@@ -43,40 +46,82 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
             // AppData folder is not writable or a file blocks the expected directory.
             logDir = Path.Combine(Path.GetTempPath(), "VRCHOTAS", "logs");
             Directory.CreateDirectory(logDir);
+            _logDirectory = logDir;
             CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
-            CleanupOldLogFiles(logDir);
+            CleanupOldLogFiles();
         }
     }
 
-    private void CleanupOldLogFiles(string logDir)
+    private void CleanupOldLogFiles()
     {
         try
         {
             var currentFullPath = Path.GetFullPath(CurrentLogFilePath);
-            var filesToKeep = Directory
-                .EnumerateFiles(logDir, "*.log", SearchOption.TopDirectoryOnly)
+            var files = Directory
+                .EnumerateFiles(_logDirectory, "*.log", SearchOption.TopDirectoryOnly)
                 .Select(path => new FileInfo(path))
                 .OrderByDescending(file => string.Equals(file.FullName, currentFullPath, StringComparison.OrdinalIgnoreCase))
                 .ThenByDescending(file => file.LastWriteTimeUtc)
                 .ThenByDescending(file => file.Name, StringComparer.OrdinalIgnoreCase)
-                .Take(MaxRetainedLogFiles)
-                .Select(file => file.FullName)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToList();
 
-            foreach (var filePath in Directory.EnumerateFiles(logDir, "*.log", SearchOption.TopDirectoryOnly))
+            for (var index = MaxRetainedLogFiles; index < files.Count; index++)
             {
-                if (filesToKeep.Contains(filePath))
+                var file = files[index];
+                if (string.Equals(file.FullName, currentFullPath, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
-                File.Delete(filePath);
+                TryDeleteFile(file.FullName);
+            }
+
+            var retainedFiles = Directory
+                .EnumerateFiles(_logDirectory, "*.log", SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path))
+                .OrderBy(file => string.Equals(file.FullName, currentFullPath, StringComparison.OrdinalIgnoreCase))
+                .ThenBy(file => file.LastWriteTimeUtc)
+                .ThenBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            long totalSize = retainedFiles.Sum(file => file.Exists ? file.Length : 0L);
+            foreach (var file in retainedFiles)
+            {
+                if (totalSize <= MaxLogDirectorySizeBytes)
+                {
+                    break;
+                }
+
+                if (string.Equals(file.FullName, currentFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var fileSize = file.Exists ? file.Length : 0L;
+                if (!TryDeleteFile(file.FullName))
+                {
+                    continue;
+                }
+
+                totalSize -= fileSize;
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Log(AppLogLevel.Warning, nameof(FileAppLogger), $"Failed to enforce log retention policy. {ex.Message}");
+        }
+    }
+
+    private static bool TryDeleteFile(string filePath)
+    {
+        try
+        {
+            File.Delete(filePath);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -94,6 +139,7 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
         lock (_sync)
         {
             _writer.WriteLine($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{entry.Level}] [{entry.Source}] {entry.Message}");
+            CleanupOldLogFiles();
         }
 
         EntryWritten?.Invoke(entry);
