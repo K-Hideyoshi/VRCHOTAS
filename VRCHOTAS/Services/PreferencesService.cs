@@ -63,7 +63,8 @@ public sealed class PreferencesService
                     Hotkeys = hotkeysToken.ToObject<HotkeyPreferences>() ?? new HotkeyPreferences(),
                     EulerAngles = root["eulerAngles"]?.ToObject<EulerAnglePreferences>() ?? new EulerAnglePreferences(),
                     ControllerOutputMode = root["controllerOutputMode"]?.ToObject<ControllerOutputMode?>() ?? ControllerOutputMode.FullVirtual,
-                    LocateMappingEnabled = root["locateMappingEnabled"]?.ToObject<bool?>() ?? true
+                    LocateMappingEnabled = root["locateMappingEnabled"]?.ToObject<bool?>() ?? true,
+                    VrOverlay = LoadVrOverlayPreferences(root)
                 };
             }
 
@@ -86,6 +87,8 @@ public sealed class PreferencesService
         try
         {
             Directory.CreateDirectory(AppDataDirectory);
+            document.VrOverlay ??= new VrOverlayPreferences();
+            document.VrOverlay.Normalize();
             var text = JsonConvert.SerializeObject(document, Formatting.Indented);
             File.WriteAllText(PreferencesPath, text);
         }
@@ -179,5 +182,32 @@ public sealed class PreferencesService
 
         doc.LocateMappingEnabled = enabled;
         SaveDocument(doc);
+    }
+
+    public VrOverlayPreferences LoadVrOverlay()
+    {
+        var preferences = LoadDocument().VrOverlay ?? new VrOverlayPreferences();
+        preferences.Normalize();
+        return preferences;
+    }
+
+    public void SaveVrOverlay(VrOverlayPreferences preferences)
+    {
+        var doc = LoadDocument();
+        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
+        {
+            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
+        }
+
+        doc.VrOverlay = preferences?.Clone() ?? new VrOverlayPreferences();
+        doc.VrOverlay.Normalize();
+        SaveDocument(doc);
+    }
+
+    private static VrOverlayPreferences LoadVrOverlayPreferences(JObject root)
+    {
+        var preferences = root["vrOverlay"]?.ToObject<VrOverlayPreferences>() ?? new VrOverlayPreferences();
+        preferences.Normalize();
+        return preferences;
     }
 }

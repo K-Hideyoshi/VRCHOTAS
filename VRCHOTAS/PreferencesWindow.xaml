@@ -135,6 +135,46 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <TabItem Header="VR Overlay">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Margin="0,0,0,12"
+                                   TextWrapping="Wrap"
+                                   Text="Configure the in-headset overlay used for Master Switch notifications, configuration switch toasts, and the optional persistent Master ON marker." />
+
+                        <GroupBox Header="Overlay behavior">
+                            <StackPanel Margin="12,8">
+                                <CheckBox x:Name="EnableVrOverlayCheckBox"
+                                          Content="Enable VR overlay notifications"
+                                          Margin="0,0,0,10"
+                                          Checked="OnVrOverlayEnabledChanged"
+                                          Unchecked="OnVrOverlayEnabledChanged" />
+
+                                <StackPanel x:Name="VrOverlayOptionsPanel">
+                                    <CheckBox x:Name="ShowMasterStatusIndicatorCheckBox"
+                                              Content="Show a persistent marker while Master Switch is ON"
+                                              Margin="0,0,0,12" />
+
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Toast duration (seconds)"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,12,0" />
+                                        <TextBox x:Name="VrOverlayToastDurationBox"
+                                                 Width="96"
+                                                 VerticalContentAlignment="Center" />
+                                    </StackPanel>
+
+                                    <TextBlock Margin="0,12,0,0"
+                                               TextWrapping="Wrap"
+                                               Foreground="DimGray"
+                                               Text="When a new VR notification is triggered before the previous one expires, the previous overlay is closed first." />
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">

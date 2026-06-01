@@ -22,6 +22,9 @@ public sealed class PreferencesDocument
     [JsonProperty("locateMappingEnabled")]
     public bool LocateMappingEnabled { get; set; } = true;
 
+    [JsonProperty("vrOverlay")]
+    public VrOverlayPreferences VrOverlay { get; set; } = new();
+
     public string GetNormalizedDefaultFileName()
     {
         var name = string.IsNullOrWhiteSpace(DefaultConfigurationFileName)

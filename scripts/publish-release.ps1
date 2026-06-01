@@ -16,6 +16,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $versionFilePath = Join-Path $repoRoot "version.json"
 $projectPath = Join-Path $repoRoot "VRCHOTAS\VRCHOTAS.csproj"
+$overlayHelperProjectPath = Join-Path $repoRoot "VRCHOTAS.OverlayHelper\VRCHOTAS.OverlayHelper.csproj"
 $virtualDriverRoot = Join-Path $repoRoot "VirtualDriver"
 $virtualDriverBuildRoot = Join-Path $virtualDriverRoot "build"
 $artifactsRoot = Join-Path $repoRoot "artifacts\release"
@@ -344,6 +345,12 @@ try {
 
 	$assemblyVersion = ($versionParts[0..3] -join '.')
 	$publishDirArgument = "/p:PublishDir=$publishRoot\"
+	$overlayHelperOutputDirectory = Join-Path $repoRoot ("VRCHOTAS.OverlayHelper\bin\{0}\net10.0-windows" -f $Configuration)
+
+	Invoke-External -FilePath "dotnet" -ArgumentList @(
+		"build", $overlayHelperProjectPath,
+		"-c", $Configuration
+	)
 
 	Invoke-External -FilePath "dotnet" -ArgumentList @(
 		"publish", $projectPath,
@@ -354,6 +361,7 @@ try {
 		"/p:AssemblyVersion=$assemblyVersion",
 		"/p:FileVersion=$assemblyVersion",
 		"/p:InformationalVersion=$Version",
+		"/p:OverlayHelperOutputDirectory=$overlayHelperOutputDirectory",
 		$publishDirArgument
 	)
 

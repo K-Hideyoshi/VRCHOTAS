@@ -111,6 +111,15 @@ dotnet restore .\VRCHOTAS\VRCHOTAS.csproj
 dotnet build .\VRCHOTAS\VRCHOTAS.csproj -c Release
 ```
 
+Notes:
+
+- Building `VRCHOTAS.csproj` automatically builds `VRCHOTAS.OverlayHelper` first.
+- The build then copies the helper outputs into the main app output directory.
+- After a successful build, `VRCHOTAS\bin\<Configuration>\net10.0-windows\` should contain at least:
+  - `VRCHOTAS.exe`
+  - `VRCHOTAS.OverlayHelper.exe`
+  - `openvr_api.dll`
+
 Run:
 
 ```powershell
@@ -126,6 +135,7 @@ Release packaging instructions were moved to [docs/release-packaging.md](docs/re
 The portable package uses this startup behavior:
 
 - On app startup, VRCHOTAS tries to detect SteamVR.
+- When VR overlay features are used, VRCHOTAS starts `VRCHOTAS.OverlayHelper.exe` from the same output directory.
 - When SteamVR is found, VRCHOTAS copies the bundled C++ driver payload into `%LOCALAPPDATA%\openvr\drivers\vrchotas`.
 - VRCHOTAS then runs `vrpathreg.exe adddriver` automatically.
 - VRCHOTAS automatically modifies `<Steam>\config\steamvr.vrsettings` to set `"steamvr.activateMultipleDrivers": true`.

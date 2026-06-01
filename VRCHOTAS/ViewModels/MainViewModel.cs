@@ -25,10 +25,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly MappingEngine _mappingEngine;
     private readonly ConfigurationService _configurationService;
     private readonly PreferencesService _preferencesService;
+    private readonly OpenVrNativeLibraryService _openVrNativeLibraryService;
+    private readonly VrOverlayService _vrOverlayService;
     private readonly SteamVrDriverDeploymentService _steamVrDriverDeploymentService;
     private readonly HotkeyRuntime _hotkeyRuntime = new();
     private HotkeyPreferences _hotkeyPreferences = new();
     private EulerAnglePreferences _eulerAnglePreferences = new();
+    private VrOverlayPreferences _vrOverlayPreferences = new();
     private ControllerOutputMode _controllerOutputMode = ControllerOutputMode.FullVirtual;
     private readonly SharedMemoryStateChannel? _ipc;
     private readonly Dispatcher _dispatcher;
@@ -144,6 +147,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             OnPropertyChanged(nameof(MappingEnabledStatusText));
+            _vrOverlayService.ShowMasterSwitchToast(value);
+            _vrOverlayService.UpdateStatusIndicator(value);
             _logger.Info(nameof(MainViewModel), $"Mapping master switch {(value ? "enabled" : "disabled")}.");
         }
     }
@@ -220,13 +225,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _mappingEngine = new MappingEngine(_logger);
         _configurationService = new ConfigurationService(_logger);
         _preferencesService = new PreferencesService(_logger);
+        _openVrNativeLibraryService = new OpenVrNativeLibraryService(_logger);
+        _vrOverlayService = new VrOverlayService(_logger, _openVrNativeLibraryService);
         _steamVrDriverDeploymentService = new SteamVrDriverDeploymentService(_logger);
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
         _eulerAnglePreferences = _preferencesService.LoadEulerAngles();
+        _vrOverlayPreferences = _preferencesService.LoadVrOverlay();
         _controllerOutputMode = _preferencesService.LoadControllerOutputMode();
         _isLocateMappingEnabled = _preferencesService.LoadLocateMappingEnabled();
         _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
+        _vrOverlayService.ApplyPreferences(_vrOverlayPreferences, _isMappingEnabled);
         _steamVrDriverDeploymentService.TryDeployOnStartup();
 
         try
@@ -249,7 +258,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DeleteSelectedMappingCommand = new RelayCommand(DeleteSelectedMapping);
         ToggleLocateMappingCommand = new RelayCommand(() => IsLocateMappingEnabled = !IsLocateMappingEnabled);
         ToggleMappingEnabledCommand = new RelayCommand(() => IsMappingEnabled = !IsMappingEnabled);
-        LoadConfigByNameCommand = new RelayCommand<string>(LoadConfigurationByName);
+        LoadConfigByNameCommand = new RelayCommand<string>(fileName => LoadConfigurationByName(fileName));
         SetDefaultConfigByNameCommand = new RelayCommand<string>(SetDefaultConfigurationByName);
         ToggleMappingTempDisabledCommand = new RelayCommand<MappingEntry?>(entry =>
         {
@@ -368,11 +377,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return _eulerAnglePreferences.Clone();
     }
 
+    public VrOverlayPreferences GetVrOverlayPreferencesSnapshot()
+    {
+        return _vrOverlayPreferences.Clone();
+    }
+
     public ControllerOutputMode GetControllerOutputModeSnapshot() => _controllerOutputMode;
 
     public void ApplyControllerOutputMode(ControllerOutputMode mode)
     {
         SetControllerOutputMode(mode, false);
+    }
+
+    public void ApplyVrOverlayPreferences(VrOverlayPreferences preferences)
+    {
+        _vrOverlayPreferences = preferences?.Clone() ?? new VrOverlayPreferences();
+        _vrOverlayPreferences.Normalize();
+        _vrOverlayService.ApplyPreferences(_vrOverlayPreferences, _isMappingEnabled);
     }
 
     private void SetControllerOutputMode(ControllerOutputMode mode, bool markDirty)
@@ -672,6 +693,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _frameLoopCancellation.Dispose();
         _joystickService.Dispose();
         _ipc?.Dispose();
+        _vrOverlayService.Dispose();
         _logger.Info(nameof(MainViewModel), "Application stopped.");
     }
 }

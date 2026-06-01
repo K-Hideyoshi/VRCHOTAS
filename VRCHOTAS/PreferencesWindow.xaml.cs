@@ -14,6 +14,7 @@ public partial class PreferencesWindow : Window
     private readonly PreferencesService _preferencesService;
     private readonly HotkeyPreferences _hotkeys;
     private readonly EulerAnglePreferences _eulerAngles;
+    private readonly VrOverlayPreferences _vrOverlay;
     private ControllerOutputMode _controllerOutputMode;
     private IDisposable? _suspendScope;
     private DispatcherTimer? _joyTimer;
@@ -32,10 +33,12 @@ public partial class PreferencesWindow : Window
         _preferencesService = preferencesService;
         _hotkeys = CloneHotkeys(preferencesService.LoadHotkeys());
         _eulerAngles = preferencesService.LoadEulerAngles().Clone();
+        _vrOverlay = main.GetVrOverlayPreferencesSnapshot();
         _controllerOutputMode = preferencesService.LoadControllerOutputMode();
         ApplyTextsFromModel();
         ApplyEulerSelectionFromModel();
         ApplyControllerOutputModeSelectionFromModel();
+        ApplyVrOverlaySelectionFromModel();
     }
 
     private static HotkeyPreferences CloneHotkeys(HotkeyPreferences source)
@@ -133,6 +136,39 @@ public partial class PreferencesWindow : Window
             : HybridKeepRightRealRadio.IsChecked == true
                 ? ControllerOutputMode.HybridKeepRightReal
                 : ControllerOutputMode.FullVirtual;
+    }
+
+    private void ApplyVrOverlaySelectionFromModel()
+    {
+        EnableVrOverlayCheckBox.IsChecked = _vrOverlay.Enabled;
+        ShowMasterStatusIndicatorCheckBox.IsChecked = _vrOverlay.StatusIndicatorEnabled;
+        VrOverlayToastDurationBox.Text = _vrOverlay.ToastDurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        UpdateVrOverlayUiState();
+    }
+
+    private bool TrySyncVrOverlaySelectionToModel()
+    {
+        _vrOverlay.Enabled = EnableVrOverlayCheckBox.IsChecked == true;
+        _vrOverlay.StatusIndicatorEnabled = ShowMasterStatusIndicatorCheckBox.IsChecked == true;
+
+        if (!double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var toastDuration)
+            && !double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out toastDuration))
+        {
+            System.Windows.MessageBox.Show(this, "Toast duration must be a valid number between 1 and 30 seconds.", "Invalid VR Overlay Setting", MessageBoxButton.OK, MessageBoxImage.Warning);
+            VrOverlayToastDurationBox.Focus();
+            VrOverlayToastDurationBox.SelectAll();
+            return false;
+        }
+
+        _vrOverlay.ToastDurationSeconds = toastDuration;
+        _vrOverlay.Normalize();
+        VrOverlayToastDurationBox.Text = _vrOverlay.ToastDurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        return true;
+    }
+
+    private void UpdateVrOverlayUiState()
+    {
+        VrOverlayOptionsPanel.IsEnabled = EnableVrOverlayCheckBox.IsChecked == true;
     }
 
     private string FormatHotkey(HotkeyBinding binding)
@@ -440,15 +476,27 @@ public partial class PreferencesWindow : Window
         ApplyPreferences();
     }
 
+    private void OnVrOverlayEnabledChanged(object sender, RoutedEventArgs e)
+    {
+        UpdateVrOverlayUiState();
+    }
+
     private void ApplyPreferences()
     {
         SyncEulerSelectionToModel();
         SyncControllerOutputModeSelectionToModel();
+        if (!TrySyncVrOverlaySelectionToModel())
+        {
+            return;
+        }
+
         _preferencesService.SaveHotkeys(_hotkeys);
         _preferencesService.SaveEulerAngles(_eulerAngles);
+        _preferencesService.SaveVrOverlay(_vrOverlay);
         _preferencesService.SaveControllerOutputMode(_controllerOutputMode);
         _main.ApplyHotkeyPreferences(_hotkeys);
         _main.ApplyEulerAnglePreferences(_eulerAngles);
+        _main.ApplyVrOverlayPreferences(_vrOverlay);
         _main.ApplyControllerOutputMode(_controllerOutputMode);
     }
 

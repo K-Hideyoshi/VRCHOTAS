@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<OutputType>Exe</OutputType>
+	<TargetFramework>net10.0-windows</TargetFramework>
+	<Nullable>enable</Nullable>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<UseWPF>true</UseWPF>
+	<UseWindowsForms>true</UseWindowsForms>
+	<AssemblyName>VRCHOTAS.OverlayHelper</AssemblyName>
+	<ApplicationManifest>..\VRCHOTAS\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<Compile Include="..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs">
+	  <Link>Interop\openvr_api.cs</Link>
+	  <Nullable>disable</Nullable>
+	  <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625</NoWarn>
+	</Compile>
+	<Compile Include="..\VRCHOTAS\Logging\AppLogLevel.cs" Link="Logging\AppLogLevel.cs" />
+	<Compile Include="..\VRCHOTAS\Logging\FileAppLogger.cs" Link="Logging\FileAppLogger.cs" />
+	<Compile Include="..\VRCHOTAS\Logging\IAppLogger.cs" Link="Logging\IAppLogger.cs" />
+	<Compile Include="..\VRCHOTAS\Logging\LogEntry.cs" Link="Logging\LogEntry.cs" />
+	<Compile Include="..\VRCHOTAS\Logging\LogManager.cs" Link="Logging\LogManager.cs" />
+	<Compile Include="..\VRCHOTAS\Models\OverlayHelperMessage.cs" Link="Models\OverlayHelperMessage.cs" />
+	<Compile Include="..\VRCHOTAS\Models\OverlayHelperMessageType.cs" Link="Models\OverlayHelperMessageType.cs" />
+	<Compile Include="..\VRCHOTAS\Models\OverlayHelperProtocol.cs" Link="Models\OverlayHelperProtocol.cs" />
+	<Compile Include="..\VRCHOTAS\Models\VrOverlayPreferences.cs" Link="Models\VrOverlayPreferences.cs" />
+	<Compile Include="..\VRCHOTAS\Services\OpenVrNativeLibraryService.cs" Link="Services\OpenVrNativeLibraryService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<None Include="..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll">
+	  <Link>openvr_api.dll</Link>
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+	</None>
+  </ItemGroup>
+
+</Project>

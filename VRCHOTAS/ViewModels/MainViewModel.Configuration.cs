@@ -9,7 +9,7 @@ public sealed partial class MainViewModel
         var defaultFileName = _preferencesService.GetDefaultConfigurationFileName();
         _configurationService.EnsureConfigurationFileExistsOrCreate(defaultFileName);
         RefreshAvailableConfigurations();
-        LoadConfigurationByName(defaultFileName);
+        LoadConfigurationByName(defaultFileName, false);
     }
 
     public void SaveAsConfiguration(string fileName)
@@ -129,7 +129,7 @@ public sealed partial class MainViewModel
         LoadConfigurationByName(files[next]);
     }
 
-    private void LoadConfigurationByName(string? fileName)
+    private void LoadConfigurationByName(string? fileName, bool showOverlayToast = true)
     {
         if (string.IsNullOrWhiteSpace(fileName))
         {
@@ -149,6 +149,12 @@ public sealed partial class MainViewModel
         CurrentConfigurationFileName = normalized;
         IsConfigurationDirty = false;
         RebuildConfigurationMenuItems();
+
+        if (showOverlayToast)
+        {
+            _vrOverlayService.ShowConfigurationToast(CurrentConfigurationFileName);
+        }
+
         _logger.Info(nameof(MainViewModel), $"Configuration switched to: {CurrentConfigurationFileName}");
     }
 

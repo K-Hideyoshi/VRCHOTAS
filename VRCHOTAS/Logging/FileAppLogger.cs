@@ -5,7 +5,9 @@ namespace VRCHOTAS.Logging;
 
 public sealed class FileAppLogger : IAppLogger, IDisposable
 {
-    private const int MaxRetainedLogFiles = 20;
+    public const string LogDirectoryEnvironmentVariable = "VRCHOTAS_LOG_DIR";
+
+    private const int MaxRetainedLogFiles = 30;
     private const long MaxLogDirectorySizeBytes = 20L * 1024 * 1024;
 
     private readonly object _sync = new();
@@ -15,10 +17,18 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
     public event Action<LogEntry>? EntryWritten;
     public string CurrentLogFilePath { get; }
 
-    public FileAppLogger()
+    public FileAppLogger(string? logDirectory = null, string? fileNameSuffix = null)
     {
         var appDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
-        var logDir = Path.Combine(appDataDirectory, "logs");
+        var configuredLogDirectory = logDirectory;
+        if (string.IsNullOrWhiteSpace(configuredLogDirectory))
+        {
+            configuredLogDirectory = Environment.GetEnvironmentVariable(LogDirectoryEnvironmentVariable);
+        }
+
+        var logDir = string.IsNullOrWhiteSpace(configuredLogDirectory)
+            ? Path.Combine(appDataDirectory, "logs")
+            : configuredLogDirectory;
 
         // If a file exists where we expect a directory, or creating the directory fails,
         // fall back to the system temp path to avoid FileNotFoundException when opening the log file.
@@ -36,7 +46,7 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
             }
 
             _logDirectory = logDir;
-            CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            CurrentLogFilePath = Path.Combine(logDir, BuildLogFileName(fileNameSuffix));
             _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
             CleanupOldLogFiles();
         }
@@ -47,10 +57,18 @@ public sealed class FileAppLogger : IAppLogger, IDisposable
             logDir = Path.Combine(Path.GetTempPath(), "VRCHOTAS", "logs");
             Directory.CreateDirectory(logDir);
             _logDirectory = logDir;
-            CurrentLogFilePath = Path.Combine(logDir, $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            CurrentLogFilePath = Path.Combine(logDir, BuildLogFileName(fileNameSuffix));
             _writer = new StreamWriter(CurrentLogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
             CleanupOldLogFiles();
         }
+    }
+
+    private static string BuildLogFileName(string? fileNameSuffix)
+    {
+        var suffix = string.IsNullOrWhiteSpace(fileNameSuffix)
+            ? string.Empty
+            : $"-{fileNameSuffix.Trim()}";
+        return $"vrchotas-{DateTime.Now:yyyyMMdd-HHmmss}{suffix}.log";
     }
 
     private void CleanupOldLogFiles()

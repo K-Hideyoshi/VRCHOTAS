@@ -237,7 +237,7 @@ public sealed partial class MainViewModel
 
     private string? FindActiveSourceKey(RawJoystickState currentState, RawJoystickState previousState, double elapsedSeconds)
     {
-        foreach (var mapping in Mappings)
+        foreach (var mapping in Mappings.ToArray())
         {
             if (string.IsNullOrWhiteSpace(mapping.SourceDeviceId))
             {
