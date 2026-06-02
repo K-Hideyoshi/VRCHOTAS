@@ -15,13 +15,21 @@ public sealed class VrOverlayPreferences
     [JsonProperty("toastDurationSeconds")]
     public double ToastDurationSeconds { get; set; } = DefaultToastDurationSeconds;
 
+    [JsonProperty("renderingMode")]
+    public VrOverlayRenderingMode RenderingMode { get; set; } = VrOverlayRenderingMode.Auto;
+
+    [JsonProperty("diagnosticsEnabled")]
+    public bool DiagnosticsEnabled { get; set; }
+
     public VrOverlayPreferences Clone()
     {
         return new VrOverlayPreferences
         {
             Enabled = Enabled,
             StatusIndicatorEnabled = StatusIndicatorEnabled,
-            ToastDurationSeconds = ToastDurationSeconds
+            ToastDurationSeconds = ToastDurationSeconds,
+            RenderingMode = RenderingMode,
+            DiagnosticsEnabled = DiagnosticsEnabled
         };
     }
 
@@ -34,5 +42,9 @@ public sealed class VrOverlayPreferences
         }
 
         ToastDurationSeconds = Math.Clamp(ToastDurationSeconds, 1d, 30d);
+        if (!Enum.IsDefined(RenderingMode))
+        {
+            RenderingMode = VrOverlayRenderingMode.Auto;
+        }
     }
 }

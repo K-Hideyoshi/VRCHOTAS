@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRCHOTAS", "VRCHOTAS\VRCHOTAS.csproj", "{4BB53C25-A83A-0084-8717-214EE2CD89E8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRCHOTAS.Tests", "VRCHOTAS.Tests\VRCHOTAS.Tests.csproj", "{9DC56320-3F41-4D24-9D8C-F39F1F4A78C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{4BB53C25-A83A-0084-8717-214EE2CD89E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4BB53C25-A83A-0084-8717-214EE2CD89E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4BB53C25-A83A-0084-8717-214EE2CD89E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DC56320-3F41-4D24-9D8C-F39F1F4A78C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DC56320-3F41-4D24-9D8C-F39F1F4A78C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DC56320-3F41-4D24-9D8C-F39F1F4A78C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DC56320-3F41-4D24-9D8C-F39F1F4A78C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

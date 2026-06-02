@@ -218,6 +218,62 @@ Write-Host "Configuration updated. Close and restart SteamVR."
 
 3. **Mappings not working**:
    - Verify mapping is enabled (toggle button in UI)
+
+### Issue: VR Overlay Not Visible
+
+**Symptoms:**
+- Master Switch or configuration toasts do not appear in the headset.
+- The persistent Master ON marker does not appear.
+- The desktop app still works and the SteamVR driver may still function.
+
+**Important distinction:**
+
+The VR Overlay is handled by `VRCHOTAS.OverlayHelper.exe`. It is separate from the SteamVR driver under `%LOCALAPPDATA%\openvr\drivers\vrchotas`, so driver deployment success does not prove the overlay is healthy.
+
+**Diagnostic Steps:**
+
+1. Verify the overlay helper payload exists in the app output directory:
+   ```powershell
+   Test-Path ".\VRCHOTAS.OverlayHelper.exe"
+   Test-Path ".\openvr_api.dll"
+   Test-Path ".\SharpDX.Direct3D11.dll"
+   Test-Path ".\SharpDX.DXGI.dll"
+   ```
+
+2. Run the overlay runtime check from the repository root:
+   ```powershell
+   .\scripts\check-overlay-runtime.ps1 -Configuration Debug
+   ```
+
+3. Open Preferences -> VR Overlay and click **Show test toast**.
+
+4. Check the latest helper log:
+   ```powershell
+   Get-ChildItem "$env:APPDATA\VRCHOTAS\logs\*overlay-helper*.log" |
+       Sort-Object LastWriteTime -Descending |
+       Select-Object -First 1 |
+       Get-Content
+   ```
+
+5. Look for these status markers:
+   - `WaitingForSteamVR`: SteamVR is not running or has not finished starting.
+   - `OpenVrReady`: OpenVR initialized successfully.
+   - `D3DReady`: D3D11 texture submission is active.
+   - `FallbackRaw`: D3D11 failed and the helper switched to raw texture upload.
+   - `SteamVrQuit`: SteamVR closed; the helper will reset and retry.
+   - `LastError`: the helper saw an OpenVR or renderer error.
+
+**Solutions:**
+
+1. **SteamVR is not ready**: Start SteamVR, wait until `vrserver` and `vrcompositor` are running, then trigger a test toast.
+
+2. **Helper files are missing**: Rebuild the app or release package. The main app output must include `VRCHOTAS.OverlayHelper.exe`, `openvr_api.dll`, and the SharpDX D3D DLLs.
+
+3. **D3D11 path fails**: In Preferences -> VR Overlay, switch rendering mode to `RawCompatibility`, apply settings, and click **Show test toast** again.
+
+4. **Overlay disappears after SteamVR restart**: Trigger another toast or toggle Master Switch. The helper now handles `VREvent_Quit` and should reinitialize automatically after SteamVR returns.
+
+5. **Dashboard conflicts**: The helper hides VRCHOTAS overlays while the SteamVR Dashboard is visible. Close Dashboard before testing toast visibility.
    - Test the raw input: verify device monitor shows input
    - Review mapping configuration for typos or wrong selections
    - Check application logs for mapping processing errors

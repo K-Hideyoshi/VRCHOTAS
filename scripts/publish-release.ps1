@@ -274,6 +274,29 @@ function Copy-DriverPayload {
 	Copy-Item -Path (Join-Path $inputSourceDirectory "*") -Destination $payloadInputDirectory -Recurse -Force
 }
 
+function Assert-OverlayHelperPayload {
+	param([string]$OutputRoot)
+
+	$requiredFiles = @(
+		"VRCHOTAS.OverlayHelper.exe",
+		"VRCHOTAS.OverlayHelper.dll",
+		"VRCHOTAS.OverlayHelper.deps.json",
+		"VRCHOTAS.OverlayHelper.runtimeconfig.json",
+		"openvr_api.dll",
+		"Newtonsoft.Json.dll",
+		"SharpDX.dll",
+		"SharpDX.Direct3D11.dll",
+		"SharpDX.DXGI.dll"
+	)
+
+	foreach ($fileName in $requiredFiles) {
+		$path = Join-Path $OutputRoot $fileName
+		if (-not (Test-Path $path)) {
+			throw "Overlay helper payload is incomplete. Missing '$path'."
+		}
+	}
+}
+
 function Invoke-SignFile {
 	param([string]$Path)
 
@@ -345,11 +368,13 @@ try {
 
 	$assemblyVersion = ($versionParts[0..3] -join '.')
 	$publishDirArgument = "/p:PublishDir=$publishRoot\"
-	$overlayHelperOutputDirectory = Join-Path $repoRoot ("VRCHOTAS.OverlayHelper\bin\{0}\net10.0-windows" -f $Configuration)
+	$overlayHelperOutputDirectory = Join-Path $repoRoot ("VRCHOTAS.OverlayHelper\bin\{0}\net10.0-windows\{1}" -f $Configuration, $RuntimeIdentifier)
 
 	Invoke-External -FilePath "dotnet" -ArgumentList @(
-		"build", $overlayHelperProjectPath,
-		"-c", $Configuration
+		"build",
+		"--configuration", $Configuration,
+		"--runtime", $RuntimeIdentifier,
+		$overlayHelperProjectPath
 	)
 
 	Invoke-External -FilePath "dotnet" -ArgumentList @(
@@ -364,6 +389,8 @@ try {
 		"/p:OverlayHelperOutputDirectory=$overlayHelperOutputDirectory",
 		$publishDirArgument
 	)
+
+	Assert-OverlayHelperPayload -OutputRoot $publishRoot
 
 	if (-not $SkipPortable) {
 		New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null

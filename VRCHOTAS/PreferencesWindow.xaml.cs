@@ -30,11 +30,13 @@ public partial class PreferencesWindow : Window
     {
         InitializeComponent();
         _main = main;
+        DataContext = main;
         _preferencesService = preferencesService;
         _hotkeys = CloneHotkeys(preferencesService.LoadHotkeys());
         _eulerAngles = preferencesService.LoadEulerAngles().Clone();
         _vrOverlay = main.GetVrOverlayPreferencesSnapshot();
         _controllerOutputMode = preferencesService.LoadControllerOutputMode();
+        VrOverlayRenderingModeBox.ItemsSource = Enum.GetValues<VrOverlayRenderingMode>();
         ApplyTextsFromModel();
         ApplyEulerSelectionFromModel();
         ApplyControllerOutputModeSelectionFromModel();
@@ -143,6 +145,8 @@ public partial class PreferencesWindow : Window
         EnableVrOverlayCheckBox.IsChecked = _vrOverlay.Enabled;
         ShowMasterStatusIndicatorCheckBox.IsChecked = _vrOverlay.StatusIndicatorEnabled;
         VrOverlayToastDurationBox.Text = _vrOverlay.ToastDurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        VrOverlayRenderingModeBox.SelectedItem = _vrOverlay.RenderingMode;
+        VrOverlayDiagnosticsCheckBox.IsChecked = _vrOverlay.DiagnosticsEnabled;
         UpdateVrOverlayUiState();
     }
 
@@ -150,6 +154,10 @@ public partial class PreferencesWindow : Window
     {
         _vrOverlay.Enabled = EnableVrOverlayCheckBox.IsChecked == true;
         _vrOverlay.StatusIndicatorEnabled = ShowMasterStatusIndicatorCheckBox.IsChecked == true;
+        _vrOverlay.RenderingMode = VrOverlayRenderingModeBox.SelectedItem is VrOverlayRenderingMode renderingMode
+            ? renderingMode
+            : VrOverlayRenderingMode.Auto;
+        _vrOverlay.DiagnosticsEnabled = VrOverlayDiagnosticsCheckBox.IsChecked == true;
 
         if (!double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var toastDuration)
             && !double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out toastDuration))
@@ -479,6 +487,18 @@ public partial class PreferencesWindow : Window
     private void OnVrOverlayEnabledChanged(object sender, RoutedEventArgs e)
     {
         UpdateVrOverlayUiState();
+    }
+
+    private void OnShowVrOverlayTestToastClick(object sender, RoutedEventArgs e)
+    {
+        if (!TrySyncVrOverlaySelectionToModel())
+        {
+            return;
+        }
+
+        _preferencesService.SaveVrOverlay(_vrOverlay);
+        _main.ApplyVrOverlayPreferences(_vrOverlay);
+        _main.ShowVrOverlayTestToast();
     }
 
     private void ApplyPreferences()

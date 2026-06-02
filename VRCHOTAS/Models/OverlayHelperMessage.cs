@@ -14,7 +14,13 @@ public sealed class OverlayHelperMessage
     public bool? StatusIndicatorEnabled { get; set; }
 
     [JsonProperty("toastDurationSeconds")]
-    public int? ToastDurationSeconds { get; set; }
+    public double? ToastDurationSeconds { get; set; }
+
+    [JsonProperty("renderingMode")]
+    public VrOverlayRenderingMode? RenderingMode { get; set; }
+
+    [JsonProperty("diagnosticsEnabled")]
+    public bool? DiagnosticsEnabled { get; set; }
 
     [JsonProperty("isMasterSwitchOn")]
     public bool? IsMasterSwitchOn { get; set; }

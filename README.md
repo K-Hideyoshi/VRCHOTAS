@@ -210,6 +210,20 @@ Recommended startup order:
 - Restart SteamVR after deployment.
 - Ensure `activateMultipleDrivers` is set to `true` in `<Steam>\config\steamvr.vrsettings` (VRCHOTAS configures this automatically on first run).
 
+### The VR Overlay does not appear in the headset
+
+- Confirm the app output directory contains `VRCHOTAS.OverlayHelper.exe`, `openvr_api.dll`, `SharpDX.Direct3D11.dll`, and `SharpDX.DXGI.dll`.
+- Open Preferences -> VR Overlay and click **Show test toast**.
+- Check the overlay status and last error shown in the Preferences window.
+- Run:
+
+  ```powershell
+  .\scripts\check-overlay-runtime.ps1 -Configuration Debug
+  ```
+
+- Check `%APPDATA%\VRCHOTAS\logs\*overlay-helper*.log` for `WaitingForSteamVR`, `D3DReady`, `FallbackRaw`, or `LastError`.
+- If D3D texture submission fails on a specific system, switch the rendering mode to `RawCompatibility` and retry the test toast.
+
 ### SteamVR loads the driver, but input does not react as expected
 
 - Confirm the .NET app is running.

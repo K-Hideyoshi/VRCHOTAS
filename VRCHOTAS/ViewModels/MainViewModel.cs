@@ -56,6 +56,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private long _rateWindowStartTicks = Environment.TickCount64;
     private string _driverSyncRateDisplay = "—";
     private string _driverHeartbeatStatusDisplay = "No signal";
+    private string _vrOverlayStatusDisplay = "Not connected";
+    private string _vrOverlayLastErrorDisplay = string.Empty;
     private MappingEntry? _lastAutoSelectedMapping;
     private bool _isLocateMappingEnabled = true;
 
@@ -214,6 +216,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ? MediaBrushes.ForestGreen
         : MediaBrushes.Firebrick;
 
+    public string VrOverlayStatusDisplay
+    {
+        get => _vrOverlayStatusDisplay;
+        private set => SetProperty(ref _vrOverlayStatusDisplay, value);
+    }
+
+    public string VrOverlayLastErrorDisplay
+    {
+        get => _vrOverlayLastErrorDisplay;
+        private set => SetProperty(ref _vrOverlayLastErrorDisplay, value);
+    }
+
     public MainViewModel()
     {
         _dispatcher = WpfApplication.Current?.Dispatcher ?? throw new InvalidOperationException("A WPF dispatcher is required.");
@@ -227,6 +241,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _preferencesService = new PreferencesService(_logger);
         _openVrNativeLibraryService = new OpenVrNativeLibraryService(_logger);
         _vrOverlayService = new VrOverlayService(_logger, _openVrNativeLibraryService);
+        _vrOverlayService.StatusChanged += OnVrOverlayStatusChanged;
         _steamVrDriverDeploymentService = new SteamVrDriverDeploymentService(_logger);
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
@@ -394,6 +409,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _vrOverlayPreferences = preferences?.Clone() ?? new VrOverlayPreferences();
         _vrOverlayPreferences.Normalize();
         _vrOverlayService.ApplyPreferences(_vrOverlayPreferences, _isMappingEnabled);
+    }
+
+    public void ShowVrOverlayTestToast()
+    {
+        _vrOverlayService.ShowTestToast();
+    }
+
+    private void OnVrOverlayStatusChanged(OverlayHelperStatusMessage status)
+    {
+        _dispatcher.BeginInvoke(() =>
+        {
+            VrOverlayStatusDisplay = status.Kind.ToString();
+            if (status.Kind == OverlayHelperStatusKind.LastError)
+            {
+                VrOverlayLastErrorDisplay = string.IsNullOrWhiteSpace(status.Detail)
+                    ? status.Message
+                    : $"{status.Message} {status.Detail}";
+            }
+            else if (status.Kind is OverlayHelperStatusKind.OpenVrReady or OverlayHelperStatusKind.D3DReady or OverlayHelperStatusKind.FallbackRaw)
+            {
+                VrOverlayLastErrorDisplay = string.Empty;
+            }
+        });
     }
 
     private void SetControllerOutputMode(ControllerOutputMode mode, bool markDirty)
@@ -683,6 +721,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _joystickService.DevicesChanged -= OnDevicesChanged;
         Mappings.CollectionChanged -= OnMappingsCollectionChanged;
         _logger.EntryWritten -= OnLogWritten;
+        _vrOverlayService.StatusChanged -= OnVrOverlayStatusChanged;
 
         foreach (var filter in LogLevelFilters)
         {

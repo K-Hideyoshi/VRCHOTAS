@@ -8,15 +8,25 @@
 	<UseWPF>true</UseWPF>
 	<UseWindowsForms>true</UseWindowsForms>
 	<AssemblyName>VRCHOTAS.OverlayHelper</AssemblyName>
+	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 	<ApplicationManifest>..\VRCHOTAS\app.manifest</ApplicationManifest>
+	<OpenVrHeaderPath>..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs</OpenVrHeaderPath>
+	<OpenVrDllPath>..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll</OpenVrDllPath>
   </PropertyGroup>
+
+  <Target Name="ValidateOpenVrSdkCache" BeforeTargets="BeforeBuild">
+	<Error Condition="!Exists('$(OpenVrHeaderPath)')" Text="OpenVR C# binding was not found at '$(OpenVrHeaderPath)'. Run scripts\publish-release.ps1 once or provide the OpenVR SDK cache before building the overlay helper." />
+	<Error Condition="!Exists('$(OpenVrDllPath)')" Text="openvr_api.dll was not found at '$(OpenVrDllPath)'. Run scripts\publish-release.ps1 once or provide the OpenVR SDK cache before building the overlay helper." />
+  </Target>
 
   <ItemGroup>
 	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	<PackageReference Include="SharpDX" Version="4.2.0" />
+	<PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>
-	<Compile Include="..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs">
+	<Compile Include="$(OpenVrHeaderPath)">
 	  <Link>Interop\openvr_api.cs</Link>
 	  <Nullable>disable</Nullable>
 	  <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625</NoWarn>
@@ -29,12 +39,15 @@
 	<Compile Include="..\VRCHOTAS\Models\OverlayHelperMessage.cs" Link="Models\OverlayHelperMessage.cs" />
 	<Compile Include="..\VRCHOTAS\Models\OverlayHelperMessageType.cs" Link="Models\OverlayHelperMessageType.cs" />
 	<Compile Include="..\VRCHOTAS\Models\OverlayHelperProtocol.cs" Link="Models\OverlayHelperProtocol.cs" />
+	<Compile Include="..\VRCHOTAS\Models\OverlayHelperStatusKind.cs" Link="Models\OverlayHelperStatusKind.cs" />
+	<Compile Include="..\VRCHOTAS\Models\OverlayHelperStatusMessage.cs" Link="Models\OverlayHelperStatusMessage.cs" />
+	<Compile Include="..\VRCHOTAS\Models\VrOverlayRenderingMode.cs" Link="Models\VrOverlayRenderingMode.cs" />
 	<Compile Include="..\VRCHOTAS\Models\VrOverlayPreferences.cs" Link="Models\VrOverlayPreferences.cs" />
 	<Compile Include="..\VRCHOTAS\Services\OpenVrNativeLibraryService.cs" Link="Services\OpenVrNativeLibraryService.cs" />
   </ItemGroup>
 
   <ItemGroup>
-	<None Include="..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll">
+	<None Include="$(OpenVrDllPath)">
 	  <Link>openvr_api.dll</Link>
 	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

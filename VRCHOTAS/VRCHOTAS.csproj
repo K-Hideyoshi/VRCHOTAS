@@ -15,7 +15,14 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
+    <OpenVrHeaderPath>..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs</OpenVrHeaderPath>
+    <OpenVrDllPath>..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll</OpenVrDllPath>
   </PropertyGroup>
+
+  <Target Name="ValidateOpenVrSdkCache" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(OpenVrHeaderPath)')" Text="OpenVR C# binding was not found at '$(OpenVrHeaderPath)'. Run scripts\publish-release.ps1 once or provide the OpenVR SDK cache before building VRCHOTAS." />
+    <Error Condition="!Exists('$(OpenVrDllPath)')" Text="openvr_api.dll was not found at '$(OpenVrDllPath)'. Run scripts\publish-release.ps1 once or provide the OpenVR SDK cache before building VRCHOTAS." />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
@@ -25,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs">
+    <Compile Include="$(OpenVrHeaderPath)">
       <Link>Interop\openvr_api.cs</Link>
       <Nullable>disable</Nullable>
       <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625</NoWarn>
@@ -33,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll">
+    <None Include="$(OpenVrDllPath)">
       <Link>openvr_api.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -43,10 +50,11 @@
   <Target Name="BuildOverlayHelper" BeforeTargets="BeforeBuild">
     <PropertyGroup>
       <OverlayHelperProject>..\VRCHOTAS.OverlayHelper\VRCHOTAS.OverlayHelper.csproj</OverlayHelperProject>
-      <OverlayHelperOutputDir>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
+      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' == ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
+      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' != ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\$(RuntimeIdentifier)</OverlayHelperOutputDir>
     </PropertyGroup>
 
-    <MSBuild Projects="$(OverlayHelperProject)" Targets="Build" Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="$(OverlayHelperProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" />
 
     <ItemGroup>
       <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.exe" />
@@ -55,6 +63,7 @@
       <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.runtimeconfig.json" />
       <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\openvr_api.dll" />
       <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\Newtonsoft.Json.dll" />
+      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\SharpDX*.dll" />
       <FileWrites Include="@(OverlayHelperArtifacts->'$(OutDir)%(Filename)%(Extension)')" />
     </ItemGroup>
 
@@ -65,7 +74,8 @@
 
   <Target Name="CopyOverlayHelperToPublishDirectory" AfterTargets="Publish">
     <PropertyGroup>
-      <OverlayHelperOutputDir>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
+      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' == ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
+      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' != ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\$(RuntimeIdentifier)</OverlayHelperOutputDir>
     </PropertyGroup>
 
     <ItemGroup>
@@ -75,6 +85,7 @@
       <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.runtimeconfig.json" />
       <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\openvr_api.dll" />
       <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\Newtonsoft.Json.dll" />
+      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\SharpDX*.dll" />
     </ItemGroup>
 
     <Copy SourceFiles="@(OverlayHelperPublishArtifacts)"
