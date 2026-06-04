@@ -36,7 +36,6 @@ public partial class PreferencesWindow : Window
         _eulerAngles = preferencesService.LoadEulerAngles().Clone();
         _vrOverlay = main.GetVrOverlayPreferencesSnapshot();
         _controllerOutputMode = preferencesService.LoadControllerOutputMode();
-        VrOverlayRenderingModeBox.ItemsSource = Enum.GetValues<VrOverlayRenderingMode>();
         ApplyTextsFromModel();
         ApplyEulerSelectionFromModel();
         ApplyControllerOutputModeSelectionFromModel();
@@ -145,8 +144,15 @@ public partial class PreferencesWindow : Window
         EnableVrOverlayCheckBox.IsChecked = _vrOverlay.Enabled;
         ShowMasterStatusIndicatorCheckBox.IsChecked = _vrOverlay.StatusIndicatorEnabled;
         VrOverlayToastDurationBox.Text = _vrOverlay.ToastDurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-        VrOverlayRenderingModeBox.SelectedItem = _vrOverlay.RenderingMode;
-        VrOverlayDiagnosticsCheckBox.IsChecked = _vrOverlay.DiagnosticsEnabled;
+        ToastTextSizeBox.Text = _vrOverlay.ToastTextSize.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        ToastBgColorBox.Text = _vrOverlay.ToastBackgroundColor;
+        ToastOpacitySlider.Value = _vrOverlay.ToastOpacity;
+        MarkerImagePathBox.Text = _vrOverlay.MarkerImagePath ?? string.Empty;
+        MarkerSizeSlider.Value = _vrOverlay.MarkerSize;
+        MarkerOpacitySlider.Value = _vrOverlay.MarkerOpacity;
+        MarkerPosXBox.Text = _vrOverlay.MarkerPositionX.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        MarkerPosYBox.Text = _vrOverlay.MarkerPositionY.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
         UpdateVrOverlayUiState();
     }
 
@@ -154,10 +160,6 @@ public partial class PreferencesWindow : Window
     {
         _vrOverlay.Enabled = EnableVrOverlayCheckBox.IsChecked == true;
         _vrOverlay.StatusIndicatorEnabled = ShowMasterStatusIndicatorCheckBox.IsChecked == true;
-        _vrOverlay.RenderingMode = VrOverlayRenderingModeBox.SelectedItem is VrOverlayRenderingMode renderingMode
-            ? renderingMode
-            : VrOverlayRenderingMode.Auto;
-        _vrOverlay.DiagnosticsEnabled = VrOverlayDiagnosticsCheckBox.IsChecked == true;
 
         if (!double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var toastDuration)
             && !double.TryParse(VrOverlayToastDurationBox.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out toastDuration))
@@ -168,10 +170,66 @@ public partial class PreferencesWindow : Window
             return false;
         }
 
+        if (!TryParseDoubleOrWarn(ToastTextSizeBox.Text, "Toast text size", ToastTextSizeBox, out var toastTextSize))
+        {
+            return false;
+        }
+
+        if (!TryParseDoubleOrWarn(MarkerPosXBox.Text, "Marker position X", MarkerPosXBox, out var markerPosX))
+        {
+            return false;
+        }
+
+        if (!TryParseDoubleOrWarn(MarkerPosYBox.Text, "Marker position Y", MarkerPosYBox, out var markerPosY))
+        {
+            return false;
+        }
+
         _vrOverlay.ToastDurationSeconds = toastDuration;
+        _vrOverlay.ToastTextSize = toastTextSize;
+        _vrOverlay.ToastBackgroundColor = string.IsNullOrWhiteSpace(ToastBgColorBox.Text) ? "#80000000" : ToastBgColorBox.Text.Trim();
+        _vrOverlay.ToastOpacity = ToastOpacitySlider.Value;
+        _vrOverlay.MarkerImagePath = string.IsNullOrWhiteSpace(MarkerImagePathBox.Text) ? null : MarkerImagePathBox.Text.Trim();
+        _vrOverlay.MarkerSize = MarkerSizeSlider.Value;
+        _vrOverlay.MarkerOpacity = MarkerOpacitySlider.Value;
+        _vrOverlay.MarkerPositionX = markerPosX;
+        _vrOverlay.MarkerPositionY = markerPosY;
         _vrOverlay.Normalize();
+
         VrOverlayToastDurationBox.Text = _vrOverlay.ToastDurationSeconds.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        ToastTextSizeBox.Text = _vrOverlay.ToastTextSize.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        MarkerPosXBox.Text = _vrOverlay.MarkerPositionX.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        MarkerPosYBox.Text = _vrOverlay.MarkerPositionY.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         return true;
+    }
+
+    private bool TryParseDoubleOrWarn(string text, string label, System.Windows.Controls.TextBox source, out double value)
+    {
+        if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value)
+            || double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out value))
+        {
+            return true;
+        }
+
+        System.Windows.MessageBox.Show(this, $"{label} must be a valid number.", "Invalid VR Overlay Setting", MessageBoxButton.OK, MessageBoxImage.Warning);
+        source.Focus();
+        source.SelectAll();
+        return false;
+    }
+
+    private void OnBrowseMarkerImage(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "PNG files (*.png)|*.png|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Title = "Select marker image"
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            MarkerImagePathBox.Text = dialog.FileName;
+        }
     }
 
     private void UpdateVrOverlayUiState()

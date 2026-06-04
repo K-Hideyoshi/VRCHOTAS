@@ -8,7 +8,8 @@
 	<UseWPF>true</UseWPF>
 	<UseWindowsForms>true</UseWindowsForms>
 	<AssemblyName>VRCHOTAS.OverlayHelper</AssemblyName>
-	<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+	<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 	<ApplicationManifest>..\VRCHOTAS\app.manifest</ApplicationManifest>
 	<OpenVrHeaderPath>..\artifacts\release\openvr-sdk-cache\sdk\headers\openvr_api.cs</OpenVrHeaderPath>
 	<OpenVrDllPath>..\artifacts\release\openvr-sdk-cache\sdk\bin\win64\openvr_api.dll</OpenVrDllPath>
@@ -23,6 +24,7 @@
 	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	<PackageReference Include="SharpDX" Version="4.2.0" />
 	<PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
+	<PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>

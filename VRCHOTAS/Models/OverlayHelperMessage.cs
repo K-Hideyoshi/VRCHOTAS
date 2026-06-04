@@ -16,11 +16,29 @@ public sealed class OverlayHelperMessage
     [JsonProperty("toastDurationSeconds")]
     public double? ToastDurationSeconds { get; set; }
 
-    [JsonProperty("renderingMode")]
-    public VrOverlayRenderingMode? RenderingMode { get; set; }
+    [JsonProperty("markerImagePath")]
+    public string? MarkerImagePath { get; set; }
 
-    [JsonProperty("diagnosticsEnabled")]
-    public bool? DiagnosticsEnabled { get; set; }
+    [JsonProperty("markerSize")]
+    public double? MarkerSize { get; set; }
+
+    [JsonProperty("markerPositionX")]
+    public double? MarkerPositionX { get; set; }
+
+    [JsonProperty("markerPositionY")]
+    public double? MarkerPositionY { get; set; }
+
+    [JsonProperty("markerOpacity")]
+    public double? MarkerOpacity { get; set; }
+
+    [JsonProperty("toastBackgroundColor")]
+    public string? ToastBackgroundColor { get; set; }
+
+    [JsonProperty("toastOpacity")]
+    public double? ToastOpacity { get; set; }
+
+    [JsonProperty("toastTextSize")]
+    public double? ToastTextSize { get; set; }
 
     [JsonProperty("isMasterSwitchOn")]
     public bool? IsMasterSwitchOn { get; set; }

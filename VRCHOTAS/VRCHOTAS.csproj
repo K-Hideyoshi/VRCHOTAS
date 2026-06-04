@@ -32,6 +32,52 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\VRCHOTAS.OverlayHelper\VRCHOTAS.OverlayHelper.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SetTargetFramework>TargetFramework=net10.0-windows</SetTargetFramework>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- Copy overlay helper outputs and dependencies to main app output directory -->
+  <Target Name="CopyOverlayHelperOutputs" AfterTargets="Build">
+    <PropertyGroup>
+      <HelperOutputPath>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\win-x64\</HelperOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <HelperFilesToCopy Include="$(HelperOutputPath)**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(HelperFilesToCopy)"
+          DestinationFiles="@(HelperFilesToCopy->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <Message Importance="high" Text="Copied overlay helper outputs from $(HelperOutputPath) to $(OutputPath)" />
+  </Target>
+
+  <!-- Register helper files for clean -->
+  <Target Name="RegisterHelperFilesForClean" BeforeTargets="Clean">
+    <PropertyGroup>
+      <HelperOutputPath>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\win-x64\</HelperOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <HelperFilesToClean Include="$(OutputPath)VRCHOTAS.OverlayHelper.exe" />
+      <HelperFilesToClean Include="$(OutputPath)VRCHOTAS.OverlayHelper.dll" />
+      <HelperFilesToClean Include="$(OutputPath)VRCHOTAS.OverlayHelper.pdb" />
+      <HelperFilesToClean Include="$(OutputPath)VRCHOTAS.OverlayHelper.deps.json" />
+      <HelperFilesToClean Include="$(OutputPath)VRCHOTAS.OverlayHelper.runtimeconfig.json" />
+      <HelperFilesToClean Include="$(OutputPath)SharpDX.dll" />
+      <HelperFilesToClean Include="$(OutputPath)SharpDX.Direct3D11.dll" />
+      <HelperFilesToClean Include="$(OutputPath)SharpDX.DXGI.dll" />
+      <HelperFilesToClean Include="$(OutputPath)Newtonsoft.Json.dll" />
+    </ItemGroup>
+
+    <Delete Files="@(HelperFilesToClean)" ContinueOnError="true" />
+    <Message Importance="high" Text="Cleaned overlay helper outputs from $(OutputPath)" />
+  </Target>
+
+  <ItemGroup>
     <Compile Include="$(OpenVrHeaderPath)">
       <Link>Interop\openvr_api.cs</Link>
       <Nullable>disable</Nullable>
@@ -47,51 +93,9 @@
     </None>
   </ItemGroup>
 
-  <Target Name="BuildOverlayHelper" BeforeTargets="BeforeBuild">
-    <PropertyGroup>
-      <OverlayHelperProject>..\VRCHOTAS.OverlayHelper\VRCHOTAS.OverlayHelper.csproj</OverlayHelperProject>
-      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' == ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
-      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' != ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\$(RuntimeIdentifier)</OverlayHelperOutputDir>
-    </PropertyGroup>
 
-    <MSBuild Projects="$(OverlayHelperProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" />
 
-    <ItemGroup>
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.exe" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.dll" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.deps.json" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.runtimeconfig.json" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\openvr_api.dll" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\Newtonsoft.Json.dll" />
-      <OverlayHelperArtifacts Include="$(OverlayHelperOutputDir)\SharpDX*.dll" />
-      <FileWrites Include="@(OverlayHelperArtifacts->'$(OutDir)%(Filename)%(Extension)')" />
-    </ItemGroup>
 
-    <Copy SourceFiles="@(OverlayHelperArtifacts)"
-          DestinationFiles="@(OverlayHelperArtifacts->'$(OutDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyOverlayHelperToPublishDirectory" AfterTargets="Publish">
-    <PropertyGroup>
-      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' == ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows</OverlayHelperOutputDir>
-      <OverlayHelperOutputDir Condition="'$(RuntimeIdentifier)' != ''">..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\$(RuntimeIdentifier)</OverlayHelperOutputDir>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.exe" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.dll" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.deps.json" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\VRCHOTAS.OverlayHelper.runtimeconfig.json" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\openvr_api.dll" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\Newtonsoft.Json.dll" />
-      <OverlayHelperPublishArtifacts Include="$(OverlayHelperOutputDir)\SharpDX*.dll" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(OverlayHelperPublishArtifacts)"
-          DestinationFiles="@(OverlayHelperPublishArtifacts->'$(PublishDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
 
   <ItemGroup>
     <Resource Include="icons\*.ico" />

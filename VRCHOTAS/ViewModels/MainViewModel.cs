@@ -149,7 +149,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             OnPropertyChanged(nameof(MappingEnabledStatusText));
-            _vrOverlayService.ShowMasterSwitchToast(value);
+
+            if (!_vrOverlayPreferences.StatusIndicatorEnabled)
+            {
+                _vrOverlayService.ShowMasterSwitchToast(value);
+            }
+
             _vrOverlayService.UpdateStatusIndicator(value);
             _logger.Info(nameof(MainViewModel), $"Mapping master switch {(value ? "enabled" : "disabled")}.");
         }

@@ -47,8 +47,14 @@ public sealed class VrOverlayService : IDisposable
             Enabled = normalized.Enabled,
             StatusIndicatorEnabled = normalized.StatusIndicatorEnabled,
             ToastDurationSeconds = normalized.ToastDurationSeconds,
-            RenderingMode = normalized.RenderingMode,
-            DiagnosticsEnabled = normalized.DiagnosticsEnabled,
+            MarkerImagePath = normalized.MarkerImagePath,
+            MarkerSize = normalized.MarkerSize,
+            MarkerPositionX = normalized.MarkerPositionX,
+            MarkerPositionY = normalized.MarkerPositionY,
+            MarkerOpacity = normalized.MarkerOpacity,
+            ToastBackgroundColor = normalized.ToastBackgroundColor,
+            ToastOpacity = normalized.ToastOpacity,
+            ToastTextSize = normalized.ToastTextSize,
             IsMasterSwitchOn = isMasterSwitchOn
         };
         _lastPreferencesMessage = CloneMessage(message);

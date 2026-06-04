@@ -7,7 +7,7 @@ namespace VRCHOTAS.Tests;
 public sealed class OverlayHelperProtocolTests
 {
     [Fact]
-    public void OverlayHelperMessage_PreservesFractionalToastDurationAndRenderingMode()
+    public void OverlayHelperMessage_PreservesFractionalToastDuration()
     {
         var message = new OverlayHelperMessage
         {
@@ -15,8 +15,6 @@ public sealed class OverlayHelperProtocolTests
             Enabled = true,
             StatusIndicatorEnabled = true,
             ToastDurationSeconds = 3.5d,
-            RenderingMode = VrOverlayRenderingMode.D3D11,
-            DiagnosticsEnabled = true,
             IsMasterSwitchOn = true
         };
 
@@ -25,8 +23,6 @@ public sealed class OverlayHelperProtocolTests
 
         Assert.NotNull(restored);
         Assert.Equal(3.5d, restored!.ToastDurationSeconds);
-        Assert.Equal(VrOverlayRenderingMode.D3D11, restored.RenderingMode);
-        Assert.True(restored.DiagnosticsEnabled);
     }
 
     [Fact]

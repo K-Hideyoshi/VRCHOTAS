@@ -46,9 +46,7 @@ public sealed class VrOverlayPreferencesTests
         {
             Enabled = false,
             StatusIndicatorEnabled = false,
-            ToastDurationSeconds = 7.5d,
-            RenderingMode = VrOverlayRenderingMode.RawCompatibility,
-            DiagnosticsEnabled = true
+            ToastDurationSeconds = 7.5d
         };
 
         var clone = preferences.Clone();
@@ -56,8 +54,6 @@ public sealed class VrOverlayPreferencesTests
         Assert.False(clone.Enabled);
         Assert.False(clone.StatusIndicatorEnabled);
         Assert.Equal(7.5d, clone.ToastDurationSeconds);
-        Assert.Equal(VrOverlayRenderingMode.RawCompatibility, clone.RenderingMode);
-        Assert.True(clone.DiagnosticsEnabled);
     }
 
     [Fact]
@@ -68,7 +64,5 @@ public sealed class VrOverlayPreferencesTests
         var preferences = JsonConvert.DeserializeObject<VrOverlayPreferences>(json);
 
         Assert.NotNull(preferences);
-        Assert.Equal(VrOverlayRenderingMode.Auto, preferences!.RenderingMode);
-        Assert.False(preferences.DiagnosticsEnabled);
     }
 }

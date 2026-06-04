@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using Valve.VR;
 using VRCHOTAS.Logging;
 
 namespace VRCHOTAS.Services;
@@ -54,21 +55,94 @@ public sealed class OpenVrNativeLibraryService : IDisposable
 
     public bool IsSteamVrRunning()
     {
+        var runningProcesses = new List<string>();
         foreach (var processName in SteamVrProcessNames)
         {
             try
             {
-                if (Process.GetProcessesByName(processName).Length > 0)
+                var processes = Process.GetProcessesByName(processName);
+                if (processes.Length > 0)
                 {
-                    return true;
+                    runningProcesses.Add($"{processName}(x{processes.Length})");
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.Warning(nameof(OpenVrNativeLibraryService), 
+                    $"Failed to check process '{processName}': {ex.Message}");
             }
         }
 
-        return false;
+        var isRunning = runningProcesses.Count > 0;
+        _logger.Info(nameof(OpenVrNativeLibraryService), 
+            isRunning 
+                ? $"SteamVR processes detected: {string.Join(", ", runningProcesses)}" 
+                : "No SteamVR processes detected.");
+
+        return isRunning;
+    }
+
+    /// <summary>
+    /// Checks if SteamVR's IPC infrastructure is ready for OpenVR.Init() calls.
+    /// Uses OpenVR's own APIs to test runtime availability instead of process heuristics.
+    /// </summary>
+    public bool IsSteamVrIpcReady()
+    {
+        _logger.Info(nameof(OpenVrNativeLibraryService), "=== IPC Readiness Check Started ===");
+
+        // First check: SteamVR processes must be running
+        if (!IsSteamVrRunning())
+        {
+            _logger.Info(nameof(OpenVrNativeLibraryService), "IPC Check Result: SteamVR not running");
+            return false;
+        }
+
+        // Second check: Use OpenVR's native APIs to test if runtime is truly ready
+        try
+        {
+            // Ensure openvr_api.dll is loaded first
+            if (!TryEnsureLoaded(out var loadFailure))
+            {
+                _logger.Warning(nameof(OpenVrNativeLibraryService), 
+                    $"IPC Check Result: OpenVR DLL not loaded - {loadFailure}");
+                return false;
+            }
+
+            // Test 1: Check if runtime is installed and configured
+            bool runtimeInstalled = OpenVR.IsRuntimeInstalled();
+            _logger.Info(nameof(OpenVrNativeLibraryService), 
+                $"OpenVR.IsRuntimeInstalled() = {runtimeInstalled}");
+
+            if (!runtimeInstalled)
+            {
+                _logger.Warning(nameof(OpenVrNativeLibraryService), 
+                    "IPC Check Result: OpenVR runtime not installed or not configured");
+                return false;
+            }
+
+            // Test 2: Check if HMD is present (indicates SteamVR is actively managing a device session)
+            bool hmdPresent = OpenVR.IsHmdPresent();
+            _logger.Info(nameof(OpenVrNativeLibraryService), 
+                $"OpenVR.IsHmdPresent() = {hmdPresent}");
+
+            if (!hmdPresent)
+            {
+                _logger.Warning(nameof(OpenVrNativeLibraryService), 
+                    "IPC Check Result: No HMD present - SteamVR may be running but not in active VR session");
+                return false;
+            }
+
+            // Both checks passed - IPC should be ready
+            _logger.Info(nameof(OpenVrNativeLibraryService), 
+                "IPC Check Result: ✓ OpenVR runtime ready (installed + HMD present)");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(nameof(OpenVrNativeLibraryService), 
+                $"IPC Check Result: Exception during OpenVR API check: {ex.GetType().Name} - {ex.Message}");
+            return false;
+        }
     }
 
     public void Dispose()
@@ -119,6 +193,27 @@ public sealed class OpenVrNativeLibraryService : IDisposable
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // ALWAYS prefer the app-local or SDK version of openvr_api.dll over the SteamVR installation version.
+        // Loading the implementation directly from the SteamVR installation folder can cause IPC State 310 errors
+        // and hangs during VR_Init because the internal DLL expects to be hosted by SteamVR itself.
+        foreach (var candidate in EnumerateAppLocalOpenVrApiCandidates())
+        {
+            if (seen.Add(candidate))
+            {
+                yield return candidate;
+            }
+        }
+
+        var openVrSdkPath = Environment.GetEnvironmentVariable("OPENVR_SDK_PATH");
+        if (!string.IsNullOrWhiteSpace(openVrSdkPath))
+        {
+            var candidate = Path.Combine(openVrSdkPath, "bin", "win64", "openvr_api.dll");
+            if (seen.Add(candidate))
+            {
+                yield return candidate;
+            }
+        }
+
         var steamVrPath = Environment.GetEnvironmentVariable("STEAMVR_PATH");
         if (!string.IsNullOrWhiteSpace(steamVrPath))
         {
@@ -152,24 +247,6 @@ public sealed class OpenVrNativeLibraryService : IDisposable
         if (!string.IsNullOrWhiteSpace(programFiles))
         {
             var candidate = Path.Combine(programFiles, "Steam", "steamapps", "common", "SteamVR", "bin", "win64", "openvr_api.dll");
-            if (seen.Add(candidate))
-            {
-                yield return candidate;
-            }
-        }
-
-        var openVrSdkPath = Environment.GetEnvironmentVariable("OPENVR_SDK_PATH");
-        if (!string.IsNullOrWhiteSpace(openVrSdkPath))
-        {
-            var candidate = Path.Combine(openVrSdkPath, "bin", "win64", "openvr_api.dll");
-            if (seen.Add(candidate))
-            {
-                yield return candidate;
-            }
-        }
-
-        foreach (var candidate in EnumerateAppLocalOpenVrApiCandidates())
-        {
             if (seen.Add(candidate))
             {
                 yield return candidate;

@@ -143,9 +143,15 @@ internal sealed class OverlayHelperHost : IDisposable
         {
             Enabled = message.Enabled ?? true,
             StatusIndicatorEnabled = message.StatusIndicatorEnabled ?? true,
-            ToastDurationSeconds = message.ToastDurationSeconds ?? 5d,
-            RenderingMode = message.RenderingMode ?? VrOverlayRenderingMode.Auto,
-            DiagnosticsEnabled = message.DiagnosticsEnabled ?? false
+            ToastDurationSeconds = message.ToastDurationSeconds ?? 2d,
+            MarkerImagePath = message.MarkerImagePath,
+            MarkerSize = message.MarkerSize ?? 32.0,
+            MarkerPositionX = message.MarkerPositionX ?? 0.0,
+            MarkerPositionY = message.MarkerPositionY ?? 0.0,
+            MarkerOpacity = message.MarkerOpacity ?? 0.8,
+            ToastBackgroundColor = message.ToastBackgroundColor ?? "#80000000",
+            ToastOpacity = message.ToastOpacity ?? 0.8,
+            ToastTextSize = message.ToastTextSize ?? 24.0
         };
         preferences.Normalize();
         return preferences;
@@ -237,16 +243,19 @@ internal sealed class OverlayHelperHost : IDisposable
         try
         {
             var process = Process.GetProcessById(_parentProcessId.Value);
+            process.Refresh();
             if (process.HasExited)
             {
                 _logger.Info(nameof(OverlayHelperHost), $"Parent process {_parentProcessId.Value} has exited. Shutting down helper.");
                 Dispose();
+                Environment.Exit(0);
             }
         }
         catch (ArgumentException)
         {
             _logger.Info(nameof(OverlayHelperHost), $"Parent process {_parentProcessId.Value} was not found. Shutting down helper.");
             Dispose();
+            Environment.Exit(0);
         }
         catch (Exception ex)
         {

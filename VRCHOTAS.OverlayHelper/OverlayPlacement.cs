@@ -1,9 +1,10 @@
 using Valve.VR;
+using VRCHOTAS.Models;
 
 internal static class OverlayPlacement
 {
-    public static HmdMatrix34_t ToastTransform => CreateTransform(0f, -0.34f, -0.86f);
-    public static HmdMatrix34_t StatusTransform => CreateTransform(-0.28f, -0.27f, -0.8f);
+    public static HmdMatrix34_t GetToastTransform(VrOverlayPreferences? prefs) => CreateTransform(0f, -0.34f, -0.86f);
+    public static HmdMatrix34_t GetStatusTransform(VrOverlayPreferences? prefs) => CreateTransform(-0.28f + (float)(prefs?.MarkerPositionX ?? 0.0), -0.27f + (float)(prefs?.MarkerPositionY ?? 0.0), -0.8f);
 
     private static HmdMatrix34_t CreateTransform(float x, float y, float z)
     {

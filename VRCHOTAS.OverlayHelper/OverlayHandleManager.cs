@@ -1,4 +1,5 @@
 using VRCHOTAS.Logging;
+using VRCHOTAS.Models;
 using Valve.VR;
 
 internal sealed class OverlayHandleManager
@@ -20,11 +21,12 @@ internal sealed class OverlayHandleManager
     public ulong ToastHandle => _toastHandle;
     public ulong StatusHandle => _statusHandle;
 
-    public bool Ensure(CVROverlay overlay, OverlayVisualKind kind, out ulong handle)
+    public bool Ensure(CVROverlay overlay, OverlayVisualKind kind, out ulong handle, VrOverlayPreferences? prefs = null)
     {
         handle = kind == OverlayVisualKind.Toast ? _toastHandle : _statusHandle;
         if (handle != OpenVR.k_ulOverlayHandleInvalid)
         {
+            Configure(overlay, handle, kind, prefs); // Reconfigure to apply updated preferences
             return true;
         }
 
@@ -44,7 +46,7 @@ internal sealed class OverlayHandleManager
             return false;
         }
 
-        if (!Configure(overlay, handle, kind))
+        if (!Configure(overlay, handle, kind, prefs))
         {
             Destroy(overlay, kind);
             handle = OpenVR.k_ulOverlayHandleInvalid;
@@ -55,14 +57,14 @@ internal sealed class OverlayHandleManager
         return true;
     }
 
-    public bool Show(CVROverlay overlay, OverlayVisualKind kind)
+    public bool Show(CVROverlay overlay, OverlayVisualKind kind, VrOverlayPreferences? prefs)
     {
-        if (!Ensure(overlay, kind, out var handle))
+        if (!Ensure(overlay, kind, out var handle, prefs))
         {
             return false;
         }
 
-        var transform = kind == OverlayVisualKind.Toast ? OverlayPlacement.ToastTransform : OverlayPlacement.StatusTransform;
+        var transform = kind == OverlayVisualKind.Toast ? OverlayPlacement.GetToastTransform(prefs) : OverlayPlacement.GetStatusTransform(prefs);
         var error = overlay.SetOverlayTransformTrackedDeviceRelative(handle, OpenVR.k_unTrackedDeviceIndex_Hmd, ref transform);
         if (error != EVROverlayError.None)
         {
@@ -126,13 +128,23 @@ internal sealed class OverlayHandleManager
         Destroy(overlay, OverlayVisualKind.Status);
     }
 
-    private bool Configure(CVROverlay overlay, ulong handle, OverlayVisualKind kind)
+    private bool Configure(CVROverlay overlay, ulong handle, OverlayVisualKind kind, VrOverlayPreferences? prefs)
     {
+        float alpha = 1f;
+        float width = 0.58f;
+        if (kind == OverlayVisualKind.Toast) {
+            alpha = (float)(prefs?.ToastOpacity ?? 1.0);
+            width = 0.58f; // Toasts adapt size by texture bounds, keeping this static
+        } else {
+            alpha = (float)(prefs?.MarkerOpacity ?? 0.8);
+            width = (float)(prefs?.MarkerSize ?? 32.0) / 100f; // Scale custom size
+        }
+
         return Check(overlay.SetOverlayInputMethod(handle, VROverlayInputMethod.None), $"Set {kind} input method")
             && Check(overlay.SetOverlayTexelAspect(handle, 1f), $"Set {kind} texel aspect")
-            && Check(overlay.SetOverlayAlpha(handle, 1f), $"Set {kind} alpha")
+            && Check(overlay.SetOverlayAlpha(handle, alpha), $"Set {kind} alpha")
             && Check(overlay.SetOverlayColor(handle, 1f, 1f, 1f), $"Set {kind} color")
-            && Check(overlay.SetOverlayWidthInMeters(handle, kind == OverlayVisualKind.Toast ? 0.58f : 0.22f), $"Set {kind} width");
+            && Check(overlay.SetOverlayWidthInMeters(handle, width), $"Set {kind} width");
     }
 
     private bool Check(EVROverlayError error, string operation)
