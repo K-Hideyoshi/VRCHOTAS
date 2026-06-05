@@ -115,16 +115,40 @@ internal sealed class OverlayBitmapFactory
     private static void RenderStatus(DrawingContext context, int width, int height, VrOverlayPreferences? prefs)
     {
         string? imgPath = prefs?.MarkerImagePath;
-        if (!string.IsNullOrEmpty(imgPath) && File.Exists(imgPath))
+        if (string.IsNullOrEmpty(imgPath))
         {
-            try
+            imgPath = "icons\\joystick.png";
+        }
+
+        try
+        {
+            var absolutePath = System.IO.Path.IsPathRooted(imgPath) ? imgPath : System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, imgPath);
+            if (File.Exists(absolutePath))
             {
-                var bi = new BitmapImage(new Uri(imgPath, UriKind.Absolute));
-                context.DrawImage(bi, new Rect(0, 0, width, height));
+                var bi = new BitmapImage(new Uri(absolutePath, UriKind.Absolute));
+
+                double markerSize = prefs?.MarkerSize ?? 32d;
+                double imgWidth = bi.PixelWidth;
+                double imgHeight = bi.PixelHeight;
+
+                if (imgWidth > 0 && imgHeight > 0)
+                {
+                    double scaleX = markerSize / imgWidth;
+                    double scaleY = markerSize / imgHeight;
+                    double scale = Math.Min(scaleX, scaleY);
+
+                    double finalWidth = imgWidth * scale;
+                    double finalHeight = imgHeight * scale;
+
+                    double x = (width - finalWidth) / 2d;
+                    double y = (height - finalHeight) / 2d;
+
+                    context.DrawImage(bi, new Rect(x, y, finalWidth, finalHeight));
+                }
             }
-            catch
-            {
-            }
+        }
+        catch
+        {
         }
     }
 }

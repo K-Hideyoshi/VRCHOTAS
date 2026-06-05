@@ -175,7 +175,7 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
             return;
         }
 
-        if (_overlay.IsDashboardVisible())
+        if (snapshot.Preferences.HideWhenDashboardIsVisible && _overlay.IsDashboardVisible())
         {
             HideAll();
             return;

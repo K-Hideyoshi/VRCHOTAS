@@ -12,6 +12,9 @@ public sealed class VrOverlayPreferences
     [JsonProperty("statusIndicatorEnabled")]
     public bool StatusIndicatorEnabled { get; set; } = true;
 
+    [JsonProperty("hideWhenDashboardIsVisible")]
+    public bool HideWhenDashboardIsVisible { get; set; } = true;
+
     [JsonProperty("toastDurationSeconds")]
     public double ToastDurationSeconds { get; set; } = DefaultToastDurationSeconds;
 
@@ -45,6 +48,7 @@ public sealed class VrOverlayPreferences
         {
             Enabled = Enabled,
             StatusIndicatorEnabled = StatusIndicatorEnabled,
+            HideWhenDashboardIsVisible = HideWhenDashboardIsVisible,
             ToastDurationSeconds = ToastDurationSeconds,
             MarkerImagePath = MarkerImagePath,
             MarkerSize = MarkerSize,
@@ -74,5 +78,7 @@ public sealed class VrOverlayPreferences
 
         MarkerOpacity = Math.Clamp(MarkerOpacity, 0d, 1d);
         ToastOpacity = Math.Clamp(ToastOpacity, 0d, 1d);
+        MarkerSize = Math.Clamp(MarkerSize, 16d, 512d);
+        ToastTextSize = Math.Clamp(ToastTextSize, 9d, 35d);
     }
 }

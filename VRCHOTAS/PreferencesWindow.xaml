@@ -143,102 +143,85 @@
                                    TextWrapping="Wrap"
                                    Text="Configure the in-headset overlay used for Master Switch notifications, configuration switch toasts, and the optional persistent Master ON marker." />
 
-                        <GroupBox Header="Overlay behavior">
-                            <StackPanel Margin="12,8">
-                                <CheckBox x:Name="EnableVrOverlayCheckBox"
-                                          Content="Enable VR overlay notifications"
-                                          Margin="0,0,0,10"
-                                          Checked="OnVrOverlayEnabledChanged"
-                                          Unchecked="OnVrOverlayEnabledChanged" />
+                                <StackPanel Margin="12,8">
+                                    <CheckBox x:Name="EnableVrOverlayCheckBox"
+                                              Content="Enable VR overlay notifications"
+                                              Margin="0,0,0,10"
+                                              Checked="OnVrOverlayEnabledChanged"
+                                              Unchecked="OnVrOverlayEnabledChanged" />
 
-                                <StackPanel x:Name="VrOverlayOptionsPanel">
-                                    <GroupBox Header="Toast settings" Margin="0,0,0,12">
-                                        <StackPanel Margin="12,8">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="Duration (seconds)" VerticalAlignment="Center" Width="150" />
-                                                <TextBox x:Name="VrOverlayToastDurationBox" Width="96" VerticalContentAlignment="Center" />
+                                    <CheckBox x:Name="HideWhenDashboardIsVisibleCheckBox"
+                                              Content="Hide overlay when Steam Dashboard is active"
+                                              Margin="0,0,0,12" />
+
+                                    <StackPanel x:Name="VrOverlayOptionsPanel">
+                                        <GroupBox Header="Toast settings" Margin="0,0,0,12">
+                                            <StackPanel Margin="12,8">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                    <TextBlock Text="Duration (seconds)" VerticalAlignment="Center" Width="150" />
+                                                    <Slider x:Name="VrOverlayToastDurationSlider" Minimum="0.5" Maximum="5" TickFrequency="0.1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnToastDurationChanged" />
+                                                    <TextBlock x:Name="VrOverlayToastDurationValueLabel" Text="2.0" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                    <TextBlock Text="Text size" VerticalAlignment="Center" Width="150" />
+                                                    <Slider x:Name="ToastTextSizeSlider" Minimum="9" Maximum="35" TickFrequency="1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnToastTextSizeChanged" />
+                                                    <TextBlock x:Name="ToastTextSizeValueLabel" Text="24" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                    <TextBlock Text="Background color" VerticalAlignment="Center" Width="150" />
+                                                    <Button x:Name="ToastBgColorButton" Width="80" Height="24" Click="OnToastBgColorClick" Margin="0,0,8,0" />
+                                                    <TextBlock x:Name="ToastBgColorLabel" VerticalAlignment="Center" Text="#80000000" />
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
+                                                    <Slider x:Name="ToastOpacitySlider" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Width="180" ValueChanged="OnToastOpacityChanged" />
+                                                    <TextBlock x:Name="ToastOpacityValueLabel" Text="0.80" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                </StackPanel>
                                             </StackPanel>
+                                        </GroupBox>
 
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="Text size" VerticalAlignment="Center" Width="150" />
-                                                <TextBox x:Name="ToastTextSizeBox" Width="96" VerticalContentAlignment="Center" />
+                                        <GroupBox Header="Master switch indicator">
+                                            <StackPanel Margin="12,8">
+                                                <CheckBox x:Name="ShowMasterStatusIndicatorCheckBox"
+                                                          Content="Enable master switch indicator"
+                                                          Margin="0,0,0,12" 
+                                                          Checked="OnMasterIndicatorEnabledChanged"
+                                                          Unchecked="OnMasterIndicatorEnabledChanged" />
+
+                                                <StackPanel x:Name="MasterStatusIndicatorOptionsPanel">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,0,8">
+                                                        <TextBlock Text="Image" VerticalAlignment="Center" Width="150" />
+                                                        <!-- Image preview max 100px -->
+                                                        <Image x:Name="MarkerImagePreview" MaxWidth="100" MaxHeight="100" Margin="0,0,8,0" HorizontalAlignment="Left" Stretch="Uniform" />
+                                                        <Button Content="Browse..." Width="72" Margin="8,0,0,0" VerticalAlignment="Center" Click="OnBrowseMarkerImage" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                        <TextBlock Text="Size" VerticalAlignment="Center" Width="150" />
+                                                        <Slider x:Name="MarkerSizeSlider" Minimum="16" Maximum="512" TickFrequency="1" Width="180" ValueChanged="OnMarkerSizeChanged" IsSnapToTickEnabled="True" />
+                                                        <TextBlock x:Name="MarkerSizeValueLabel" Text="32" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                        <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
+                                                        <Slider x:Name="MarkerOpacitySlider" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Width="180" ValueChanged="OnMarkerOpacityChanged" />
+                                                        <TextBlock x:Name="MarkerOpacityValueLabel" Text="0.80" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Position X / Y" VerticalAlignment="Center" Width="150" />
+                                                        <TextBox x:Name="MarkerPosXBox" Width="80" VerticalContentAlignment="Center" PreviewTextInput="OnNumericTextInput" LostFocus="OnPositionTextBoxLostFocus" />
+                                                        <TextBox x:Name="MarkerPosYBox" Width="80" Margin="8,0,0,0" VerticalContentAlignment="Center" PreviewTextInput="OnNumericTextInput" LostFocus="OnPositionTextBoxLostFocus" />
+                                                    </StackPanel>
+                                                </StackPanel>
                                             </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="Background color" VerticalAlignment="Center" Width="150" />
-                                                <TextBox x:Name="ToastBgColorBox" Width="140" VerticalContentAlignment="Center" ToolTip="#AARRGGBB" />
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
-                                                <Slider x:Name="ToastOpacitySlider"
-                                                        Minimum="0"
-                                                        Maximum="1"
-                                                        TickFrequency="0.05"
-                                                        IsSnapToTickEnabled="True"
-                                                        Width="180" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </GroupBox>
-
-                                    <GroupBox Header="Marker settings">
-                                        <StackPanel Margin="12,8">
-                                            <CheckBox x:Name="ShowMasterStatusIndicatorCheckBox"
-                                                      Content="Show image marker while Master Switch is ON"
-                                                      Margin="0,0,0,12" />
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="PNG path" VerticalAlignment="Center" Width="150" />
-                                                <TextBox x:Name="MarkerImagePathBox" Width="300" VerticalContentAlignment="Center" />
-                                                <Button Content="Browse..." Width="72" Margin="8,0,0,0" Click="OnBrowseMarkerImage" />
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="Size" VerticalAlignment="Center" Width="150" />
-                                                <Slider x:Name="MarkerSizeSlider" Minimum="8" Maximum="128" TickFrequency="1" Width="180" />
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
-                                                <Slider x:Name="MarkerOpacitySlider"
-                                                        Minimum="0"
-                                                        Maximum="1"
-                                                        TickFrequency="0.05"
-                                                        IsSnapToTickEnabled="True"
-                                                        Width="180" />
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Position X / Y" VerticalAlignment="Center" Width="150" />
-                                                <TextBox x:Name="MarkerPosXBox" Width="80" VerticalContentAlignment="Center" />
-                                                <TextBox x:Name="MarkerPosYBox" Width="80" Margin="8,0,0,0" VerticalContentAlignment="Center" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </GroupBox>
-
-                                    <Button Content="Show test toast"
-                                            Width="128"
-                                            HorizontalAlignment="Left"
-                                            Margin="0,12,0,0"
-                                            Click="OnShowVrOverlayTestToastClick" />
-
-                                    <TextBlock Margin="0,12,0,0"
-                                               Text="{Binding VrOverlayStatusDisplay, StringFormat=Overlay status: {0}}"
-                                               TextWrapping="Wrap" />
-
-                                    <TextBlock Margin="0,4,0,0"
-                                               Foreground="Firebrick"
-                                               Text="{Binding VrOverlayLastErrorDisplay, StringFormat=Last overlay error: {0}}"
-                                               TextWrapping="Wrap" />
-
-                                    <TextBlock Margin="0,12,0,0"
-                                               TextWrapping="Wrap"
-                                               Foreground="DimGray"
-                                               Text="When a new VR notification is triggered before the previous one expires, the previous overlay is closed first." />
+                                        </GroupBox>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                        </GroupBox>
-                    </StackPanel>
+                        </StackPanel>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
