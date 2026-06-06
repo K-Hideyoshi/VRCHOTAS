@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Threading;
+using System.Diagnostics;
 using VRCHOTAS.Logging;
 using WpfApplication = System.Windows.Application;
 
@@ -78,6 +79,34 @@ namespace VRCHOTAS
             }
 
             base.OnExit(e);
+
+            // Final safety net: if the process hasn't exited within a short window,
+            // force-kill it. This handles cases where background threads (e.g. OpenVR
+            // IPC calls) are stuck and prevent clean shutdown.
+            var currentProcess = Process.GetCurrentProcess();
+            var exitRegistration = new Thread(() =>
+            {
+                Thread.Sleep(2000);
+                try
+                {
+                    if (!currentProcess.HasExited)
+                    {
+                        LogManager.Logger.Warning(nameof(App),
+                            "Process did not exit cleanly after 2 seconds. Force-killing.");
+                        currentProcess.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // Last-resort fallback — nothing else we can do.
+                    Environment.Exit(1);
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "VRCHOTAS Force-Exit Watchdog"
+            };
+            exitRegistration.Start();
         }
 
         private void OnActivationRequested()

@@ -19,7 +19,7 @@ public sealed class VrOverlayPreferencesTests
 
         preferences.Normalize();
 
-        Assert.Equal(5d, preferences.ToastDurationSeconds);
+        Assert.Equal(2d, preferences.ToastDurationSeconds);
     }
 
     [Theory]
@@ -46,7 +46,10 @@ public sealed class VrOverlayPreferencesTests
         {
             Enabled = false,
             StatusIndicatorEnabled = false,
-            ToastDurationSeconds = 7.5d
+            ToastDurationSeconds = 7.5d,
+            MarkerSize = 8d,
+            MarkerPositionX = 0.25d,
+            MarkerPositionY = 0.75d
         };
 
         var clone = preferences.Clone();
@@ -54,6 +57,36 @@ public sealed class VrOverlayPreferencesTests
         Assert.False(clone.Enabled);
         Assert.False(clone.StatusIndicatorEnabled);
         Assert.Equal(7.5d, clone.ToastDurationSeconds);
+        Assert.Equal(8d, clone.MarkerSize);
+        Assert.Equal(0.25d, clone.MarkerPositionX);
+        Assert.Equal(0.75d, clone.MarkerPositionY);
+    }
+
+    [Fact]
+    public void Defaults_UseBottomLeftMarkerPlacementAndSizeFive()
+    {
+        var preferences = new VrOverlayPreferences();
+
+        Assert.Equal(5d, preferences.MarkerSize);
+        Assert.Equal(0d, preferences.MarkerPositionX);
+        Assert.Equal(0d, preferences.MarkerPositionY);
+    }
+
+    [Fact]
+    public void Normalize_ClampsMarkerSettingsToSupportedRange()
+    {
+        var preferences = new VrOverlayPreferences
+        {
+            MarkerSize = 42d,
+            MarkerPositionX = -0.5d,
+            MarkerPositionY = 2d
+        };
+
+        preferences.Normalize();
+
+        Assert.Equal(20d, preferences.MarkerSize);
+        Assert.Equal(0d, preferences.MarkerPositionX);
+        Assert.Equal(1d, preferences.MarkerPositionY);
     }
 
     [Fact]

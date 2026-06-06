@@ -46,7 +46,8 @@ private:
     std::array<double, kSemanticAxisCount> _lastLoggedAxes{};
     vr::DriverPose_t _cachedDriverPose{};
     std::int32_t _controllerHandSelectionPriority{ 0 };
-    bool _deviceConnected{ true };
+    std::int32_t _desiredHandSelectionPriority{ vrchotas::driver::kMappedHandSelectionPriority };
+    bool _deviceConnected{ false };
     std::uint64_t _suppressInputsUntilTickMs{ 0 };
     int _remainingReconnectPoseFrames{ 0 };
     bool _loggedFirstStateUpdate{ false };

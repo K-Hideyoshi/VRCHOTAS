@@ -60,56 +60,61 @@ internal sealed class OverlayBitmapFactory
             FontStretches.Normal);
             
         double fontSize = prefs?.ToastTextSize ?? 24.0;
-        var horizontalPadding = 56d;
         
-        // Single formatted text without constraints first to measure width
+        WpfColor themeColor = WpfColor.FromArgb(255, 20, 20, 24);
+        try
+        {
+            if (!string.IsNullOrEmpty(prefs?.ToastBackgroundColor))
+            {
+                themeColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(prefs.ToastBackgroundColor);
+            }
+        }
+        catch { }
+
+        var toastOpacity = Math.Clamp(prefs?.ToastOpacity ?? 0.8, 0.0, 1.0);
+        WpfColor bgColor = WpfColor.FromArgb((byte)(themeColor.A * toastOpacity), themeColor.R, themeColor.G, themeColor.B);
+        WpfColor borderColor = WpfColor.FromArgb(255, themeColor.R, themeColor.G, themeColor.B);
+
+        double luminance = (0.2126 * themeColor.R + 0.7152 * themeColor.G + 0.0722 * themeColor.B) / 255.0;
+        var textColorBrush = luminance > 0.5 ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
+
         var formattedText = new FormattedText(
             text,
             CultureInfo.InvariantCulture,
             WpfFlowDirection.LeftToRight,
             typeface,
             fontSize,
-            System.Windows.Media.Brushes.White,
+            textColorBrush,
             1d);
 
+        double horizontalPadding = 56d;
+        double verticalPadding = 24d;
         double paddingSides = horizontalPadding * 2;
-        double textWidth = formattedText.WidthIncludingTrailingWhitespace;
-        double rawBoxWidth = textWidth + paddingSides;
-        double boxWidth = Math.Min(rawBoxWidth, width);
-        double boxHeight = height;
 
-        // Apply constraints for actual drawing
-        formattedText.MaxTextWidth = Math.Max(1d, boxWidth - paddingSides);
+        double textWidth = Math.Ceiling(formattedText.WidthIncludingTrailingWhitespace) + 8d;
+        double textHeight = Math.Ceiling(formattedText.Height);
+
+        double boxWidth = Math.Min(textWidth + paddingSides, width);
+        double boxHeight = Math.Min(textHeight + verticalPadding * 2, height);
+
+        formattedText.MaxLineCount = 1;
+        formattedText.MaxTextWidth = Math.Max(10d, boxWidth - paddingSides + 4d);
+        formattedText.MaxTextHeight = Math.Max(10d, boxHeight - verticalPadding * 2);
         formattedText.Trimming = TextTrimming.CharacterEllipsis;
         formattedText.TextAlignment = TextAlignment.Center;
-        
-        // Convert color
-        WpfColor bgColor = WpfColor.FromArgb(220, 20, 20, 24);
-        try
-        {
-            if (!string.IsNullOrEmpty(prefs?.ToastBackgroundColor))
-            {
-                bgColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(prefs.ToastBackgroundColor);
-            }
-        }
-        catch
-        {
-        }
-
-        var toastOpacity = Math.Clamp(prefs?.ToastOpacity ?? 0.8, 0.0, 1.0);
-        bgColor = WpfColor.FromArgb((byte)(bgColor.A * toastOpacity), bgColor.R, bgColor.G, bgColor.B);
 
         var background = new SolidColorBrush(bgColor);
-        var border = new WpfPen(new SolidColorBrush(WpfColor.FromArgb(200, 120, 180, 255)), 4);
+        var border = new WpfPen(new SolidColorBrush(borderColor), 4);
         background.Freeze();
         border.Freeze();
 
-        // Center the box horizontally
         double boxX = (width - boxWidth) / 2d;
-        context.DrawRoundedRectangle(background, border, new Rect(boxX, 0, boxWidth, boxHeight), 28, 28);
+        double boxY = (height - boxHeight) / 2d;
+        context.DrawRoundedRectangle(background, border, new Rect(boxX, boxY, boxWidth, boxHeight), 28, 28);
 
-        double textY = Math.Max(0d, (height - formattedText.Height) / 2d);
-        context.DrawText(formattedText, new WpfPoint(boxX + horizontalPadding, textY));
+        double textX = boxX + horizontalPadding;
+        double textY = boxY + (boxHeight - formattedText.Height) / 2d;
+        context.DrawText(formattedText, new WpfPoint(textX, textY));
     }
 
     private static void RenderStatus(DrawingContext context, int width, int height, VrOverlayPreferences? prefs)
@@ -127,14 +132,13 @@ internal sealed class OverlayBitmapFactory
             {
                 var bi = new BitmapImage(new Uri(absolutePath, UriKind.Absolute));
 
-                double markerSize = prefs?.MarkerSize ?? 32d;
                 double imgWidth = bi.PixelWidth;
                 double imgHeight = bi.PixelHeight;
 
                 if (imgWidth > 0 && imgHeight > 0)
                 {
-                    double scaleX = markerSize / imgWidth;
-                    double scaleY = markerSize / imgHeight;
+                    double scaleX = (double)width / imgWidth;
+                    double scaleY = (double)height / imgHeight;
                     double scale = Math.Min(scaleX, scaleY);
 
                     double finalWidth = imgWidth * scale;

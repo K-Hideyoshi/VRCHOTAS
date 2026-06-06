@@ -26,7 +26,9 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
     private string? _pendingToastMessage;
     private DateTime _toastVisibleUntilUtc = DateTime.MinValue;
     private bool _toastDirty;
+    private int _toastDirtySeq;
     private bool _statusDirty = true;
+    private int _statusDirtySeq;
     private bool _toastVisible;
     private bool _statusVisible;
     private bool _disposed;
@@ -38,7 +40,7 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
 
     // OpenVR.Init persistent background thread state
     // Once an Init thread is launched, we never launch another until it returns.
-    // The thread may block indefinitely inside OpenVR IPC �?that is expected and safe.
+    // The thread may block indefinitely inside OpenVR IPC ??that is expected and safe.
     private Thread? _initThread;
     private volatile InitState _initState = InitState.Idle;
     private CVRSystem? _initResultSystem;
@@ -209,14 +211,14 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
             return true;
         }
 
-        // An Init thread is already running �?check if it has finished
+        // An Init thread is already running ??check if it has finished
         if (_initState == InitState.Running)
         {
             PublishStatus(OverlayHelperStatusKind.WaitingForSteamVR, "Waiting for OpenVR.Init()...");
             return false;
         }
 
-        // Init returned with a result �?process it
+        // Init returned with a result ??process it
         if (_initState == InitState.Succeeded || _initState == InitState.Failed)
         {
             var resultSystem = _initResultSystem;
@@ -232,7 +234,7 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
             if (resultError != EVRInitError.None || resultSystem is null)
             {
                 _logger.Warning(nameof(OpenVrOverlayRuntime),
-                    $"�?OpenVR.Init failed: {errorName} (code {errorCode}). Will retry next tick.");
+                    $"??OpenVR.Init failed: {errorName} (code {errorCode}). Will retry next tick.");
                 PublishStatus(OverlayHelperStatusKind.LastError,
                     "OpenVR initialization failed.",
                     $"{errorName} (error {errorCode})",
@@ -240,33 +242,33 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
                 return false;
             }
 
-            // Init succeeded �?finish the rest of initialization synchronously
+            // Init succeeded ??finish the rest of initialization synchronously
             _logger.Info(nameof(OpenVrOverlayRuntime),
-                $"✓✓�?OpenVR.Init succeeded! (appType={_initResultAppType})");
+                $"????OpenVR.Init succeeded! (appType={_initResultAppType})");
             _system = resultSystem;
 
             _logger.Info(nameof(OpenVrOverlayRuntime), "Retrieving OpenVR.Overlay interface...");
             _overlay = OpenVR.Overlay;
             if (_overlay is null)
             {
-                _logger.Warning(nameof(OpenVrOverlayRuntime), "�?Failed: OpenVR.Overlay interface is null");
+                _logger.Warning(nameof(OpenVrOverlayRuntime), "??Failed: OpenVR.Overlay interface is null");
                 ResetOpenVr(RetryDelay);
                 PublishStatus(OverlayHelperStatusKind.LastError, "OpenVR overlay interface is unavailable.", force: true);
                 return false;
             }
-            _logger.Info(nameof(OpenVrOverlayRuntime), "�?OpenVR.Overlay interface obtained");
+            _logger.Info(nameof(OpenVrOverlayRuntime), "??OpenVR.Overlay interface obtained");
 
             _logger.Info(nameof(OpenVrOverlayRuntime),
                 "Creating texture renderer...");
             try
             {
                 _renderer = CreateRenderer();
-                _logger.Info(nameof(OpenVrOverlayRuntime), $"�?Renderer created: {_renderer.Name}");
+                _logger.Info(nameof(OpenVrOverlayRuntime), $"??Renderer created: {_renderer.Name}");
             }
             catch (Exception ex)
             {
                 _logger.Warning(nameof(OpenVrOverlayRuntime),
-                    $"�?Failed to create renderer: {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}");
+                    $"??Failed to create renderer: {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}");
                 ResetOpenVr(RetryDelay);
                 PublishStatus(OverlayHelperStatusKind.LastError,
                     "Failed to create texture renderer.", ex.Message, force: true);
@@ -279,11 +281,17 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
                 "OpenVR overlay runtime initialized.",
                 $"renderer={_renderer.Name}",
                 force: true);
+
+            // Pre-warm both overlay handles so SteamVR registers them immediately.
+            // They start invisible (alpha = 0) and are permanently "shown" from SteamVR's
+            // perspective; visibility is controlled exclusively via alpha from this point on.
+            PreWarmOverlays(snapshot);
+
             MarkAllDirty();
             return true;
         }
 
-        // State is Idle �?check prerequisites then launch the Init thread
+        // State is Idle ??check prerequisites then launch the Init thread
         if (!_openVrNativeLibraryService.IsSteamVrRunning())
         {
             PublishStatus(OverlayHelperStatusKind.WaitingForSteamVR, "Waiting for SteamVR.");
@@ -404,50 +412,15 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
 
     private IOverlayTextureRenderer CreateRenderer()
     {
-        _logger.Info(nameof(OpenVrOverlayRuntime), 
-            "CreateRenderer called");
+        _logger.Info(nameof(OpenVrOverlayRuntime), "CreateRenderer called");
 
         Func<string, OverlayVisualKind, OverlayBitmapFrame> renderBitmap = RenderBitmapOnSta;
 
-        _logger.Info(nameof(OpenVrOverlayRuntime), 
-            "Attempting to create D3D11OverlayTextureRenderer...");
-        try
-        {
-            var renderer = new D3D11OverlayTextureRenderer(renderBitmap);
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                "D3D11OverlayTextureRenderer created successfully");
-            PublishStatus(OverlayHelperStatusKind.D3DReady, "D3D11 overlay texture renderer initialized.");
-            return renderer;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning(nameof(OpenVrOverlayRuntime), 
-                $"D3D11 renderer creation failed, falling back to raw: {ex.GetType().Name} - {ex.Message}");
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                $"Exception details:\n{ex.StackTrace}");
-            PublishStatus(OverlayHelperStatusKind.FallbackRaw, "D3D11 failed; using raw overlay texture renderer.", ex.Message, force: true);
-            return new RawOverlayTextureRenderer(renderBitmap);
-        }
-
-        _logger.Info(nameof(OpenVrOverlayRuntime), 
-            "Attempting to create D3D11OverlayTextureRenderer...");
-        try
-        {
-            var renderer = new D3D11OverlayTextureRenderer(renderBitmap);
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                "�?D3D11OverlayTextureRenderer created successfully");
-            PublishStatus(OverlayHelperStatusKind.D3DReady, "D3D11 overlay texture renderer initialized.");
-            return renderer;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning(nameof(OpenVrOverlayRuntime), 
-                $"D3D11 renderer creation failed (Auto mode), falling back to raw: {ex.GetType().Name} - {ex.Message}");
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                $"Exception details:\n{ex.StackTrace}");
-            PublishStatus(OverlayHelperStatusKind.FallbackRaw, "D3D11 failed; using raw overlay texture renderer.", ex.Message, force: true);
-            return new RawOverlayTextureRenderer(renderBitmap);
-        }
+        // SteamVR's DX11 overlay texture path has shown stale-frame behavior in real use
+        // even when the rendered text is correct. Prefer SetOverlayRaw for correctness.
+        _logger.Info(nameof(OpenVrOverlayRuntime), "Using RawOverlayTextureRenderer for overlay updates.");
+        PublishStatus(OverlayHelperStatusKind.FallbackRaw, "Using raw overlay texture renderer.", force: true);
+        return new RawOverlayTextureRenderer(renderBitmap);
     }
 
     private OverlayBitmapFrame RenderBitmapOnSta(string text, OverlayVisualKind kind)
@@ -505,22 +478,23 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
             return;
         }
 
-        if (snapshot.ToastDirty || !_toastVisible)
+        // Upload first while the overlay is still invisible (alpha = 0).
+        // SteamVR registers the latest texture contents BEFORE we make it visible,
+        // so the correct frame is shown the instant alpha is restored.
+        _logger.Info(nameof(OpenVrOverlayRuntime), 
+            $"Toast: Uploading texture via {_renderer.Name}...");
+        var result = _renderer.Upload(_overlay!, handle, snapshot.PendingToast, OverlayVisualKind.Toast);
+        if (!result.Success)
         {
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                $"Toast: Uploading texture via {_renderer.Name}...");
-            var result = _renderer.Upload(_overlay!, handle, snapshot.PendingToast, OverlayVisualKind.Toast);
-            if (!result.Success)
-            {
-                _logger.Warning(nameof(OpenVrOverlayRuntime), 
-                    $"Toast: Upload failed: {result.Error}");
-                HandleOverlayError(OverlayVisualKind.Toast, "Upload toast overlay texture", result.Error);
-                return;
-            }
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                "Toast: �?Texture uploaded");
+            _logger.Warning(nameof(OpenVrOverlayRuntime), 
+                $"Toast: Upload failed: {result.Error}");
+            HandleOverlayError(OverlayVisualKind.Toast, "Upload toast overlay texture", result.Error);
+            return;
         }
+        _logger.Info(nameof(OpenVrOverlayRuntime), 
+            "Toast: ✓ Texture uploaded");
 
+        // Now make the overlay visible by restoring alpha.
         _logger.Info(nameof(OpenVrOverlayRuntime), 
             "Toast: Showing overlay...");
         if (!_handleManager.Show(_overlay!, OverlayVisualKind.Toast, _lastSnapshot?.Preferences))
@@ -540,7 +514,7 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
 
         _toastVisible = true;
         _logger.Info(nameof(OpenVrOverlayRuntime), 
-            $"Toast: �?Shown successfully, expires at {_toastVisibleUntilUtc:HH:mm:ss}");
+            $"Toast: ✓ Shown successfully, expires at {_toastVisibleUntilUtc:HH:mm:ss}");
         PublishStatus(OverlayHelperStatusKind.OverlayShown, "Toast overlay shown.", $"renderer={_renderer.Name}");
     }
 
@@ -555,6 +529,11 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
                 _handleManager.Hide(_overlay, OverlayVisualKind.Status);
                 _statusVisible = false;
                 PublishStatus(OverlayHelperStatusKind.OverlayHidden, "Status overlay hidden.");
+            }
+
+            lock (_stateSync)
+            {
+                _statusDirty = false;
             }
 
             return;
@@ -575,21 +554,19 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
             return;
         }
 
-        if (snapshot.StatusDirty || !_statusVisible)
+        // Upload first while the overlay is still invisible (alpha = 0), then show.
+        _logger.Info(nameof(OpenVrOverlayRuntime), 
+            $"Status: Uploading texture via {_renderer.Name}...");
+        var result = _renderer.Upload(_overlay!, handle, "MASTER ON", OverlayVisualKind.Status);
+        if (!result.Success)
         {
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                $"Status: Uploading texture via {_renderer.Name}...");
-            var result = _renderer.Upload(_overlay!, handle, "MASTER ON", OverlayVisualKind.Status);
-            if (!result.Success)
-            {
-                _logger.Warning(nameof(OpenVrOverlayRuntime), 
-                    $"Status: Upload failed: {result.Error}");
-                HandleOverlayError(OverlayVisualKind.Status, "Upload status overlay texture", result.Error);
-                return;
-            }
-            _logger.Info(nameof(OpenVrOverlayRuntime), 
-                "Status: �?Texture uploaded");
+            _logger.Warning(nameof(OpenVrOverlayRuntime), 
+                $"Status: Upload failed: {result.Error}");
+            HandleOverlayError(OverlayVisualKind.Status, "Upload status overlay texture", result.Error);
+            return;
         }
+        _logger.Info(nameof(OpenVrOverlayRuntime), 
+            "Status: ✓ Texture uploaded");
 
         _logger.Info(nameof(OpenVrOverlayRuntime), 
             "Status: Showing overlay...");
@@ -608,8 +585,35 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
 
         _statusVisible = true;
         _logger.Info(nameof(OpenVrOverlayRuntime), 
-            "Status: �?Shown successfully");
+            "Status: ✓ Shown successfully");
         PublishStatus(OverlayHelperStatusKind.OverlayShown, "Status overlay shown.", $"renderer={_renderer.Name}");
+    }
+
+    private void PreWarmOverlays(RuntimeSnapshot snapshot)
+    {
+        if (_overlay is null || _renderer is null)
+        {
+            return;
+        }
+
+        foreach (var kind in new[] { OverlayVisualKind.Toast, OverlayVisualKind.Status })
+        {
+            if (!_handleManager.Ensure(_overlay, kind, out _, snapshot.Preferences))
+            {
+                _logger.Warning(nameof(OpenVrOverlayRuntime), $"Pre-warm: failed to ensure {kind} overlay handle");
+            }
+            else
+            {
+                _logger.Info(nameof(OpenVrOverlayRuntime), $"Pre-warm: {kind} overlay handle ready (alpha=0, ShowOverlay done)");
+
+                var warmText = kind == OverlayVisualKind.Toast ? " " : "MASTER ON";
+                var warmResult = _renderer.Upload(_overlay, kind == OverlayVisualKind.Toast ? _handleManager.ToastHandle : _handleManager.StatusHandle, warmText, kind);
+                if (!warmResult.Success)
+                {
+                    _logger.Warning(nameof(OpenVrOverlayRuntime), $"Pre-warm: initial texture upload failed for {kind}: {warmResult.Error}");
+                }
+            }
+        }
     }
 
     private void HideExpiredToast(DateTime nowUtc)
@@ -736,12 +740,23 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
 
         _disposed = true;
         Wake();
+
+        // Wait for the main loop thread to exit, with a short timeout.
         if (Thread.CurrentThread != _thread && _thread.IsAlive)
         {
-            _thread.Join(TimeSpan.FromSeconds(2));
+            _thread.Join(TimeSpan.FromSeconds(1));
         }
 
+        // The init thread may be stuck inside OpenVR.Init() (which can block
+        // for minutes waiting for the IPC namespace). We can't join it, but
+        // it's IsBackground=true so it won't prevent process exit. Still,
+        // force-shutdown OpenVR to unblock any pending Init call.
         ResetOpenVr(TimeSpan.Zero);
+
+        // If the init thread is still alive after ResetOpenVr, discard it —
+        // it's a background thread and will be terminated when the process exits.
+        _initThread = null;
+
         _openVrNativeLibraryService.Dispose();
         _wakeSignal.Dispose();
     }
@@ -755,8 +770,10 @@ internal sealed class OpenVrOverlayRuntime : IDisposable
         DateTime NowUtc)
     {
         public bool Enabled => Preferences.Enabled;
-        public bool HasWork => !string.IsNullOrWhiteSpace(PendingToast) || StatusWanted;
+        public bool HasWork => !string.IsNullOrWhiteSpace(PendingToast) || StatusWanted || StatusDirty;
     }
 }
+
+
 
 

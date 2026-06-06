@@ -143,15 +143,19 @@ internal sealed class OverlayHelperHost : IDisposable
         {
             Enabled = message.Enabled ?? true,
             StatusIndicatorEnabled = message.StatusIndicatorEnabled ?? true,
+            HideWhenDashboardIsVisible = message.HideWhenDashboardIsVisible ?? false,
+            OverlayDistanceMeters = message.OverlayDistanceMeters ?? 0.8,
+            OverlaySizeScale = message.OverlaySizeScale ?? 1.2,
+            ToastPositionY = message.ToastPositionY ?? 0.32,
             ToastDurationSeconds = message.ToastDurationSeconds ?? 2d,
             MarkerImagePath = message.MarkerImagePath,
             MarkerSize = message.MarkerSize ?? 32.0,
             MarkerPositionX = message.MarkerPositionX ?? 0.0,
             MarkerPositionY = message.MarkerPositionY ?? 0.0,
-            MarkerOpacity = message.MarkerOpacity ?? 0.8,
+            MarkerOpacity = message.MarkerOpacity ?? 0.5,
             ToastBackgroundColor = message.ToastBackgroundColor ?? "#80000000",
-            ToastOpacity = message.ToastOpacity ?? 0.8,
-            ToastTextSize = message.ToastTextSize ?? 24.0
+            ToastOpacity = message.ToastOpacity ?? 0.75,
+            ToastTextSize = message.ToastTextSize ?? 32.0
         };
         preferences.Normalize();
         return preferences;

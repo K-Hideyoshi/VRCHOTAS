@@ -40,6 +40,18 @@ public sealed class OverlayHelperMessage
     [JsonProperty("toastTextSize")]
     public double? ToastTextSize { get; set; }
 
+    [JsonProperty("hideWhenDashboardIsVisible")]
+    public bool? HideWhenDashboardIsVisible { get; set; }
+
+    [JsonProperty("overlayDistanceMeters")]
+    public double? OverlayDistanceMeters { get; set; }
+
+    [JsonProperty("overlaySizeScale")]
+    public double? OverlaySizeScale { get; set; }
+
+    [JsonProperty("toastPositionY")]
+    public double? ToastPositionY { get; set; }
+
     [JsonProperty("isMasterSwitchOn")]
     public bool? IsMasterSwitchOn { get; set; }
 

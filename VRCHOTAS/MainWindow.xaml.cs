@@ -1020,6 +1020,7 @@ namespace VRCHOTAS
             _isExitRequested = true;
             _notifyIcon.Visible = false;
             Close();
+            System.Windows.Application.Current.Shutdown();
         }
 
         private void OnClosed(object? sender, System.EventArgs e)

@@ -32,8 +32,8 @@ private:
     bool _loggedMutexWaitFailure{ false };
     bool _loggedButtonAxisMirrorLimitation{ false };
     bool _loggedWaitingForAppHeartbeat{ false };
-    bool _lastDesiredLeftControllerConnection{ true };
-    bool _lastDesiredRightControllerConnection{ true };
+    bool _lastDesiredLeftControllerConnection{ false };
+    bool _lastDesiredRightControllerConnection{ false };
     bool _lastLeftRealControllerFound{ false };
     bool _lastRightRealControllerFound{ false };
     vrchotas::VirtualPoseSource _lastLoggedPoseSource{ vrchotas::VirtualPoseSource::Mapped };

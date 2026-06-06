@@ -93,7 +93,7 @@ vr::EVRInitError HotasControllerDevice::Activate(vr::TrackedDeviceIndex_t unObje
         vr::k_eControllerAxis_None,
         static_cast<int>(_role),
         vrchotas::driver::kControllerType);
-    SetHandSelectionPriority(vrchotas::driver::kMappedHandSelectionPriority, "activate");
+    SetHandSelectionPriority(_desiredHandSelectionPriority, "activate");
     CreateInputComponents(container);
     ResetCachedPose();
     DriverLogF("[vrchotas] Activated tracked device %s (role=%s, profile=%s).", _serialNumber, RoleToString(_role), vrchotas::driver::kInputProfilePath);
@@ -134,6 +134,7 @@ vr::DriverPose_t HotasControllerDevice::GetPose()
 
 void HotasControllerDevice::SetHandSelectionPriority(std::int32_t priority, const char* reason)
 {
+    _desiredHandSelectionPriority = priority;
     if (_propertyContainer == vr::k_ulInvalidPropertyContainer)
     {
         return;
@@ -155,6 +156,7 @@ void HotasControllerDevice::SetHandSelectionPriority(std::int32_t priority, cons
 
 void HotasControllerDevice::ForceReannounceHandSelectionPriority(std::int32_t priority, const char* reason)
 {
+    _desiredHandSelectionPriority = priority;
     if (_propertyContainer == vr::k_ulInvalidPropertyContainer)
     {
         return;

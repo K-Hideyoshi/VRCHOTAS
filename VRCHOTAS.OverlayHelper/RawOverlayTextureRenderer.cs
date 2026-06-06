@@ -16,7 +16,8 @@ internal sealed class RawOverlayTextureRenderer : IOverlayTextureRenderer
     public OverlayTextureUploadResult Upload(CVROverlay overlay, ulong handle, string text, OverlayVisualKind kind)
     {
         var frame = _renderBitmap(text, kind);
-        var gcHandle = GCHandle.Alloc(frame.Pixels, GCHandleType.Pinned);
+        var rgbaPixels = ConvertBgraToRgba(frame.Pixels);
+        var gcHandle = GCHandle.Alloc(rgbaPixels, GCHandleType.Pinned);
         try
         {
             var error = overlay.SetOverlayRaw(
@@ -35,5 +36,19 @@ internal sealed class RawOverlayTextureRenderer : IOverlayTextureRenderer
 
     public void Dispose()
     {
+    }
+
+    private static byte[] ConvertBgraToRgba(byte[] bgraPixels)
+    {
+        var rgbaPixels = new byte[bgraPixels.Length];
+        for (var index = 0; index < bgraPixels.Length; index += 4)
+        {
+            rgbaPixels[index] = bgraPixels[index + 2];
+            rgbaPixels[index + 1] = bgraPixels[index + 1];
+            rgbaPixels[index + 2] = bgraPixels[index];
+            rgbaPixels[index + 3] = bgraPixels[index + 3];
+        }
+
+        return rgbaPixels;
     }
 }

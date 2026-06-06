@@ -42,17 +42,24 @@
   <Target Name="CopyOverlayHelperOutputs" AfterTargets="Build">
     <PropertyGroup>
       <HelperOutputPath>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\win-x64\</HelperOutputPath>
+      <HelperIconsPath>..\VRCHOTAS.OverlayHelper\icons\</HelperIconsPath>
     </PropertyGroup>
 
     <ItemGroup>
       <HelperFilesToCopy Include="$(HelperOutputPath)**\*.*" />
+      <HelperIconFilesToCopy Include="$(HelperIconsPath)**\*.*" />
     </ItemGroup>
 
     <Copy SourceFiles="@(HelperFilesToCopy)"
           DestinationFiles="@(HelperFilesToCopy->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
 
+        <Copy SourceFiles="@(HelperIconFilesToCopy)"
+          DestinationFiles="@(HelperIconFilesToCopy->'$(OutputPath)icons\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
     <Message Importance="high" Text="Copied overlay helper outputs from $(HelperOutputPath) to $(OutputPath)" />
+        <Message Importance="high" Text="Copied overlay helper icons from $(HelperIconsPath) to $(OutputPath)icons\" />
   </Target>
 
   <!-- Register helper files for clean -->
@@ -71,9 +78,11 @@
       <HelperFilesToClean Include="$(OutputPath)SharpDX.Direct3D11.dll" />
       <HelperFilesToClean Include="$(OutputPath)SharpDX.DXGI.dll" />
       <HelperFilesToClean Include="$(OutputPath)Newtonsoft.Json.dll" />
+      <HelperFilesToClean Include="$(OutputPath)icons\**\*.*" />
     </ItemGroup>
 
     <Delete Files="@(HelperFilesToClean)" ContinueOnError="true" />
+    <RemoveDir Directories="$(OutputPath)icons" ContinueOnError="true" />
     <Message Importance="high" Text="Cleaned overlay helper outputs from $(OutputPath)" />
   </Target>
 

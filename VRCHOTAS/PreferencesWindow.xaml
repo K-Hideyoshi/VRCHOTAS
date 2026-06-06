@@ -145,7 +145,7 @@
 
                                 <StackPanel Margin="12,8">
                                     <CheckBox x:Name="EnableVrOverlayCheckBox"
-                                              Content="Enable VR overlay notifications"
+                                              Content="Enable VR overlay"
                                               Margin="0,0,0,10"
                                               Checked="OnVrOverlayEnabledChanged"
                                               Unchecked="OnVrOverlayEnabledChanged" />
@@ -155,6 +155,18 @@
                                               Margin="0,0,0,12" />
 
                                     <StackPanel x:Name="VrOverlayOptionsPanel">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                            <TextBlock Text="Overlay size" VerticalAlignment="Center" Width="150" />
+                                            <Slider x:Name="OverlaySizeScaleSlider" Minimum="0.5" Maximum="3" TickFrequency="0.1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnOverlaySizeScaleChanged" />
+                                            <TextBlock x:Name="OverlaySizeScaleValueLabel" Text="1.2" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,12">
+                                            <TextBlock Text="Distance from headset" VerticalAlignment="Center" Width="150" />
+                                            <Slider x:Name="OverlayDistanceSlider" Minimum="0.2" Maximum="2" TickFrequency="0.1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnOverlayDistanceChanged" />
+                                            <TextBlock x:Name="OverlayDistanceValueLabel" Text="0.8" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                        </StackPanel>
+
                                         <GroupBox Header="Toast settings" Margin="0,0,0,12">
                                             <StackPanel Margin="12,8">
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
@@ -164,13 +176,19 @@
                                                 </StackPanel>
 
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                    <TextBlock Text="Text size" VerticalAlignment="Center" Width="150" />
-                                                    <Slider x:Name="ToastTextSizeSlider" Minimum="9" Maximum="35" TickFrequency="1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnToastTextSizeChanged" />
-                                                    <TextBlock x:Name="ToastTextSizeValueLabel" Text="24" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                    <TextBlock Text="Vertical position" VerticalAlignment="Center" Width="150" />
+                                                    <Slider x:Name="ToastPositionYSlider" Minimum="0" Maximum="1" TickFrequency="0.01" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnToastPositionYChanged" />
+                                                    <TextBlock x:Name="ToastPositionYValueLabel" Text="0.32" VerticalAlignment="Center" Margin="8,0,0,0" />
                                                 </StackPanel>
 
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                                                    <TextBlock Text="Background color" VerticalAlignment="Center" Width="150" />
+                                                    <TextBlock Text="Text size" VerticalAlignment="Center" Width="150" />
+                                                    <Slider x:Name="ToastTextSizeSlider" Minimum="15" Maximum="100" TickFrequency="1" Width="180" IsSnapToTickEnabled="True" ValueChanged="OnToastTextSizeChanged" />
+                                                    <TextBlock x:Name="ToastTextSizeValueLabel" Text="32" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                    <TextBlock Text="Theme color" VerticalAlignment="Center" Width="150" />
                                                     <Button x:Name="ToastBgColorButton" Width="80" Height="24" Click="OnToastBgColorClick" Margin="0,0,8,0" />
                                                     <TextBlock x:Name="ToastBgColorLabel" VerticalAlignment="Center" Text="#80000000" />
                                                 </StackPanel>
@@ -178,7 +196,7 @@
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                     <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
                                                     <Slider x:Name="ToastOpacitySlider" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Width="180" ValueChanged="OnToastOpacityChanged" />
-                                                    <TextBlock x:Name="ToastOpacityValueLabel" Text="0.80" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                    <TextBlock x:Name="ToastOpacityValueLabel" Text="0.75" VerticalAlignment="Center" Margin="8,0,0,0" />
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
@@ -201,24 +219,42 @@
 
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
                                                         <TextBlock Text="Size" VerticalAlignment="Center" Width="150" />
-                                                        <Slider x:Name="MarkerSizeSlider" Minimum="16" Maximum="512" TickFrequency="1" Width="180" ValueChanged="OnMarkerSizeChanged" IsSnapToTickEnabled="True" />
-                                                        <TextBlock x:Name="MarkerSizeValueLabel" Text="32" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                        <Slider x:Name="MarkerSizeSlider" Minimum="0" Maximum="20" TickFrequency="1" Width="180" ValueChanged="OnMarkerSizeChanged" IsSnapToTickEnabled="True" />
+                                                        <TextBlock x:Name="MarkerSizeValueLabel" Text="5" VerticalAlignment="Center" Margin="8,0,0,0" />
                                                     </StackPanel>
 
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
                                                         <TextBlock Text="Opacity" VerticalAlignment="Center" Width="150" />
                                                         <Slider x:Name="MarkerOpacitySlider" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Width="180" ValueChanged="OnMarkerOpacityChanged" />
-                                                        <TextBlock x:Name="MarkerOpacityValueLabel" Text="0.80" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                        <TextBlock x:Name="MarkerOpacityValueLabel" Text="0.50" VerticalAlignment="Center" Margin="8,0,0,0" />
                                                     </StackPanel>
 
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="Position X / Y" VerticalAlignment="Center" Width="150" />
-                                                        <TextBox x:Name="MarkerPosXBox" Width="80" VerticalContentAlignment="Center" PreviewTextInput="OnNumericTextInput" LostFocus="OnPositionTextBoxLostFocus" />
-                                                        <TextBox x:Name="MarkerPosYBox" Width="80" Margin="8,0,0,0" VerticalContentAlignment="Center" PreviewTextInput="OnNumericTextInput" LostFocus="OnPositionTextBoxLostFocus" />
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                                        <TextBlock Text="Position" VerticalAlignment="Top" Width="150" Margin="0,4,0,0" />
+                                                        <StackPanel>
+                                                            <Border Width="180" Height="180" BorderBrush="#707070" BorderThickness="1" Background="#101010" 
+                                                                    MouseLeftButtonDown="OnMarkerPositionPickerMouseDown"
+                                                                    MouseMove="OnMarkerPositionPickerMouseMove"
+                                                                    MouseLeftButtonUp="OnMarkerPositionPickerMouseLeftButtonUp">
+                                                                <Canvas x:Name="MarkerPositionCanvas" Width="180" Height="180" Background="Transparent">
+                                                                    <Line X1="0" Y1="90" X2="180" Y2="90" Stroke="#40FFFFFF" StrokeThickness="1" StrokeDashArray="2,2" />
+                                                                    <Line X1="90" Y1="0" X2="90" Y2="180" Stroke="#40FFFFFF" StrokeThickness="1" StrokeDashArray="2,2" />
+                                                                    <Ellipse x:Name="MarkerPositionIndicator" Width="10" Height="10" Fill="#FF4CC2FF" Stroke="White" StrokeThickness="1" />
+                                                                </Canvas>
+                                                            </Border>
+                                                            <TextBlock x:Name="MarkerPositionValueLabel" Margin="0,8,0,0" Text="X: 0.000  Y: 0.000" />
+
+                                                        </StackPanel>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
+
+                                        <Button Content="Reset to default"
+                                                HorizontalAlignment="Right"
+                                                Width="140"
+                                                Margin="0,12,0,0"
+                                                Click="OnResetVrOverlayDefaultsClick" />
                                     </StackPanel>
                                 </StackPanel>
                         </StackPanel>

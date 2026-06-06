@@ -12,13 +12,36 @@ internal sealed class D3D11OverlayTextureRenderer : IOverlayTextureRenderer
     private readonly Func<string, OverlayVisualKind, OverlayBitmapFrame> _renderBitmap;
     private readonly Device _device;
     private readonly DeviceContext _context;
-    private readonly Dictionary<OverlayVisualKind, Texture2D> _textures = new();
+
+    // Two textures per visual kind: ping-pong double buffering.
+    //
+    // SteamVR's compositor caches its internal SRV by NativePointer (COM object identity).
+    // If we pass the same pointer on two consecutive SetOverlayTexture calls, the compositor
+    // assumes the texture hasn't changed and displays the cached (stale) frame.
+    //
+    // By alternating between two pre-allocated textures on every Upload, the pointer
+    // always differs from the previous call, forcing SteamVR to re-read the GPU data.
+    private readonly Texture2D[] _toastTextures;
+    private readonly Texture2D[] _statusTextures;
+    private int _toastIndex;
+    private int _statusIndex;
 
     public D3D11OverlayTextureRenderer(Func<string, OverlayVisualKind, OverlayBitmapFrame> renderBitmap)
     {
         _renderBitmap = renderBitmap;
         _device = new Device(DriverType.Hardware, DeviceCreationFlags.BgraSupport);
         _context = _device.ImmediateContext;
+
+        _toastTextures = new[]
+        {
+            AllocateTexture(OverlayBitmapFactory.ToastWidth,  OverlayBitmapFactory.ToastHeight),
+            AllocateTexture(OverlayBitmapFactory.ToastWidth,  OverlayBitmapFactory.ToastHeight),
+        };
+        _statusTextures = new[]
+        {
+            AllocateTexture(OverlayBitmapFactory.StatusWidth, OverlayBitmapFactory.StatusHeight),
+            AllocateTexture(OverlayBitmapFactory.StatusWidth, OverlayBitmapFactory.StatusHeight),
+        };
     }
 
     public string Name => "D3D11";
@@ -26,8 +49,20 @@ internal sealed class D3D11OverlayTextureRenderer : IOverlayTextureRenderer
 
     public OverlayTextureUploadResult Upload(CVROverlay overlay, ulong handle, string text, OverlayVisualKind kind)
     {
+        // Toggle to the back buffer so SteamVR always receives a different NativePointer.
+        Texture2D texture;
+        if (kind == OverlayVisualKind.Toast)
+        {
+            _toastIndex = 1 - _toastIndex;
+            texture = _toastTextures[_toastIndex];
+        }
+        else
+        {
+            _statusIndex = 1 - _statusIndex;
+            texture = _statusTextures[_statusIndex];
+        }
+
         var frame = _renderBitmap(text, kind);
-        var texture = EnsureTexture(kind, frame.Width, frame.Height);
         WritePixels(texture, frame);
 
         var openVrTexture = new Texture_t
@@ -40,17 +75,9 @@ internal sealed class D3D11OverlayTextureRenderer : IOverlayTextureRenderer
         return OverlayTextureUploadResult.FromError(error);
     }
 
-    private Texture2D EnsureTexture(OverlayVisualKind kind, int width, int height)
+    private Texture2D AllocateTexture(int width, int height)
     {
-        if (_textures.TryGetValue(kind, out var existing)
-            && existing.Description.Width == width
-            && existing.Description.Height == height)
-        {
-            return existing;
-        }
-
-        existing?.Dispose();
-        var texture = new Texture2D(_device, new Texture2DDescription
+        return new Texture2D(_device, new Texture2DDescription
         {
             Width = width,
             Height = height,
@@ -63,8 +90,6 @@ internal sealed class D3D11OverlayTextureRenderer : IOverlayTextureRenderer
             CpuAccessFlags = CpuAccessFlags.Write,
             OptionFlags = ResourceOptionFlags.None
         });
-        _textures[kind] = texture;
-        return texture;
     }
 
     private void WritePixels(Texture2D texture, OverlayBitmapFrame frame)
@@ -82,17 +107,14 @@ internal sealed class D3D11OverlayTextureRenderer : IOverlayTextureRenderer
         finally
         {
             _context.UnmapSubresource(texture, 0);
+            _context.Flush();
         }
     }
 
     public void Dispose()
     {
-        foreach (var texture in _textures.Values)
-        {
-            texture.Dispose();
-        }
-
-        _textures.Clear();
+        foreach (var t in _toastTextures)  t.Dispose();
+        foreach (var t in _statusTextures) t.Dispose();
         _context.Dispose();
         _device.Dispose();
     }

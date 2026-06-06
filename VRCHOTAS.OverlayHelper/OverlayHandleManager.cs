@@ -53,6 +53,17 @@ internal sealed class OverlayHandleManager
             return false;
         }
 
+        // Start invisible – we keep the overlay permanently "shown" in SteamVR so
+        // that texture updates are always processed by the compositor.  Visibility
+        // is controlled exclusively via alpha (0 = hidden, >0 = visible).
+        overlay.SetOverlayAlpha(handle, 0f);
+        var showError = overlay.ShowOverlay(handle);
+        if (showError != EVROverlayError.None)
+        {
+            LogOverlayError($"Pre-warm ShowOverlay '{key}'", showError);
+            // Non-fatal: we still store the handle and try showing later.
+        }
+
         SetHandle(kind, handle);
         return true;
     }
@@ -65,21 +76,19 @@ internal sealed class OverlayHandleManager
         }
 
         var transform = kind == OverlayVisualKind.Toast ? OverlayPlacement.GetToastTransform(prefs) : OverlayPlacement.GetStatusTransform(prefs);
-        var error = overlay.SetOverlayTransformTrackedDeviceRelative(handle, OpenVR.k_unTrackedDeviceIndex_Hmd, ref transform);
-        if (error != EVROverlayError.None)
+        var setTransformError = overlay.SetOverlayTransformTrackedDeviceRelative(handle, OpenVR.k_unTrackedDeviceIndex_Hmd, ref transform);
+        if (setTransformError != EVROverlayError.None)
         {
-            LogOverlayError($"Position {kind} overlay", error);
+            LogOverlayError($"Position {kind} overlay", setTransformError);
             Destroy(overlay, kind);
             return false;
         }
 
-        error = overlay.ShowOverlay(handle);
-        if (error != EVROverlayError.None)
-        {
-            LogOverlayError($"Show {kind} overlay", error);
-            Destroy(overlay, kind);
-            return false;
-        }
+        // Restore visibility by setting alpha back to the intended value.
+        float alpha = kind == OverlayVisualKind.Toast
+            ? (float)(prefs?.ToastOpacity ?? 1.0)
+            : (float)(prefs?.MarkerOpacity ?? 0.8);
+        overlay.SetOverlayAlpha(handle, alpha);
 
         return true;
     }
@@ -92,10 +101,10 @@ internal sealed class OverlayHandleManager
             return;
         }
 
-        var error = overlay.HideOverlay(handle);
+        var error = overlay.SetOverlayAlpha(handle, 0f);
         if (error is not EVROverlayError.None and not EVROverlayError.InvalidHandle)
         {
-            LogOverlayError($"Hide {kind} overlay", error);
+            LogOverlayError($"SetAlpha for Hide {kind} overlay", error);
             Destroy(overlay, kind);
         }
     }
@@ -130,19 +139,12 @@ internal sealed class OverlayHandleManager
 
     private bool Configure(CVROverlay overlay, ulong handle, OverlayVisualKind kind, VrOverlayPreferences? prefs)
     {
-        float alpha = 1f;
-        float width = 0.58f;
-        if (kind == OverlayVisualKind.Toast) {
-            alpha = (float)(prefs?.ToastOpacity ?? 1.0);
-            width = 0.58f; // Toasts adapt size by texture bounds, keeping this static
-        } else {
-            alpha = (float)(prefs?.MarkerOpacity ?? 0.8);
-            width = (float)(prefs?.MarkerSize ?? 32.0) / 100f; // Scale custom size
-        }
+        float width = kind == OverlayVisualKind.Toast
+            ? 0.58f
+            : (float)(prefs?.MarkerSize ?? 32.0) / 100f;
 
         return Check(overlay.SetOverlayInputMethod(handle, VROverlayInputMethod.None), $"Set {kind} input method")
             && Check(overlay.SetOverlayTexelAspect(handle, 1f), $"Set {kind} texel aspect")
-            && Check(overlay.SetOverlayAlpha(handle, alpha), $"Set {kind} alpha")
             && Check(overlay.SetOverlayColor(handle, 1f, 1f, 1f), $"Set {kind} color")
             && Check(overlay.SetOverlayWidthInMeters(handle, width), $"Set {kind} width");
     }

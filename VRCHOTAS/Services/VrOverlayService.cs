@@ -46,6 +46,10 @@ public sealed class VrOverlayService : IDisposable
             Type = OverlayHelperMessageType.ApplyPreferences,
             Enabled = normalized.Enabled,
             StatusIndicatorEnabled = normalized.StatusIndicatorEnabled,
+            HideWhenDashboardIsVisible = normalized.HideWhenDashboardIsVisible,
+            OverlayDistanceMeters = normalized.OverlayDistanceMeters,
+            OverlaySizeScale = normalized.OverlaySizeScale,
+            ToastPositionY = normalized.ToastPositionY,
             ToastDurationSeconds = normalized.ToastDurationSeconds,
             MarkerImagePath = normalized.MarkerImagePath,
             MarkerSize = normalized.MarkerSize,
@@ -125,7 +129,12 @@ public sealed class VrOverlayService : IDisposable
         await _sendGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (_disposed || !EnsureConnected())
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (!EnsureConnected())
             {
                 return;
             }
@@ -315,6 +324,9 @@ public sealed class VrOverlayService : IDisposable
         {
         }
 
+        _writer = null;
+        _pipeClient = null;
+
         if (killHelper && _helperProcess is not null)
         {
             try
@@ -322,19 +334,27 @@ public sealed class VrOverlayService : IDisposable
                 if (!_helperProcess.HasExited)
                 {
                     _helperProcess.Kill(entireProcessTree: true);
-                    _helperProcess.WaitForExit(2000);
+                    _helperProcess.WaitForExit(3000);
                 }
             }
             catch
             {
+                // Process may have already exited or access is denied.
+                // In either case, the helper is no longer running, which is acceptable.
             }
-        }
 
-        if (_helperProcess is { HasExited: true })
-        {
             try
             {
-                _logger.Info(nameof(VrOverlayService), $"Overlay helper exited with code {_helperProcess.ExitCode}.");
+                if (!_helperProcess.HasExited)
+                {
+                    _logger.Warning(nameof(VrOverlayService),
+                        $"Overlay helper (PID {_helperProcess.Id}) did not exit after Kill+Wait. Force-closing handle.");
+                }
+                else
+                {
+                    _logger.Info(nameof(VrOverlayService),
+                        $"Overlay helper exited with code {_helperProcess.ExitCode}.");
+                }
             }
             catch
             {
@@ -343,9 +363,6 @@ public sealed class VrOverlayService : IDisposable
             _helperProcess.Dispose();
             _helperProcess = null;
         }
-
-        _writer = null;
-        _pipeClient = null;
     }
 
     public void Dispose()
@@ -363,25 +380,37 @@ public sealed class VrOverlayService : IDisposable
             }
 
             _disposed = true;
-            _sendGate.Wait();
+
+            // Try to send a graceful shutdown message if we're already connected.
+            // Do NOT call EnsureConnected() here — it can block for 10 seconds
+            // on a pipe connection attempt, which freezes the UI during exit.
+            var acquired = _sendGate.Wait(TimeSpan.FromMilliseconds(500));
             try
             {
-                if (EnsureConnected())
+                if (acquired && _writer is not null && _pipeClient is not null && _pipeClient.IsConnected)
                 {
-                    var payload = JsonConvert.SerializeObject(new OverlayHelperMessage
+                    try
                     {
-                        Type = OverlayHelperMessageType.Shutdown
-                    });
-                    _writer!.WriteLine(payload);
-                    _writer.Flush();
+                        var payload = JsonConvert.SerializeObject(new OverlayHelperMessage
+                        {
+                            Type = OverlayHelperMessageType.Shutdown
+                        });
+                        _writer.WriteLine(payload);
+                        _writer.Flush();
+                    }
+                    catch
+                    {
+                        // Pipe is broken; killing the helper process below will suffice.
+                    }
                 }
-            }
-            catch
-            {
             }
             finally
             {
-                _sendGate.Release();
+                if (acquired)
+                {
+                    _sendGate.Release();
+                }
+
                 _sendGate.Dispose();
                 Disconnect(killHelper: true);
                 _statusReaderCancellation?.Dispose();

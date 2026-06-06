@@ -152,7 +152,7 @@ public sealed partial class MainViewModel
 
         if (showOverlayToast)
         {
-            _vrOverlayService.ShowConfigurationToast(CurrentConfigurationFileName);
+            _vrOverlayService.ShowConfigurationToast(normalized);
         }
 
         _logger.Info(nameof(MainViewModel), $"Configuration switched to: {CurrentConfigurationFileName}");

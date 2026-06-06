@@ -150,10 +150,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             OnPropertyChanged(nameof(MappingEnabledStatusText));
 
-            if (!_vrOverlayPreferences.StatusIndicatorEnabled)
-            {
-                _vrOverlayService.ShowMasterSwitchToast(value);
-            }
+            _vrOverlayService.ShowMasterSwitchToast(value);
 
             _vrOverlayService.UpdateStatusIndicator(value);
             _logger.Info(nameof(MainViewModel), $"Mapping master switch {(value ? "enabled" : "disabled")}.");
@@ -707,9 +704,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _deviceRefreshCancellation.Cancel();
         _frameLoopCancellation.Cancel();
 
+        // Wait for background tasks with a hard timeout so we never block
+        // process exit indefinitely.
+        const int taskTimeoutMs = 3000;
+
         try
         {
-            _deviceRefreshTask?.GetAwaiter().GetResult();
+            if (_deviceRefreshTask is not null)
+            {
+                _deviceRefreshTask.Wait(TimeSpan.FromMilliseconds(taskTimeoutMs));
+            }
         }
         catch (OperationCanceledException)
         {
@@ -717,7 +721,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            _frameLoopTask.GetAwaiter().GetResult();
+            _frameLoopTask.Wait(TimeSpan.FromMilliseconds(taskTimeoutMs));
         }
         catch (OperationCanceledException)
         {

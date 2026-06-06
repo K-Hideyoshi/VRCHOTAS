@@ -41,6 +41,7 @@ bool HotasServerDriver::ShouldExposeVirtualControllers(const vrchotas::VirtualCo
     const auto age = now >= snapshot.app_heartbeat_tick_ms
         ? now - snapshot.app_heartbeat_tick_ms
         : 0;
+
     return age <= kAppHeartbeatTimeoutMs;
 }
 
@@ -60,10 +61,6 @@ void HotasServerDriver::EnsureVirtualControllersRegistered()
     DriverLogF("[vrchotas] TrackedDeviceAdded(%s) => %s", "vrchotas_right", rightAdded ? "true" : "false");
     _controllersRegistered = leftAdded && rightAdded;
     _loggedWaitingForAppHeartbeat = false;
-    if (_controllersRegistered)
-    {
-        SetVirtualControllersConnected(true, true);
-    }
 }
 
 void HotasServerDriver::SetVirtualControllersConnected(bool leftConnected, bool rightConnected)
@@ -220,18 +217,6 @@ void HotasServerDriver::RunFrame()
         const bool useVirtualLeft = ShouldUseVirtualController(snapshot, vr::TrackedControllerRole_LeftHand);
         const bool useVirtualRight = ShouldUseVirtualController(snapshot, vr::TrackedControllerRole_RightHand);
 
-        if (snapshot.pose_source != _lastLoggedPoseSource)
-        {
-            DriverLogF("[vrchotas] Pose handoff mode changed: %s", PoseSourceToString(snapshot.pose_source));
-            _left->PrepareForReconnect();
-            _right->PrepareForReconnect();
-        }
-
-        if (useVirtualLeft != _lastDesiredLeftControllerConnection || useVirtualRight != _lastDesiredRightControllerConnection)
-        {
-            SetVirtualControllersConnected(useVirtualLeft, useVirtualRight);
-        }
-
         const std::int32_t leftHandSelectionPriority = useVirtualLeft
             ? vrchotas::driver::kMappedHandSelectionPriority
             : vrchotas::driver::kRealControllerPreferredHandSelectionPriority;
@@ -241,6 +226,10 @@ void HotasServerDriver::RunFrame()
 
         if (snapshot.pose_source != _lastLoggedPoseSource)
         {
+            DriverLogF("[vrchotas] Pose handoff mode changed: %s", PoseSourceToString(snapshot.pose_source));
+            _left->PrepareForReconnect();
+            _right->PrepareForReconnect();
+
             _left->ForceReannounceHandSelectionPriority(leftHandSelectionPriority, "pose-source-changed");
             _right->ForceReannounceHandSelectionPriority(rightHandSelectionPriority, "pose-source-changed");
             DriverLogF(
@@ -255,6 +244,11 @@ void HotasServerDriver::RunFrame()
 
         _left->SetHandSelectionPriority(leftHandSelectionPriority, PoseSourceToString(snapshot.pose_source));
         _right->SetHandSelectionPriority(rightHandSelectionPriority, PoseSourceToString(snapshot.pose_source));
+
+        if (useVirtualLeft != _lastDesiredLeftControllerConnection || useVirtualRight != _lastDesiredRightControllerConnection)
+        {
+            SetVirtualControllersConnected(useVirtualLeft, useVirtualRight);
+        }
 
         const auto& leftInput = snapshot.left;
         const auto& rightInput = snapshot.right;
