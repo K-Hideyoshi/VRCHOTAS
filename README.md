@@ -21,6 +21,7 @@ The system is composed of two required parts:
 
 - [Runtime Requirements](#runtime-requirements)
 - [Implementation Overview](#implementation-overview)
+- [Project Structure](#project-structure)
 - [Build Guide](#build-guide)
   - [Build the C++ Driver](#build-the-c-driver)
   - [Build the .NET App](#build-the-net-app)
@@ -67,6 +68,37 @@ In short:
 
 - **.NET App handles device input, mapping, UI, and state publishing**
 - **C++ Driver handles SteamVR-facing controller injection**
+
+### Project Structure
+
+```
+VRCHOTAS/
+├── Models/            # Domain models, enums, and display helpers
+│   ├── MappingEnums.cs       # All mapping-related enum types
+│   ├── MappingConfig.cs      # MappingEntry, AppConfiguration
+│   ├── MappingDisplayHelper.cs  # Human-readable display formatting
+│   ├── PreferencesDocument.cs   # Root preferences model
+│   └── AppPaths.cs           # Centralized app path definitions
+├── Services/          # Business logic (mapping engine, joystick, overlay, etc.)
+│   ├── MappingEngine.cs      # Core input-to-output mapping pipeline
+│   ├── JoystickService.cs    # DirectInput device discovery & polling
+│   ├── ConfigurationService.cs  # Config file load/save/enumerate
+│   ├── PreferencesService.cs    # Preferences load/save with ModifyAndSave helper
+│   ├── VrOverlayService.cs      # Overlay helper IPC client
+│   ├── HotkeyRuntime.cs        # Frame-level hotkey evaluation
+│   ├── HotkeyCaptureRules.cs   # Keyboard hotkey capture validation
+│   ├── HotkeyDisplayFormatter.cs # Hotkey display string formatting
+│   └── PoseMappingMath.cs      # Euler angle → quaternion conversion
+├── ViewModels/        # MVVM view models (MainWindow, MappingEditor, etc.)
+├── Interop/           # Shared-memory IPC with the C++ driver
+├── Logging/           # File-based logging implementation
+├── Converters/        # WPF value converters
+└── icons/             # Application icons
+
+VRCHOTAS.OverlayHelper/  # Standalone overlay rendering process (named-pipe IPC)
+VRCHOTAS.Tests/          # xUnit unit tests for core models and services
+VirtualDriver/           # C++ OpenVR/SteamVR driver
+```
 
 ## Build Guide
 
@@ -125,6 +157,14 @@ Run:
 ```powershell
 dotnet run --project .\VRCHOTAS\VRCHOTAS.csproj
 ```
+
+### Running Tests
+
+```powershell
+dotnet test .\VRCHOTAS.Tests\VRCHOTAS.Tests.csproj
+```
+
+Tests use xUnit and cover core models, JSON serialization, display helpers, and path utilities.
 
 ### Release Packaging Guide
 

@@ -8,11 +8,7 @@ namespace VRCHOTAS.Services;
 public sealed class ConfigurationService
 {
     private readonly IAppLogger _logger;
-    private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
-    private static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
-    private static readonly string LegacyConfigDirectory = AppDataDirectory;
-    private const string DefaultConfigFileName = "default-config.json";
-    private const string PreferencesFileName = "preferences.json";
+    private static readonly string LegacyConfigDirectory = AppPaths.AppDataDirectory;
 
     public ConfigurationService(IAppLogger logger)
     {
@@ -28,9 +24,9 @@ public sealed class ConfigurationService
 
         try
         {
-            Directory.CreateDirectory(ConfigDirectory);
-            var normalized = EnsureJsonExtension(fileName);
-            var path = GetConfigurationPath(normalized);
+            Directory.CreateDirectory(AppPaths.ConfigDirectory);
+            var normalized = AppPaths.EnsureJsonExtension(fileName);
+            var path = AppPaths.GetConfigurationPath(normalized);
             if (File.Exists(path))
             {
                 return;
@@ -49,7 +45,7 @@ public sealed class ConfigurationService
     {
         try
         {
-            Directory.CreateDirectory(ConfigDirectory);
+            Directory.CreateDirectory(AppPaths.ConfigDirectory);
             return EnumerateConfigurationFilePaths()
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -72,8 +68,8 @@ public sealed class ConfigurationService
             throw new ArgumentException("Configuration file name cannot be empty.", nameof(fileName));
         }
 
-        var normalized = EnsureJsonExtension(fileName);
-        var configPath = GetConfigurationPath(normalized);
+        var normalized = AppPaths.EnsureJsonExtension(fileName);
+        var configPath = AppPaths.GetConfigurationPath(normalized);
 
         try
         {
@@ -104,7 +100,7 @@ public sealed class ConfigurationService
 
         try
         {
-            var normalized = EnsureJsonExtension(fileName);
+            var normalized = AppPaths.EnsureJsonExtension(fileName);
             return EnumerateConfigurationFilePaths()
                 .Any(path => Path.GetFileName(path).Equals(normalized, StringComparison.OrdinalIgnoreCase));
         }
@@ -117,15 +113,15 @@ public sealed class ConfigurationService
 
     public string GetConfigurationDirectoryPath()
     {
-        Directory.CreateDirectory(ConfigDirectory);
-        return ConfigDirectory;
+        Directory.CreateDirectory(AppPaths.ConfigDirectory);
+        return AppPaths.ConfigDirectory;
     }
 
     private static IEnumerable<string> EnumerateConfigurationFilePaths()
     {
-        if (Directory.Exists(ConfigDirectory))
+        if (Directory.Exists(AppPaths.ConfigDirectory))
         {
-            foreach (var path in Directory.EnumerateFiles(ConfigDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (var path in Directory.EnumerateFiles(AppPaths.ConfigDirectory, "*.json", SearchOption.TopDirectoryOnly))
             {
                 yield return path;
             }
@@ -138,7 +134,7 @@ public sealed class ConfigurationService
 
         foreach (var path in Directory.EnumerateFiles(LegacyConfigDirectory, "*.json", SearchOption.TopDirectoryOnly))
         {
-            if (Path.GetFileName(path).Equals(PreferencesFileName, StringComparison.OrdinalIgnoreCase))
+            if (Path.GetFileName(path).Equals("preferences.json", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -154,12 +150,12 @@ public sealed class ConfigurationService
             throw new ArgumentException("Configuration file name cannot be empty.", nameof(fileName));
         }
 
-        var normalized = EnsureJsonExtension(fileName);
-        var configPath = GetConfigurationPath(normalized);
+        var normalized = AppPaths.EnsureJsonExtension(fileName);
+        var configPath = AppPaths.GetConfigurationPath(normalized);
 
         try
         {
-            Directory.CreateDirectory(ConfigDirectory);
+            Directory.CreateDirectory(AppPaths.ConfigDirectory);
             var text = JsonConvert.SerializeObject(configuration, Formatting.Indented);
             File.WriteAllText(configPath, text);
             _logger.Info(nameof(ConfigurationService), $"Configuration saved: {normalized}, mappings: {configuration.Mappings.Count}");
@@ -170,13 +166,4 @@ public sealed class ConfigurationService
         }
     }
 
-    private static string EnsureJsonExtension(string fileName)
-    {
-        return fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";
-    }
-
-    private static string GetConfigurationPath(string fileName)
-    {
-        return Path.Combine(ConfigDirectory, Path.GetFileName(fileName));
-    }
 }

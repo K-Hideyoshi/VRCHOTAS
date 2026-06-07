@@ -125,7 +125,7 @@ public sealed class MappingEngine
     {
         if (context.Mapping.IsAxisMapping)
         {
-            _logger.Debug(nameof(MappingEngine), "Skipped mapping: axis source cannot drive a controller pose action target.");
+            _logger.Debug(nameof(MappingEngine), "Skipped mapping: axis source cannot drive a VR pose action target.");
             return;
         }
 

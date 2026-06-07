@@ -5,96 +5,6 @@ using MediaBrushes = System.Windows.Media.Brushes;
 
 namespace VRCHOTAS.Models;
 
-public enum VirtualTargetHand
-{
-    Left = 0,
-    Right = 1
-}
-
-public enum ControllerOutputMode
-{
-    FullVirtual = 0,
-    HybridKeepLeftReal = 1,
-    HybridKeepRightReal = 2
-}
-
-public enum AxisRangeKind
-{
-    Bidirectional = 0,
-    Unidirectional = 1
-}
-
-public enum VirtualAxisTarget
-{
-    ThumbstickX = 0,
-    ThumbstickY = 1,
-    Trigger = 2,
-    Grip = 3
-}
-
-public enum VirtualButtonTarget
-{
-    ThumbstickClick = 0,
-    PrimaryFaceButton = 1,
-    SecondaryFaceButton = 2,
-    System = 3,
-    RecenterHand = 4
-}
-
-public enum ControllerPoseTarget
-{
-    PositionX = 0,
-    PositionY = 1,
-    PositionZ = 2,
-    OrientationPitch = 3,
-    OrientationYaw = 4,
-    OrientationRoll = 5,
-    LinearVelocityX = 6,
-    LinearVelocityY = 7,
-    LinearVelocityZ = 8,
-    AngularVelocityX = 9,
-    AngularVelocityY = 10,
-    AngularVelocityZ = 11
-}
-
-public enum ControllerPoseActionTarget
-{
-    ResetPositionX = 0,
-    ResetPositionY = 1,
-    ResetPositionZ = 2,
-    ResetOrientPitch = 3,
-    ResetOrientRoll = 4,
-    ResetOrientYaw = 5,
-    ResetHand = 6
-}
-
-public enum MappingTargetKind
-{
-    AxisInput = 0,
-    Button = 1,
-    PosePositionX = 2,
-    PosePositionY = 3,
-    PosePositionZ = 4,
-    /// <summary>Pitch about +X axis (rotation).</summary>
-    PoseOrientationX = 5,
-    /// <summary>Yaw about +Y axis (rotation).</summary>
-    PoseOrientationY = 6,
-    /// <summary>Roll about +Z axis (rotation).</summary>
-    PoseOrientationZ = 7,
-    LinearVelocityX = 8,
-    LinearVelocityY = 9,
-    LinearVelocityZ = 10,
-    /// <summary>Angular velocity about +X (rad/s).</summary>
-    AngularVelocityX = 11,
-    /// <summary>Angular velocity about +Y (rad/s).</summary>
-    AngularVelocityY = 12,
-    /// <summary>Angular velocity about +Z (rad/s).</summary>
-    AngularVelocityZ = 13,
-    AxisAction = 14,
-    ControllerPose = 15,
-    ControllerPoseAction = 16
-}
-
 public sealed partial class MappingEntry : ObservableObject
 {
     [ObservableProperty]
@@ -167,21 +77,7 @@ public sealed partial class MappingEntry : ObservableObject
         : $"{SourceDeviceId}|Button|{SourceButtonIndex}";
 
     [JsonIgnore]
-    public string TargetControlDisplay
-    {
-        get
-        {
-            var k = NormalizedTargetKind;
-            return k switch
-            {
-                MappingTargetKind.AxisInput => GetAxisTargetDisplay(),
-                MappingTargetKind.Button => GetButtonTargetDisplay(),
-                MappingTargetKind.ControllerPose => GetControllerPoseDisplay(),
-                MappingTargetKind.ControllerPoseAction => GetControllerPoseActionDisplay(),
-                _ => k.ToString()
-            };
-        }
-    }
+    public string TargetControlDisplay => MappingDisplayHelper.GetTargetControlDisplay(this);
 
     [JsonIgnore]
     public string TargetGroupingKey => NormalizedTargetKind switch
@@ -213,85 +109,17 @@ public sealed partial class MappingEntry : ObservableObject
         get
         {
             var sourceType = IsAxisMapping ? "Axis" : "Button";
-            var targetType = GetTargetTypeLabel(NormalizedTargetKind);
+            var targetType = MappingDisplayHelper.GetTargetTypeLabel(NormalizedTargetKind);
             var toggleSuffix = ToggleMode ? " Toggled" : string.Empty;
             return $"{sourceType} -> {targetType}{toggleSuffix}";
         }
     }
 
-    public static string GetTargetTypeLabel(MappingTargetKind targetKind)
-    {
-        return targetKind switch
-        {
-            MappingTargetKind.AxisInput => "Axis",
-            MappingTargetKind.Button => "Button",
-            MappingTargetKind.ControllerPose => "Pose",
-            MappingTargetKind.ControllerPoseAction => "Pose Action",
-            _ => targetKind.ToString()
-        };
-    }
+    public static string GetTargetTypeLabel(MappingTargetKind targetKind) =>
+        MappingDisplayHelper.GetTargetTypeLabel(targetKind);
 
-    private string GetAxisTargetDisplay()
-    {
-        return TargetAxis switch
-        {
-            VirtualAxisTarget.ThumbstickX => "Thumbstick X",
-            VirtualAxisTarget.ThumbstickY => "Thumbstick Y",
-            VirtualAxisTarget.Trigger => "Trigger",
-            VirtualAxisTarget.Grip => "Grip",
-            _ => TargetAxis.ToString()
-        };
-    }
-
-    private string GetButtonTargetDisplay()
-    {
-        return TargetButton switch
-        {
-            VirtualButtonTarget.ThumbstickClick => "Thumbstick Click",
-            VirtualButtonTarget.PrimaryFaceButton => TargetHand == VirtualTargetHand.Right ? "A Button" : "X Button",
-            VirtualButtonTarget.SecondaryFaceButton => TargetHand == VirtualTargetHand.Right ? "B Button" : "Y Button",
-            VirtualButtonTarget.System => "System Button",
-            VirtualButtonTarget.RecenterHand => "Recenter Hand",
-            _ => TargetButton.ToString()
-        };
-    }
-
-    private string GetControllerPoseDisplay()
-    {
-        return ResolvedControllerPoseTarget switch
-        {
-            ControllerPoseTarget.PositionX => "Pose position X (m)",
-            ControllerPoseTarget.PositionY => "Pose position Y (m)",
-            ControllerPoseTarget.PositionZ => "Pose position Z (m)",
-            ControllerPoseTarget.OrientationPitch => "Orient Pitch (rotation)",
-            ControllerPoseTarget.OrientationYaw => "Orient Yaw (rotation)",
-            ControllerPoseTarget.OrientationRoll => "Orient Roll (rotation)",
-            ControllerPoseTarget.LinearVelocityX => "Linear velocity X (m/s)",
-            ControllerPoseTarget.LinearVelocityY => "Linear velocity Y (m/s)",
-            ControllerPoseTarget.LinearVelocityZ => "Linear velocity Z (m/s)",
-            ControllerPoseTarget.AngularVelocityX => "Angular Velocity Pitch (rad/s)",
-            ControllerPoseTarget.AngularVelocityY => "Angular Velocity Yaw (rad/s)",
-            ControllerPoseTarget.AngularVelocityZ => "Angular Velocity Roll (rad/s)",
-            _ => ResolvedControllerPoseTarget.ToString()
-        };
-    }
-
-    private string GetControllerPoseActionDisplay()
-    {
-        return TargetControllerPoseAction switch
-        {
-            ControllerPoseActionTarget.ResetPositionX => "Reset Pos X",
-            ControllerPoseActionTarget.ResetPositionY => "Reset Pos Y",
-            ControllerPoseActionTarget.ResetPositionZ => "Reset Pos Z",
-            ControllerPoseActionTarget.ResetOrientPitch => "Reset Orient Pitch",
-            ControllerPoseActionTarget.ResetOrientRoll => "Reset Orient Roll",
-            ControllerPoseActionTarget.ResetOrientYaw => "Reset Orient Yaw",
-            ControllerPoseActionTarget.ResetHand => "Reset Hand",
-            _ => TargetControllerPoseAction.ToString()
-        };
-    }
-
-    private static bool IsLegacyControllerPoseKind(MappingTargetKind targetKind) => targetKind is >= MappingTargetKind.PosePositionX and <= MappingTargetKind.AngularVelocityZ;
+    private static bool IsLegacyControllerPoseKind(MappingTargetKind targetKind) =>
+        targetKind is >= MappingTargetKind.PosePositionX and <= MappingTargetKind.AngularVelocityZ;
 
     private static ControllerPoseTarget MapLegacyControllerPoseTarget(MappingTargetKind targetKind) => targetKind switch
     {

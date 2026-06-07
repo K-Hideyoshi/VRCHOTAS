@@ -38,78 +38,37 @@ public sealed class VrOverlayService : IDisposable
 
     public void ApplyPreferences(VrOverlayPreferences? preferences, bool isMasterSwitchOn)
     {
-        var normalized = preferences?.Clone() ?? new VrOverlayPreferences();
-        normalized.Normalize();
-
-        var message = new OverlayHelperMessage
-        {
-            Type = OverlayHelperMessageType.ApplyPreferences,
-            Enabled = normalized.Enabled,
-            StatusIndicatorEnabled = normalized.StatusIndicatorEnabled,
-            HideWhenDashboardIsVisible = normalized.HideWhenDashboardIsVisible,
-            OverlayDistanceMeters = normalized.OverlayDistanceMeters,
-            OverlaySizeScale = normalized.OverlaySizeScale,
-            ToastPositionY = normalized.ToastPositionY,
-            ToastDurationSeconds = normalized.ToastDurationSeconds,
-            MarkerImagePath = normalized.MarkerImagePath,
-            MarkerSize = normalized.MarkerSize,
-            MarkerPositionX = normalized.MarkerPositionX,
-            MarkerPositionY = normalized.MarkerPositionY,
-            MarkerOpacity = normalized.MarkerOpacity,
-            ToastBackgroundColor = normalized.ToastBackgroundColor,
-            ToastOpacity = normalized.ToastOpacity,
-            ToastTextSize = normalized.ToastTextSize,
-            IsMasterSwitchOn = isMasterSwitchOn
-        };
+        var message = OverlayHelperMessage.CreateApplyPreferences(
+            preferences ?? new VrOverlayPreferences(), isMasterSwitchOn);
         _lastPreferencesMessage = CloneMessage(message);
         Send(message);
     }
 
     public void ShowMasterSwitchToast(bool isEnabled)
     {
-        var message = new OverlayHelperMessage
-        {
-            Type = OverlayHelperMessageType.ShowMasterSwitchToast,
-            IsMasterSwitchOn = isEnabled
-        };
+        var message = OverlayHelperMessage.CreateMasterSwitchToast(isEnabled);
         _lastToastMessage = CloneMessage(message);
         Send(message);
     }
 
     public void ShowConfigurationToast(string? configurationFileName)
     {
-        if (string.IsNullOrWhiteSpace(configurationFileName))
-        {
-            return;
-        }
-
-        var message = new OverlayHelperMessage
-        {
-            Type = OverlayHelperMessageType.ShowConfigurationToast,
-            ConfigurationFileName = configurationFileName
-        };
+        if (string.IsNullOrWhiteSpace(configurationFileName)) return;
+        var message = OverlayHelperMessage.CreateConfigurationToast(configurationFileName);
         _lastToastMessage = CloneMessage(message);
         Send(message);
     }
 
     public void ShowTestToast()
     {
-        var message = new OverlayHelperMessage
-        {
-            Type = OverlayHelperMessageType.ShowTestToast,
-            Message = "VRCHOTAS overlay test"
-        };
+        var message = OverlayHelperMessage.CreateTestToast();
         _lastToastMessage = CloneMessage(message);
         Send(message);
     }
 
     public void UpdateStatusIndicator(bool isMasterSwitchOn)
     {
-        var message = new OverlayHelperMessage
-        {
-            Type = OverlayHelperMessageType.UpdateStatusIndicator,
-            IsMasterSwitchOn = isMasterSwitchOn
-        };
+        var message = OverlayHelperMessage.CreateStatusIndicator(isMasterSwitchOn);
         _lastStatusMessage = CloneMessage(message);
         Send(message);
     }

@@ -18,10 +18,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\VRCHOTAS\Models\AppPaths.cs" Link="Models\AppPaths.cs" />
+    <Compile Include="..\VRCHOTAS\Models\EulerAnglePreferences.cs" Link="Models\EulerAnglePreferences.cs" />
+    <Compile Include="..\VRCHOTAS\Models\HotkeyPreferences.cs" Link="Models\HotkeyPreferences.cs" />
+    <Compile Include="..\VRCHOTAS\Models\MappingEnums.cs" Link="Models\MappingEnums.cs" />
     <Compile Include="..\VRCHOTAS\Models\OverlayHelperMessage.cs" Link="Models\OverlayHelperMessage.cs" />
     <Compile Include="..\VRCHOTAS\Models\OverlayHelperMessageType.cs" Link="Models\OverlayHelperMessageType.cs" />
+    <Compile Include="..\VRCHOTAS\Models\OverlayHelperProtocol.cs" Link="Models\OverlayHelperProtocol.cs" />
     <Compile Include="..\VRCHOTAS\Models\OverlayHelperStatusKind.cs" Link="Models\OverlayHelperStatusKind.cs" />
     <Compile Include="..\VRCHOTAS\Models\OverlayHelperStatusMessage.cs" Link="Models\OverlayHelperStatusMessage.cs" />
+    <Compile Include="..\VRCHOTAS\Models\PreferencesDocument.cs" Link="Models\PreferencesDocument.cs" />
+    <Compile Include="..\VRCHOTAS\Models\RawJoystickState.cs" Link="Models\RawJoystickState.cs" />
     <Compile Include="..\VRCHOTAS\Models\VrOverlayPreferences.cs" Link="Models\VrOverlayPreferences.cs" />
     <Compile Include="..\VRCHOTAS\Models\VrOverlayRenderingMode.cs" Link="Models\VrOverlayRenderingMode.cs" />
   </ItemGroup>

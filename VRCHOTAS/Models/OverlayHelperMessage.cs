@@ -60,4 +60,54 @@ public sealed class OverlayHelperMessage
 
     [JsonProperty("configurationFileName")]
     public string? ConfigurationFileName { get; set; }
+
+    public static OverlayHelperMessage CreateApplyPreferences(VrOverlayPreferences preferences, bool isMasterSwitchOn)
+    {
+        var normalized = preferences.Clone();
+        normalized.Normalize();
+        return new OverlayHelperMessage
+        {
+            Type = OverlayHelperMessageType.ApplyPreferences,
+            Enabled = normalized.Enabled,
+            StatusIndicatorEnabled = normalized.StatusIndicatorEnabled,
+            HideWhenDashboardIsVisible = normalized.HideWhenDashboardIsVisible,
+            OverlayDistanceMeters = normalized.OverlayDistanceMeters,
+            OverlaySizeScale = normalized.OverlaySizeScale,
+            ToastPositionY = normalized.ToastPositionY,
+            ToastDurationSeconds = normalized.ToastDurationSeconds,
+            MarkerImagePath = normalized.MarkerImagePath,
+            MarkerSize = normalized.MarkerSize,
+            MarkerPositionX = normalized.MarkerPositionX,
+            MarkerPositionY = normalized.MarkerPositionY,
+            MarkerOpacity = normalized.MarkerOpacity,
+            ToastBackgroundColor = normalized.ToastBackgroundColor,
+            ToastOpacity = normalized.ToastOpacity,
+            ToastTextSize = normalized.ToastTextSize,
+            IsMasterSwitchOn = isMasterSwitchOn
+        };
+    }
+
+    public static OverlayHelperMessage CreateMasterSwitchToast(bool isEnabled) => new()
+    {
+        Type = OverlayHelperMessageType.ShowMasterSwitchToast,
+        IsMasterSwitchOn = isEnabled
+    };
+
+    public static OverlayHelperMessage CreateConfigurationToast(string configurationFileName) => new()
+    {
+        Type = OverlayHelperMessageType.ShowConfigurationToast,
+        ConfigurationFileName = configurationFileName
+    };
+
+    public static OverlayHelperMessage CreateTestToast(string? message = null) => new()
+    {
+        Type = OverlayHelperMessageType.ShowTestToast,
+        Message = message ?? "VRCHOTAS overlay test"
+    };
+
+    public static OverlayHelperMessage CreateStatusIndicator(bool isMasterSwitchOn) => new()
+    {
+        Type = OverlayHelperMessageType.UpdateStatusIndicator,
+        IsMasterSwitchOn = isMasterSwitchOn
+    };
 }

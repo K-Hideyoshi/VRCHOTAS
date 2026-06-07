@@ -9,9 +9,6 @@ namespace VRCHOTAS.Services;
 public sealed class PreferencesService
 {
     private readonly IAppLogger _logger;
-    private static readonly string AppDataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRCHOTAS");
-    private static readonly string PreferencesPath = Path.Combine(AppDataDirectory, "preferences.json");
-    private const string DefaultConfigFileName = "default-config.json";
 
     public PreferencesService(IAppLogger logger)
     {
@@ -25,15 +22,15 @@ public sealed class PreferencesService
     {
         try
         {
-            Directory.CreateDirectory(AppDataDirectory);
-            if (File.Exists(PreferencesPath))
+            Directory.CreateDirectory(AppPaths.AppDataDirectory);
+            if (File.Exists(AppPaths.PreferencesFilePath))
             {
                 return;
             }
 
             var doc = new PreferencesDocument
             {
-                DefaultConfigurationFileName = DefaultConfigFileName
+                DefaultConfigurationFileName = AppPaths.DefaultConfigFileName
             };
             SaveDocument(doc);
         }
@@ -47,12 +44,12 @@ public sealed class PreferencesService
     {
         try
         {
-            if (!File.Exists(PreferencesPath))
+            if (!File.Exists(AppPaths.PreferencesFilePath))
             {
                 return new PreferencesDocument();
             }
 
-            var text = File.ReadAllText(PreferencesPath);
+            var text = File.ReadAllText(AppPaths.PreferencesFilePath);
             var root = JObject.Parse(text);
             if (root["hotkeys"] is JObject hotkeysToken)
             {
@@ -86,11 +83,11 @@ public sealed class PreferencesService
     {
         try
         {
-            Directory.CreateDirectory(AppDataDirectory);
+            Directory.CreateDirectory(AppPaths.AppDataDirectory);
             document.VrOverlay ??= new VrOverlayPreferences();
             document.VrOverlay.Normalize();
             var text = JsonConvert.SerializeObject(document, Formatting.Indented);
-            File.WriteAllText(PreferencesPath, text);
+            File.WriteAllText(AppPaths.PreferencesFilePath, text);
         }
         catch (Exception ex)
         {
@@ -110,9 +107,23 @@ public sealed class PreferencesService
             throw new ArgumentException("Configuration file name cannot be empty.", nameof(fileName));
         }
 
-        var normalized = fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";
+        var normalized = AppPaths.EnsureJsonExtension(fileName);
+        ModifyAndSave(doc => doc.DefaultConfigurationFileName = normalized);
+    }
+
+    /// <summary>
+    /// Loads the preferences document, applies a mutation, and saves it back.
+    /// Ensures DefaultConfigurationFileName is never left null on save.
+    /// </summary>
+    private void ModifyAndSave(Action<PreferencesDocument> mutate)
+    {
         var doc = LoadDocument();
-        doc.DefaultConfigurationFileName = normalized;
+        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
+        {
+            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
+        }
+
+        mutate(doc);
         SaveDocument(doc);
     }
 
@@ -123,14 +134,7 @@ public sealed class PreferencesService
 
     public void SaveHotkeys(HotkeyPreferences hotkeys)
     {
-        var doc = LoadDocument();
-        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
-        {
-            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
-        }
-
-        doc.Hotkeys = hotkeys ?? new HotkeyPreferences();
-        SaveDocument(doc);
+        ModifyAndSave(doc => doc.Hotkeys = hotkeys ?? new HotkeyPreferences());
     }
 
     public EulerAnglePreferences LoadEulerAngles()
@@ -140,14 +144,7 @@ public sealed class PreferencesService
 
     public void SaveEulerAngles(EulerAnglePreferences preferences)
     {
-        var doc = LoadDocument();
-        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
-        {
-            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
-        }
-
-        doc.EulerAngles = preferences?.Clone() ?? new EulerAnglePreferences();
-        SaveDocument(doc);
+        ModifyAndSave(doc => doc.EulerAngles = preferences?.Clone() ?? new EulerAnglePreferences());
     }
 
     public ControllerOutputMode LoadControllerOutputMode()
@@ -157,14 +154,7 @@ public sealed class PreferencesService
 
     public void SaveControllerOutputMode(ControllerOutputMode mode)
     {
-        var doc = LoadDocument();
-        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
-        {
-            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
-        }
-
-        doc.ControllerOutputMode = mode;
-        SaveDocument(doc);
+        ModifyAndSave(doc => doc.ControllerOutputMode = mode);
     }
 
     public bool LoadLocateMappingEnabled()
@@ -174,14 +164,7 @@ public sealed class PreferencesService
 
     public void SaveLocateMappingEnabled(bool enabled)
     {
-        var doc = LoadDocument();
-        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
-        {
-            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
-        }
-
-        doc.LocateMappingEnabled = enabled;
-        SaveDocument(doc);
+        ModifyAndSave(doc => doc.LocateMappingEnabled = enabled);
     }
 
     public VrOverlayPreferences LoadVrOverlay()
@@ -193,15 +176,7 @@ public sealed class PreferencesService
 
     public void SaveVrOverlay(VrOverlayPreferences preferences)
     {
-        var doc = LoadDocument();
-        if (string.IsNullOrWhiteSpace(doc.DefaultConfigurationFileName))
-        {
-            doc.DefaultConfigurationFileName = doc.GetNormalizedDefaultFileName();
-        }
-
-        doc.VrOverlay = preferences?.Clone() ?? new VrOverlayPreferences();
-        doc.VrOverlay.Normalize();
-        SaveDocument(doc);
+        ModifyAndSave(doc => doc.VrOverlay = preferences?.Clone() ?? new VrOverlayPreferences());
     }
 
     private static VrOverlayPreferences LoadVrOverlayPreferences(JObject root)

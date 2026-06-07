@@ -74,16 +74,16 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target Type:" />
                 <ComboBox Grid.Row="0" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
-                          ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
-
-                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target Type:" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           ItemsSource="{Binding AvailableTargetKindOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedTargetKind}" />
+
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Virtual Hand:" />
+                <ComboBox Grid.Row="1" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
+                          ItemsSource="{Binding HandTargets}" SelectedItem="{Binding TargetHand}" />
 
                 <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
@@ -95,12 +95,12 @@
                           Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                            ItemsSource="{Binding ButtonTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetButton}" />
 
-                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="Controller Pose Target:" Visibility="{Binding ShowControllerPosePicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Pose Target:" Visibility="{Binding ShowControllerPosePicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="4" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           Visibility="{Binding ShowControllerPosePicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                           ItemsSource="{Binding ControllerPoseTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPose}" />
 
-                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,6" Text="Controller Pose Action:" Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Pose Action:" Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="5" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                           ItemsSource="{Binding AxisActionTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPoseAction}" />

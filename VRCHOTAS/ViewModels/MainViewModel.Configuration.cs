@@ -20,7 +20,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        var normalizedFileName = EnsureJsonFileName(fileName);
+        var normalizedFileName = AppPaths.EnsureJsonExtension(fileName);
         _configurationService.SaveByFileName(normalizedFileName, new AppConfiguration
         {
             Mappings = Mappings.ToList()
@@ -55,7 +55,7 @@ public sealed partial class MainViewModel
             return false;
         }
 
-        var normalizedFileName = EnsureJsonFileName(fileName);
+        var normalizedFileName = AppPaths.EnsureJsonExtension(fileName);
         if (_configurationService.ConfigurationExists(normalizedFileName))
         {
             errorMessage = $"Configuration already exists: {normalizedFileName}";
@@ -136,7 +136,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        var normalized = EnsureJsonFileName(fileName);
+        var normalized = AppPaths.EnsureJsonExtension(fileName);
         var config = _configurationService.LoadByFileName(normalized);
         Mappings.Clear();
         foreach (var mapping in config.Mappings)
@@ -165,7 +165,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        var normalized = EnsureJsonFileName(fileName);
+        var normalized = AppPaths.EnsureJsonExtension(fileName);
         _preferencesService.SetDefaultConfigurationFileName(normalized);
         RebuildConfigurationMenuItems();
         _logger.Info(nameof(MainViewModel), $"Default configuration set to: {normalized}");
@@ -180,11 +180,6 @@ public sealed partial class MainViewModel
     {
         _eulerAnglePreferences = preferences?.Clone() ?? new EulerAnglePreferences();
         _mappingEngine.ApplyEulerAnglePreferences(_eulerAnglePreferences);
-    }
-
-    private static string EnsureJsonFileName(string fileName)
-    {
-        return fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? fileName : $"{fileName}.json";
     }
 
     private void MarkConfigurationDirty()

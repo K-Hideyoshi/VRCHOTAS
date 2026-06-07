@@ -14,7 +14,18 @@ public sealed partial class MainViewModel
     private const double ActiveMappingAxisSpeedThreshold = 2.5;
     private const int LocateAxisSelectionMinimumIntervalMilliseconds = 500;
     private static readonly TimeSpan LocateAxisSelectionMinimumInterval = TimeSpan.FromMilliseconds(LocateAxisSelectionMinimumIntervalMilliseconds);
+
+    /// <summary>
+    /// Number of frames to suppress mapping output after Master transitions from OFF to ON.
+    /// During this window the virtual controllers stay at neutral pose, giving them time
+    /// to visually reset before any held inputs (e.g. grip axis) take effect.
+    /// At 20 ms/frame (low-frequency idle), 5 frames ≈ 100 ms.
+    /// </summary>
+    private const int MasterOnSuppressFrameCount = 5;
+
     private bool _driverHeartbeatAlive;
+    private bool _prevFrameMappingEnabled;
+    private int _masterOnSuppressFramesRemaining;
     private bool? _lastPublishedDriverHeartbeatAlive;
     private RawJoystickState? _lastSelectionDetectionState;
     private DateTime _lastSelectionDetectionUtc;
@@ -124,10 +135,37 @@ public sealed partial class MainViewModel
                 () => _dispatcher.BeginInvoke(() => IsMappingEnabled = !IsMappingEnabled));
 
             var isMappingEnabled = Volatile.Read(ref _isMappingEnabled);
-            var mappings = Volatile.Read(ref _mappingSnapshot);
-            var mapped = isMappingEnabled
-                ? _mappingEngine.Map(latestState, mappings, _lastMappedState)
-                : VirtualControllerState.CreateDefault();
+
+            // Detect Master OFF→ON transition and start a suppression window.
+            // This prevents held inputs (e.g. grip axis) from taking effect
+            // before the virtual controllers have had time to present a neutral pose.
+            if (isMappingEnabled && !_prevFrameMappingEnabled)
+            {
+                _masterOnSuppressFramesRemaining = MasterOnSuppressFrameCount;
+            }
+
+            _prevFrameMappingEnabled = isMappingEnabled;
+
+            VirtualControllerState mapped;
+            if (!isMappingEnabled)
+            {
+                // Master OFF: always send neutral state and clear any in-progress suppression.
+                _masterOnSuppressFramesRemaining = 0;
+                mapped = VirtualControllerState.CreateDefault();
+            }
+            else if (_masterOnSuppressFramesRemaining > 0)
+            {
+                // Suppression window active: send neutral state so the virtual
+                // controllers appear at rest before any mappings take effect.
+                _masterOnSuppressFramesRemaining--;
+                mapped = VirtualControllerState.CreateDefault();
+            }
+            else
+            {
+                var mappings = Volatile.Read(ref _mappingSnapshot);
+                mapped = _mappingEngine.Map(latestState, mappings, _lastMappedState);
+            }
+
             mapped.PoseSource = ResolveVirtualPoseSource(isMappingEnabled);
             _lastMappedState = mapped;
             _ipc?.Write(mapped);
