@@ -9,6 +9,7 @@
         ResizeMode="NoResize">
     <Window.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter" />
     </Window.Resources>
 
     <Grid x:Name="RootGrid" Margin="12" Background="Transparent" MouseLeftButtonDown="RootGridMouseLeftButtonDown">
@@ -17,7 +18,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140" />
@@ -70,8 +72,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target Type:" />
@@ -105,8 +105,43 @@
                           Visibility="{Binding ShowAxisActionPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
                           ItemsSource="{Binding AxisActionTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetControllerPoseAction}" />
 
-                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <Grid Grid.Row="6" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Grid.Row="6" VerticalAlignment="Center" Margin="0,0,0,6" Text="Description:" />
+                <TextBox Grid.Row="6"
+                         Grid.Column="1"
+                         Margin="0,0,0,6"
+                         VerticalContentAlignment="Center"
+                         Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="State" Margin="0,0,0,10"
+                  Visibility="{Binding ShowStatePanel, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Toggle Mode -->
+                <TextBlock Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,6" Text="Toggle Mode:" Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <CheckBox Grid.Row="0" Grid.Column="1"
+                          HorizontalAlignment="Left"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding ToggleMode}"
+                          Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <!-- Full Press Threshold -->
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,6" Text="Full Press Threshold:" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Visibility="{Binding ShowFullPressThreshold, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="60" />
@@ -123,24 +158,65 @@
                              PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
                 </Grid>
 
-                <TextBlock Grid.Row="7" VerticalAlignment="Center" Margin="0,0,0,6" Text="Toggle Mode:" Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <CheckBox Grid.Row="7" Grid.Column="1"
+                <!-- Trigger Invert (axis -> button/action only) -->
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,6" Text="Trigger Invert:" Visibility="{Binding ShowTriggerOptions, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <CheckBox Grid.Row="2" Grid.Column="1"
                           HorizontalAlignment="Left"
                           Margin="0,0,0,6"
-                          IsChecked="{Binding ToggleMode}"
-                          Visibility="{Binding ShowToggleMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                          IsChecked="{Binding TriggerInvert}"
+                          Visibility="{Binding ShowTriggerOptions, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                <TextBlock Grid.Row="8" VerticalAlignment="Center" Margin="0,0,0,6" Text="Description:" />
-                <TextBox Grid.Row="8"
-                         Grid.Column="1"
-                         Margin="0,0,0,6"
-                         VerticalContentAlignment="Center"
-                         Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <!-- Threshold Direction (axis -> button/action only) -->
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,6" Text="Threshold Direction:" Visibility="{Binding ShowTriggerOptions, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6"
+                            Visibility="{Binding ShowTriggerOptions, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <RadioButton GroupName="ThresholdDirection" IsChecked="{Binding ThresholdBidirectional}" Margin="0,0,12,0">
+                        <TextBlock Text="Two-Way" />
+                    </RadioButton>
+                    <RadioButton GroupName="ThresholdDirection" IsChecked="{Binding ThresholdBidirectional, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}">
+                        <TextBlock Text="One-Way" />
+                    </RadioButton>
+                </StackPanel>
 
+                <!-- Source State: Axis bar (when axis source) -->
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,6"
+                            Visibility="{Binding IsSourceButtonDetected, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}">
+                    <Grid Width="300" Height="28">
+                        <ProgressBar Minimum="-1" Maximum="1" Value="{Binding SourceAxisValue, Mode=OneWay}" Height="18" VerticalAlignment="Center" />
+                        <Canvas>
+                            <Line X1="{Binding ThresholdLineLeft}" Y1="4" X2="{Binding ThresholdLineLeft}" Y2="24" Stroke="Red" StrokeThickness="1.5" StrokeDashArray="3,2"
+                                  Visibility="{Binding ShowLeftThresholdLine, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Line X1="{Binding ThresholdLineRight}" Y1="4" X2="{Binding ThresholdLineRight}" Y2="24" Stroke="Red" StrokeThickness="1.5" StrokeDashArray="3,2" />
+                        </Canvas>
+                    </Grid>
+                    <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
+                        <Run Text="Value: " />
+                        <Run Text="{Binding AxisValueDisplay}" />
+                        <Run Text="  |  Threshold: " />
+                        <Run Text="{Binding FullPressThreshold, StringFormat=F2}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Source State: Button LED (when button source) -->
+                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6"
+                            Visibility="{Binding IsSourceButtonDetected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Ellipse Width="12" Height="12" Fill="{Binding SourceButtonPressed, Converter={StaticResource BooleanToBrushConverter}}" Stroke="Black" />
+                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="{Binding SourceButtonDisplay}" />
+                </StackPanel>
+
+                <!-- Source label -->
+                <TextBlock Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,6" Text="Source:" />
+
+                <!-- Target Trigger LED -->
+                <TextBlock Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,6" Text="Target Trigger:" />
+                <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6">
+                    <Ellipse Width="12" Height="12" Fill="{Binding TargetTriggered, Converter={StaticResource BooleanToBrushConverter}}" Stroke="Black" />
+                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="{Binding TargetTriggerDisplay}" />
+                </StackPanel>
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Curves" Margin="0,0,0,10" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Curves" Margin="0,0,0,10" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="140" />
@@ -262,7 +338,7 @@
             </Grid>
         </GroupBox>
 
-        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
             <Button Width="90" Margin="0,0,8,0" Content="Save" Click="SaveClick" />
             <Button Width="90" Content="Cancel" IsCancel="True" />
         </StackPanel>

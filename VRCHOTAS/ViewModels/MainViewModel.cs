@@ -715,6 +715,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _deviceRefreshTask.Wait(TimeSpan.FromMilliseconds(taskTimeoutMs));
             }
         }
+        catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
+        {
+        }
         catch (OperationCanceledException)
         {
         }
@@ -722,6 +725,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             _frameLoopTask.Wait(TimeSpan.FromMilliseconds(taskTimeoutMs));
+        }
+        catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
+        {
         }
         catch (OperationCanceledException)
         {

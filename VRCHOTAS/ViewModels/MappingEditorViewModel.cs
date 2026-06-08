@@ -46,6 +46,13 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private double _currentOutputPlotY = 100;
     private double _plotYRangeMax = 1.0;
     private string _curvePlotPoints = string.Empty;
+    private double _sourceAxisValue;
+    private bool _sourceButtonPressed;
+    private bool _targetTriggered;
+    private bool _previewToggleActive;
+    private bool _wasAboveThresholdRaw;
+    private bool _triggerInvert;
+    private bool _thresholdBidirectional = true;
 
     public MappingEditorViewModel(Func<RawJoystickState> stateProvider, MappingEntry? existing)
     {
@@ -78,6 +85,8 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         TargetControllerPoseAction = existing.TargetControllerPoseAction;
         FullPressThreshold = existing.FullPressThreshold;
         ToggleMode = existing.ToggleMode;
+        TriggerInvert = existing.TriggerInvert;
+        ThresholdBidirectional = existing.ThresholdBidirectional;
         Deadzone = existing.Deadzone;
         Curve = existing.Curve;
         Saturation = existing.Saturation;
@@ -93,21 +102,13 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     public IReadOnlyList<ButtonTargetOption> ButtonTargetOptions { get; }
     public IReadOnlyList<ControllerPoseTargetOption> ControllerPoseTargetOptions { get; }
     public IReadOnlyList<AxisActionTargetOption> AxisActionTargetOptions { get; }
-    public IReadOnlyList<TargetKindOption> AvailableTargetKindOptions =>
-        IsSourceButtonDetected
-            ? TargetKindOptions
-            : TargetKindOptions.Where(option => option.Kind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)).ToArray();
+    public IReadOnlyList<TargetKindOption> AvailableTargetKindOptions => TargetKindOptions;
 
     public MappingTargetKind SelectedTargetKind
     {
         get => _selectedTargetKind;
         set
         {
-            if (_hasDetectedSource && !_isSourceButtonDetected && value is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
-            {
-                return;
-            }
-
             if (SetProperty(ref _selectedTargetKind, value))
             {
                 OnPropertyChanged(nameof(UsesAxisSource));
@@ -117,6 +118,8 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowAxisActionPicker));
                 OnPropertyChanged(nameof(ShowToggleMode));
                 OnPropertyChanged(nameof(ShowFullPressThreshold));
+                OnPropertyChanged(nameof(ShowStatePanel));
+                OnPropertyChanged(nameof(ShowTriggerOptions));
                 OnPropertyChanged(nameof(SourceSummary));
 
                 if (value == MappingTargetKind.AxisInput)
@@ -128,7 +131,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     }
 
     /// <summary>True when the current target uses continuous shaping controls.</summary>
-    public bool UsesAxisSource => SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction);
+    public bool UsesAxisSource => IsSourceButtonDetected
+        ? SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
+        : SelectedTargetKind is MappingTargetKind.AxisInput or MappingTargetKind.ControllerPose;
 
     public bool ShowAxisPicker => SelectedTargetKind == MappingTargetKind.AxisInput;
 
@@ -138,7 +143,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public bool ShowAxisActionPicker => SelectedTargetKind == MappingTargetKind.ControllerPoseAction;
 
-    public bool ShowToggleMode => HasDetectedSource && IsSourceButtonDetected && SelectedTargetKind != MappingTargetKind.ControllerPoseAction;
+    public bool ShowToggleMode => HasDetectedSource && SelectedTargetKind == MappingTargetKind.Button;
 
     public IReadOnlyList<VirtualTargetHand> HandTargets { get; } = new[] { VirtualTargetHand.Left, VirtualTargetHand.Right };
 
@@ -157,6 +162,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(CanEditTarget));
                 OnPropertyChanged(nameof(ShowToggleMode));
+                OnPropertyChanged(nameof(ShowStatePanel));
                 OnPropertyChanged(nameof(SourceDetectionInstruction));
             }
         }
@@ -169,16 +175,15 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         {
             if (SetProperty(ref _isSourceButtonDetected, value))
             {
-                if (!value)
-                {
-                    ToggleMode = false;
-                }
-
                 OnPropertyChanged(nameof(SourceSummary));
                 OnPropertyChanged(nameof(AvailableTargetKindOptions));
+                OnPropertyChanged(nameof(UsesAxisSource));
+                OnPropertyChanged(nameof(ShowStatePanel));
+                OnPropertyChanged(nameof(ShowTriggerOptions));
                 OnPropertyChanged(nameof(ShowControllerPosePicker));
                 OnPropertyChanged(nameof(ShowAxisActionPicker));
                 OnPropertyChanged(nameof(ShowToggleMode));
+                OnPropertyChanged(nameof(ShowFullPressThreshold));
             }
         }
     }
@@ -261,10 +266,16 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         get => _targetAxis;
         set
         {
-            if (SetProperty(ref _targetAxis, value) && SelectedTargetKind == MappingTargetKind.AxisInput)
+            if (SetProperty(ref _targetAxis, value))
             {
-                SyncAxisRangeWithTarget();
-                ResetAxisShapingParameters();
+                OnPropertyChanged(nameof(ShowFullPressThreshold));
+                OnPropertyChanged(nameof(ShowStatePanel));
+
+                if (SelectedTargetKind == MappingTargetKind.AxisInput)
+                {
+                    SyncAxisRangeWithTarget();
+                    ResetAxisShapingParameters();
+                }
             }
         }
     }
@@ -290,17 +301,101 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     public double FullPressThreshold
     {
         get => _fullPressThreshold;
-        set => SetProperty(ref _fullPressThreshold, Math.Clamp(value, 0.0, 1.0));
+        set
+        {
+            if (SetProperty(ref _fullPressThreshold, Math.Clamp(value, 0.0, 1.0)))
+            {
+                OnPropertyChanged(nameof(ThresholdLineLeft));
+                OnPropertyChanged(nameof(ThresholdLineRight));
+                OnPropertyChanged(nameof(TargetTriggered));
+            }
+        }
     }
 
     public bool ToggleMode
     {
         get => _toggleMode;
-        set => SetProperty(ref _toggleMode, value && IsSourceButtonDetected);
+        set => SetProperty(ref _toggleMode, value);
     }
 
-    public bool ShowFullPressThreshold => SelectedTargetKind == MappingTargetKind.AxisInput
-        && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip;
+    public bool ShowFullPressThreshold => (SelectedTargetKind == MappingTargetKind.AxisInput
+        && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip)
+        || (!IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction);
+
+    public bool ShowStatePanel => HasDetectedSource && (
+        SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction
+        || (SelectedTargetKind == MappingTargetKind.AxisInput && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip));
+
+    public bool ShowTriggerOptions => !IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction;
+
+    public string SourceButtonDisplay => $"Button {SourceButtonIndex + 1}";
+
+    public double SourceAxisValue
+    {
+        get => _sourceAxisValue;
+        private set
+        {
+            if (SetProperty(ref _sourceAxisValue, value))
+            {
+                OnPropertyChanged(nameof(AxisValueDisplay));
+            }
+        }
+    }
+
+    public bool SourceButtonPressed
+    {
+        get => _sourceButtonPressed;
+        private set => SetProperty(ref _sourceButtonPressed, value);
+    }
+
+    public bool TargetTriggered
+    {
+        get => _targetTriggered;
+        private set
+        {
+            if (SetProperty(ref _targetTriggered, value))
+            {
+                OnPropertyChanged(nameof(TargetTriggerDisplay));
+            }
+        }
+    }
+
+    public string TargetTriggerDisplay => TargetTriggered ? "Active" : "Inactive";
+
+    public bool TriggerInvert
+    {
+        get => _triggerInvert;
+        set
+        {
+            if (SetProperty(ref _triggerInvert, value))
+            {
+                OnPropertyChanged(nameof(TargetTriggered));
+            }
+        }
+    }
+
+    public bool ThresholdBidirectional
+    {
+        get => _thresholdBidirectional;
+        set
+        {
+            if (SetProperty(ref _thresholdBidirectional, value))
+            {
+                OnPropertyChanged(nameof(ThresholdLineLeft));
+                OnPropertyChanged(nameof(ThresholdLineRight));
+                OnPropertyChanged(nameof(TargetTriggered));
+                OnPropertyChanged(nameof(ShowLeftThresholdLine));
+            }
+        }
+    }
+
+    public string AxisValueDisplay => SourceAxisValue.ToString("F3");
+
+    public double ThresholdLineLeft => ((-FullPressThreshold + 1.0) / 2.0) * 300.0;
+
+    public double ThresholdLineRight => ((FullPressThreshold + 1.0) / 2.0) * 300.0;
+
+    public bool ShowLeftThresholdLine => ThresholdBidirectional;
 
     public double Deadzone
     {

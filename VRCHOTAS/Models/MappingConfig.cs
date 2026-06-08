@@ -43,6 +43,8 @@ public sealed partial class MappingEntry : ObservableObject
     public ControllerPoseActionTarget TargetControllerPoseAction { get; set; } = ControllerPoseActionTarget.ResetPositionX;
     public double FullPressThreshold { get; set; } = 0.95;
     public bool ToggleMode { get; set; }
+    public bool TriggerInvert { get; set; }
+    public bool ThresholdBidirectional { get; set; } = true;
     public double Deadzone { get; set; }
     public double Curve { get; set; }
     public double Saturation { get; set; } = 1.0;

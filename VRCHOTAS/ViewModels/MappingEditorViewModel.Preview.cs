@@ -12,11 +12,6 @@ public sealed partial class MappingEditorViewModel
             throw new InvalidOperationException("No source input has been detected.");
         }
 
-        if (!IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
-        {
-            throw new InvalidOperationException("Axis source cannot be mapped to a button-driven target.");
-        }
-
         var isAxis = !IsSourceButtonDetected;
         return new MappingEntry
         {
@@ -33,7 +28,9 @@ public sealed partial class MappingEditorViewModel
             TargetControllerPose = TargetControllerPose,
             TargetControllerPoseAction = TargetControllerPoseAction,
             FullPressThreshold = FullPressThreshold,
-            ToggleMode = ToggleMode && IsSourceButtonDetected,
+            ToggleMode = ToggleMode,
+            TriggerInvert = TriggerInvert,
+            ThresholdBidirectional = ThresholdBidirectional,
             Deadzone = Deadzone,
             Curve = Curve,
             Saturation = Saturation,
@@ -47,13 +44,17 @@ public sealed partial class MappingEditorViewModel
     {
         PlotYRangeMax = ResolvePlotYRangeMax();
 
+        var state = _stateProvider();
+        var device = state.Devices.FirstOrDefault(item => item.IsConnected && item.DeviceId.Equals(SourceDeviceId, StringComparison.OrdinalIgnoreCase));
+
+        // Always update state panel properties regardless of target kind
+        UpdateStatePanelProperties(device);
+
         if (!UsesAxisSource)
         {
             return;
         }
 
-        var state = _stateProvider();
-        var device = state.Devices.FirstOrDefault(item => item.IsConnected && item.DeviceId.Equals(SourceDeviceId, StringComparison.OrdinalIgnoreCase));
         if (!TryGetPreviewInput(device, out var input))
         {
             CurrentInputValue = 0;
@@ -72,6 +73,54 @@ public sealed partial class MappingEditorViewModel
         CurrentInputPlotY = 100;
         CurrentOutputPlotX = ToPlotX(CurrentInputValue);
         CurrentOutputPlotY = ToPlotY(CurrentOutputValue, PlotYRangeMax);
+    }
+
+    private void UpdateStatePanelProperties(JoystickDeviceState? device)
+    {
+        if (device is null)
+        {
+            SourceAxisValue = 0;
+            SourceButtonPressed = false;
+            TargetTriggered = false;
+            _previewToggleActive = false;
+            _wasAboveThresholdRaw = false;
+            return;
+        }
+
+        if (IsSourceButtonDetected)
+        {
+            var pressed = SourceButtonIndex >= 0 && SourceButtonIndex < device.Buttons.Count
+                && device.Buttons[SourceButtonIndex];
+            SourceButtonPressed = pressed;
+            TargetTriggered = pressed;
+            return;
+        }
+
+        var axisValue = device.Axes.TryGetValue(SourceAxis, out var v) ? v : 0.0;
+        SourceAxisValue = axisValue;
+
+        var threshold = Math.Clamp(FullPressThreshold, 0.0, 1.0);
+        var isAboveThreshold = ThresholdBidirectional
+            ? Math.Abs(axisValue) >= threshold
+            : axisValue >= threshold;
+        var triggered = TriggerInvert ? !isAboveThreshold : isAboveThreshold;
+
+        if (ToggleMode && SelectedTargetKind == MappingTargetKind.Button)
+        {
+            var crossed = triggered && !_wasAboveThresholdRaw;
+            if (crossed)
+            {
+                _previewToggleActive = !_previewToggleActive;
+            }
+
+            _wasAboveThresholdRaw = triggered;
+            TargetTriggered = _previewToggleActive;
+        }
+        else
+        {
+            _wasAboveThresholdRaw = triggered;
+            TargetTriggered = triggered;
+        }
     }
 
     private void RebuildCurvePlot()

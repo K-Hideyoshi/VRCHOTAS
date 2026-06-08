@@ -108,7 +108,42 @@ public sealed class MappingEngine
     {
         if (context.Mapping.IsAxisMapping)
         {
-            _logger.Debug(nameof(MappingEngine), "Skipped mapping: axis source cannot drive a button target.");
+            if (!TryGetAxisLikeInput(context, out var axisValue))
+            {
+                return;
+            }
+
+            var threshold = Math.Clamp(context.Mapping.FullPressThreshold, 0.0, 1.0);
+            var isAboveThreshold = context.Mapping.ThresholdBidirectional
+                ? Math.Abs(axisValue) >= threshold
+                : axisValue >= threshold;
+            var isPressed = context.Mapping.TriggerInvert ? !isAboveThreshold : isAboveThreshold;
+
+            if (context.Mapping.ToggleMode)
+            {
+                if (!_toggleStates.TryGetValue(context.Mapping, out var state))
+                {
+                    state = new ToggleState();
+                    _toggleStates[context.Mapping] = state;
+                }
+
+                var crossedThreshold = isPressed && !state.WasPressed;
+                if (crossedThreshold)
+                {
+                    state.IsActive = !state.IsActive;
+                }
+
+                state.WasPressed = isPressed;
+                isPressed = state.IsActive;
+            }
+
+            context.Hand.EnsureInitialized();
+            var buttonIndex = ResolveButtonIndex(context.Mapping.TargetButton);
+            if (buttonIndex >= 0 && buttonIndex < context.Hand.Buttons.Length)
+            {
+                context.Hand.Buttons[buttonIndex] = isPressed;
+            }
+
             return;
         }
 
@@ -125,22 +160,43 @@ public sealed class MappingEngine
     {
         if (context.Mapping.IsAxisMapping)
         {
-            _logger.Debug(nameof(MappingEngine), "Skipped mapping: axis source cannot drive a VR pose action target.");
+            if (!TryGetAxisLikeInput(context, out var axisValue))
+            {
+                return;
+            }
+
+            var threshold = Math.Clamp(context.Mapping.FullPressThreshold, 0.0, 1.0);
+            var isAboveThreshold = context.Mapping.ThresholdBidirectional
+                ? Math.Abs(axisValue) >= threshold
+                : axisValue >= threshold;
+            var triggered = context.Mapping.TriggerInvert ? !isAboveThreshold : isAboveThreshold;
+
+            if (!_toggleStates.TryGetValue(context.Mapping, out var toggleState))
+            {
+                toggleState = new ToggleState();
+                _toggleStates[context.Mapping] = toggleState;
+            }
+
+            var justCrossed = triggered && !toggleState.WasPressed;
+            toggleState.WasPressed = triggered;
+
+            if (justCrossed)
+            {
+                ApplyControllerPoseAction(context.Mapping.TargetControllerPoseAction, ref context.Hand, GetAnchorState(context.Mapping.TargetHand), ref context.PoseScratch);
+            }
+
             return;
         }
 
-        if (!TryGetButtonActivation(context.Mapping, context.SourceDevice, out var isActive, out var justPressed))
+        if (!TryGetButtonActivation(context.Mapping, context.SourceDevice, out _, out var justPressed))
         {
             return;
         }
 
-        var shouldTrigger = context.Mapping.ToggleMode ? justPressed && isActive : justPressed;
-        if (!shouldTrigger)
+        if (justPressed)
         {
-            return;
+            ApplyControllerPoseAction(context.Mapping.TargetControllerPoseAction, ref context.Hand, GetAnchorState(context.Mapping.TargetHand), ref context.PoseScratch);
         }
-
-        ApplyControllerPoseAction(context.Mapping.TargetControllerPoseAction, ref context.Hand, GetAnchorState(context.Mapping.TargetHand), ref context.PoseScratch);
     }
 
     private void ProcessLegacyRecenterButton(ActiveMappingContext context)

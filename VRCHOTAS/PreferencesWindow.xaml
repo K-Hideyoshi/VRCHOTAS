@@ -232,14 +232,14 @@
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                                         <TextBlock Text="Position" VerticalAlignment="Top" Width="150" Margin="0,4,0,0" />
                                                         <StackPanel>
-                                                            <Border Width="180" Height="180" BorderBrush="#707070" BorderThickness="1" Background="#101010" 
+                                                            <Border Width="180" Height="180" BorderBrush="Gray" BorderThickness="1" Background="#11000000" 
                                                                     MouseLeftButtonDown="OnMarkerPositionPickerMouseDown"
                                                                     MouseMove="OnMarkerPositionPickerMouseMove"
                                                                     MouseLeftButtonUp="OnMarkerPositionPickerMouseLeftButtonUp">
                                                                 <Canvas x:Name="MarkerPositionCanvas" Width="180" Height="180" Background="Transparent">
-                                                                    <Line X1="0" Y1="90" X2="180" Y2="90" Stroke="#40FFFFFF" StrokeThickness="1" StrokeDashArray="2,2" />
-                                                                    <Line X1="90" Y1="0" X2="90" Y2="180" Stroke="#40FFFFFF" StrokeThickness="1" StrokeDashArray="2,2" />
-                                                                    <Ellipse x:Name="MarkerPositionIndicator" Width="10" Height="10" Fill="#FF4CC2FF" Stroke="White" StrokeThickness="1" />
+                                                                    <Line X1="0" Y1="90" X2="180" Y2="90" Stroke="#66000000" StrokeThickness="1" />
+                                                                    <Line X1="90" Y1="0" X2="90" Y2="180" Stroke="#66000000" StrokeThickness="1" />
+                                                                    <Ellipse x:Name="MarkerPositionIndicator" Width="12" Height="12" Fill="DodgerBlue" Stroke="Black" StrokeThickness="1" />
                                                                 </Canvas>
                                                             </Border>
                                                             <TextBlock x:Name="MarkerPositionValueLabel" Margin="0,8,0,0" Text="X: 0.000  Y: 0.000" />

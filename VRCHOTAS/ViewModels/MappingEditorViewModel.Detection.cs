@@ -85,11 +85,6 @@ public sealed partial class MappingEditorViewModel
                 SourceDeviceName = device.DeviceName;
                 HasDetectedSource = true;
                 IsSourceButtonDetected = false;
-                if (SelectedTargetKind == MappingTargetKind.Button)
-                {
-                    SelectedTargetKind = MappingTargetKind.AxisInput;
-                }
-
                 SourceAxis = axis.Key;
                 SyncAxisRangeWithTarget();
                 UpdateLivePreview();
