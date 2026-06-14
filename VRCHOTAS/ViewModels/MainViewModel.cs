@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
@@ -751,6 +751,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ipc?.Dispose();
         _vrOverlayService.Dispose();
         _anchorPointsService.FlushPendingSave();
+        _anchorPointsService.Dispose();
         _logger.Info(nameof(MainViewModel), "Application stopped.");
     }
 }

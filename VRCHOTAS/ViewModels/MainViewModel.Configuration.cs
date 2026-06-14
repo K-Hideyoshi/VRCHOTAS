@@ -1,4 +1,4 @@
-using VRCHOTAS.Models;
+﻿using VRCHOTAS.Models;
 
 namespace VRCHOTAS.ViewModels;
 
@@ -140,6 +140,9 @@ public sealed partial class MainViewModel
             return;
         }
 
+        // Flush any pending anchor save for the outgoing config before switching.
+        _anchorPointsService.FlushPendingSave();
+
         var normalized = AppPaths.EnsureJsonExtension(fileName);
         var config = _configurationService.LoadByFileName(normalized);
         Mappings.Clear();
@@ -161,8 +164,14 @@ public sealed partial class MainViewModel
         }
         else
         {
-            _lastSavedAnchorLeft = new HandAnchorData();
-            _lastSavedAnchorRight = new HandAnchorData();
+            // No saved anchors for this config — reset to zero and persist immediately.
+            var zeroAnchor = new HandAnchorData();
+            _mappingEngine.SetAnchorState(VirtualTargetHand.Left, zeroAnchor);
+            _mappingEngine.SetAnchorState(VirtualTargetHand.Right, zeroAnchor);
+            _lastSavedAnchorLeft = zeroAnchor;
+            _lastSavedAnchorRight = zeroAnchor;
+            _anchorPointsService.ScheduleSave(normalized, zeroAnchor, zeroAnchor);
+            _anchorPointsService.FlushPendingSave();
         }
 
         CurrentConfigurationFileName = normalized;
@@ -183,6 +192,9 @@ public sealed partial class MainViewModel
         {
             return;
         }
+
+        // Flush any pending anchor save for the outgoing config before switching.
+        _anchorPointsService.FlushPendingSave();
 
         var normalized = AppPaths.EnsureJsonExtension(fileName);
         _preferencesService.SetDefaultConfigurationFileName(normalized);

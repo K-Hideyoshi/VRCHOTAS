@@ -1,4 +1,4 @@
-using System.Windows.Threading;
+﻿using System.Windows.Threading;
 using VRCHOTAS.Interop;
 using VRCHOTAS.Models;
 using VRCHOTAS.Services;
@@ -23,9 +23,12 @@ public sealed partial class MainViewModel
     /// </summary>
     private const int MasterOnSuppressFrameCount = 5;
 
+    private const int AnchorSaveCheckIntervalMs = 500;
+
     private bool _driverHeartbeatAlive;
     private bool _prevFrameMappingEnabled;
     private int _masterOnSuppressFramesRemaining;
+    private long _lastAnchorCheckTimestamp;
     private bool? _lastPublishedDriverHeartbeatAlive;
     private RawJoystickState? _lastSelectionDetectionState;
     private DateTime _lastSelectionDetectionUtc;
@@ -165,17 +168,22 @@ public sealed partial class MainViewModel
                 var mappings = Volatile.Read(ref _mappingSnapshot);
                 mapped = _mappingEngine.Map(latestState, mappings, _lastMappedState);
 
-                // Detect anchor state changes and schedule a debounced save.
-                // This avoids writing to disk on every frame while anchors are continuously changing.
-                var currentLeft = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Left);
-                var currentRight = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Right);
-                if (!currentLeft.EqualsAnchor(_lastSavedAnchorLeft) || !currentRight.EqualsAnchor(_lastSavedAnchorRight))
+                // Throttled anchor-change detection: only sample every ~500ms to avoid
+                // per-frame heap allocations and lock contention in the hot path.
+                var nowTicks = Environment.TickCount64;
+                if (nowTicks - _lastAnchorCheckTimestamp >= AnchorSaveCheckIntervalMs)
                 {
-                    _lastSavedAnchorLeft = currentLeft;
-                    _lastSavedAnchorRight = currentRight;
-                    if (!string.IsNullOrWhiteSpace(CurrentConfigurationFileName))
+                    _lastAnchorCheckTimestamp = nowTicks;
+                    var currentLeft = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Left);
+                    var currentRight = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Right);
+                    if (!currentLeft.EqualsAnchor(_lastSavedAnchorLeft) || !currentRight.EqualsAnchor(_lastSavedAnchorRight))
                     {
-                        _anchorPointsService.ScheduleSave(CurrentConfigurationFileName, currentLeft, currentRight);
+                        _lastSavedAnchorLeft = currentLeft;
+                        _lastSavedAnchorRight = currentRight;
+                        if (!string.IsNullOrWhiteSpace(CurrentConfigurationFileName))
+                        {
+                            _anchorPointsService.ScheduleSave(CurrentConfigurationFileName, currentLeft, currentRight);
+                        }
                     }
                 }
             }
