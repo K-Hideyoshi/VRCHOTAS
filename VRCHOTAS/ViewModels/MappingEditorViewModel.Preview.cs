@@ -36,6 +36,10 @@ public sealed partial class MappingEditorViewModel
             Saturation = Saturation,
             InputInvert = InputInvert,
             Invert = OutputInvert,
+            KeyboardKey = KeyboardKey,
+            KeyboardModifiers = KeyboardModifiers,
+            KeyboardTargetWindowTitle = string.IsNullOrWhiteSpace(KeyboardTargetWindowTitle) ? null : KeyboardTargetWindowTitle.Trim(),
+            KeyboardTargetProcessName = string.IsNullOrWhiteSpace(KeyboardTargetProcessName) ? null : KeyboardTargetProcessName.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim()
         };
     }
@@ -92,20 +96,42 @@ public sealed partial class MappingEditorViewModel
             var pressed = SourceButtonIndex >= 0 && SourceButtonIndex < device.Buttons.Count
                 && device.Buttons[SourceButtonIndex];
             SourceButtonPressed = pressed;
-            TargetTriggered = pressed;
+
+            if (ToggleMode && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.Keyboard or MappingTargetKind.ControllerPoseAction)
+            {
+                var justPressed = pressed && !_wasAboveThresholdRaw;
+                if (justPressed)
+                {
+                    _previewToggleActive = !_previewToggleActive;
+                }
+
+                _wasAboveThresholdRaw = pressed;
+                TargetTriggered = _previewToggleActive;
+            }
+            else
+            {
+                TargetTriggered = pressed;
+            }
+
             return;
         }
 
         var axisValue = device.Axes.TryGetValue(SourceAxis, out var v) ? v : 0.0;
-        SourceAxisValue = axisValue;
+
+        // For AxisInput targets, apply the curve pipeline before threshold comparison
+        var effectiveValue = SelectedTargetKind == MappingTargetKind.AxisInput
+            ? MappingEngine.MapAxisValue(axisValue, Deadzone, Curve, Saturation, InputInvert, OutputInvert, AxisRange)
+            : axisValue;
+
+        SourceAxisValue = effectiveValue;
 
         var threshold = Math.Clamp(FullPressThreshold, 0.0, 1.0);
         var isAboveThreshold = ThresholdBidirectional
-            ? Math.Abs(axisValue) >= threshold
-            : axisValue >= threshold;
+            ? Math.Abs(effectiveValue) >= threshold
+            : effectiveValue >= threshold;
         var triggered = TriggerInvert ? !isAboveThreshold : isAboveThreshold;
 
-        if (ToggleMode && SelectedTargetKind == MappingTargetKind.Button)
+        if (ToggleMode && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.Keyboard or MappingTargetKind.ControllerPoseAction)
         {
             var crossed = triggered && !_wasAboveThresholdRaw;
             if (crossed)
@@ -189,7 +215,8 @@ public sealed partial class MappingEditorViewModel
             new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.AxisInput), MappingTargetKind.AxisInput),
             new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.Button), MappingTargetKind.Button),
             new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.ControllerPose), MappingTargetKind.ControllerPose),
-            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.ControllerPoseAction), MappingTargetKind.ControllerPoseAction)
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.ControllerPoseAction), MappingTargetKind.ControllerPoseAction),
+            new TargetKindOption(MappingEntry.GetTargetTypeLabel(MappingTargetKind.Keyboard), MappingTargetKind.Keyboard)
         };
     }
 

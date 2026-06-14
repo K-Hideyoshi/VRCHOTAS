@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VRCHOTAS.Models;
 
 namespace VRCHOTAS.Models;
@@ -14,6 +15,7 @@ public static class MappingDisplayHelper
         MappingTargetKind.Button => "Button",
         MappingTargetKind.ControllerPose => "Pose",
         MappingTargetKind.ControllerPoseAction => "Pose Action",
+        MappingTargetKind.Keyboard => "Keyboard",
         _ => targetKind.ToString()
     };
 
@@ -74,7 +76,26 @@ public static class MappingDisplayHelper
             MappingTargetKind.Button => GetButtonTargetDisplay(entry.TargetButton, entry.TargetHand),
             MappingTargetKind.ControllerPose => GetControllerPoseDisplay(entry.ResolvedControllerPoseTarget),
             MappingTargetKind.ControllerPoseAction => GetControllerPoseActionDisplay(entry.TargetControllerPoseAction),
+            MappingTargetKind.Keyboard => GetKeyboardKeyDisplay(entry.KeyboardKey, entry.KeyboardModifiers),
             _ => kind.ToString()
         };
+    }
+
+    public static string GetKeyboardKeyDisplay(int keyCode, int modifiers)
+    {
+        if (keyCode == 0)
+        {
+            return "(no key)";
+        }
+
+        var key = System.Windows.Input.KeyInterop.KeyFromVirtualKey(keyCode);
+        var keyName = key.ToString();
+
+        var modParts = new List<string>(3);
+        if ((modifiers & 1) != 0) modParts.Add("Ctrl");
+        if ((modifiers & 2) != 0) modParts.Add("Shift");
+        if ((modifiers & 4) != 0) modParts.Add("Alt");
+
+        return modParts.Count == 0 ? keyName : $"{string.Join("+", modParts)}+{keyName}";
     }
 }

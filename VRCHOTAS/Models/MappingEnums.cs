@@ -87,5 +87,6 @@ public enum MappingTargetKind
     AngularVelocityZ = 13,
     AxisAction = 14,
     ControllerPose = 15,
-    ControllerPoseAction = 16
+    ControllerPoseAction = 16,
+    Keyboard = 17
 }

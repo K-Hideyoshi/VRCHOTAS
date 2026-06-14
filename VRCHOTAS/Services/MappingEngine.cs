@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading;
 using VRCHOTAS.Interop;
 using VRCHOTAS.Logging;
 using VRCHOTAS.Models;
@@ -74,6 +77,12 @@ public sealed class MappingEngine
         if (context.TargetKind == MappingTargetKind.ControllerPoseAction)
         {
             ProcessAxisActionTarget(context);
+            return;
+        }
+
+        if (context.TargetKind == MappingTargetKind.Keyboard)
+        {
+            ProcessKeyboardTarget(context);
             return;
         }
 
@@ -215,6 +224,69 @@ public sealed class MappingEngine
         ApplyControllerPoseAction(ControllerPoseActionTarget.ResetHand, ref context.Hand, GetAnchorState(context.Mapping.TargetHand), ref context.PoseScratch);
         _logger.Debug(nameof(MappingEngine),
             $"Recenter hand requested: hand={context.Mapping.TargetHand} sourceDevice={context.Mapping.SourceDeviceId} button={context.Mapping.SourceButtonIndex}");
+    }
+
+    private void ProcessKeyboardTarget(ActiveMappingContext context)
+    {
+        var mapping = context.Mapping;
+        if (mapping.KeyboardKey == 0)
+        {
+            return;
+        }
+
+        // Read button state directly — keyboard mappings always fire on press,
+        // independent of the toggle-state system used for VR button targets.
+        var buttonIndex = mapping.SourceButtonIndex;
+        if (buttonIndex < 0 || buttonIndex >= context.SourceDevice.Buttons.Count)
+        {
+            _logger.Warning(nameof(MappingEngine),
+                $"Keyboard mapping skipped: source button out of range: {buttonIndex}.");
+            return;
+        }
+
+        var isPressed = context.SourceDevice.Buttons[buttonIndex];
+
+        // Track edge transitions per mapping so we only fire once per press
+        if (!_toggleStates.TryGetValue(mapping, out var state))
+        {
+            state = new ToggleState();
+            _toggleStates[mapping] = state;
+        }
+
+        var justPressed = isPressed && !state.WasPressed;
+        state.WasPressed = isPressed;
+
+        if (!justPressed)
+        {
+            return;
+        }
+
+        var targetHwnd = IntPtr.Zero;
+        if (!string.IsNullOrWhiteSpace(mapping.KeyboardTargetWindowTitle) || !string.IsNullOrWhiteSpace(mapping.KeyboardTargetProcessName))
+        {
+            targetHwnd = FindTargetWindow(mapping.KeyboardTargetWindowTitle, mapping.KeyboardTargetProcessName);
+        }
+
+        if (targetHwnd != IntPtr.Zero)
+        {
+            // Save current foreground window so we can restore focus after sending keys.
+            var previousForeground = GetForegroundWindow();
+            SendKeyToWindow(targetHwnd, mapping.KeyboardKey, mapping.KeyboardModifiers);
+            // Wait for the injected input to be processed before switching away.
+            Thread.Sleep(80);
+            // Restore focus to the previously active window.
+            if (previousForeground != IntPtr.Zero && previousForeground != targetHwnd)
+            {
+                SetForegroundWindow(previousForeground);
+            }
+        }
+        else
+        {
+            SendKeyGlobal(mapping.KeyboardKey, mapping.KeyboardModifiers);
+        }
+
+        _logger.Info(nameof(MappingEngine),
+            $"Keyboard mapping triggered: key={mapping.KeyboardKey} mods={mapping.KeyboardModifiers} window={targetHwnd}");
     }
 
     private double GetFrameDeltaSeconds()
@@ -882,4 +954,303 @@ public sealed class MappingEngine
             ? Math.Clamp((clamped + 1.0) * 0.5, 0.0, 1.0)
             : clamped;
     }
+
+    // --- Keyboard emulation ---
+
+    private const uint WM_KEYDOWN = 0x0100;
+    private const uint WM_KEYUP = 0x0101;
+    private const uint WM_CHAR = 0x0102;
+    private const uint WM_SYSKEYDOWN = 0x0104;
+    private const uint WM_SYSKEYUP = 0x0105;
+    private const uint WM_SYSCHAR = 0x0106;
+
+    private const int INPUT_KEYBOARD = 1;
+    private const int KEYEVENTF_KEYUP = 0x0002;
+    private const int KEYEVENTF_EXTENDEDKEY = 0x0001;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT
+    {
+        public uint type;
+        public InputUnion u;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+        [FieldOffset(0)]
+        public MOUSEINPUT mi;
+        [FieldOffset(0)]
+        public HARDWAREINPUT hi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+    private const int SW_RESTORE = 9;
+    private const uint MAPVK_VK_TO_VSC = 0;
+    private const uint MAPVK_VK_TO_CHAR = 2;
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    private static void SendKeyGlobal(int keyCode, int modifiers)
+    {
+        var inputs = new List<INPUT>();
+
+        // Press modifiers
+        if ((modifiers & 1) != 0) inputs.Add(CreateKeyDownInput(0xA2)); // VK_LCONTROL
+        if ((modifiers & 2) != 0) inputs.Add(CreateKeyDownInput(0xA0)); // VK_LSHIFT
+        if ((modifiers & 4) != 0) inputs.Add(CreateKeyDownInput(0xA4)); // VK_LMENU
+
+        // Press key
+        inputs.Add(CreateKeyDownInput((ushort)keyCode));
+
+        // Release key
+        inputs.Add(CreateKeyUpInput((ushort)keyCode));
+
+        // Release modifiers (in reverse order)
+        if ((modifiers & 4) != 0) inputs.Add(CreateKeyUpInput(0xA4));
+        if ((modifiers & 2) != 0) inputs.Add(CreateKeyUpInput(0xA0));
+        if ((modifiers & 1) != 0) inputs.Add(CreateKeyUpInput(0xA2));
+
+        if (inputs.Count > 0)
+        {
+            var sent = SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf<INPUT>());
+            if (sent != inputs.Count)
+            {
+                var err = Marshal.GetLastWin32Error();
+                LogManager.Logger.Warning(nameof(MappingEngine),
+                    $"SendInput only inserted {sent} of {inputs.Count} events. Win32 error: {err}.");
+            }
+        }
+    }
+
+    private static void SendKeyToWindow(IntPtr hWnd, int keyCode, int modifiers)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // Restore minimized windows and bring to foreground so the target
+        // receives injected input reliably (SendInput delivers to foreground).
+        if (IsIconic(hWnd))
+        {
+            ShowWindow(hWnd, SW_RESTORE);
+        }
+
+        // Give the window a moment to restore before focusing
+        Thread.Sleep(30);
+
+        SetForegroundWindow(hWnd);
+        Thread.Sleep(10);
+
+        // Use SendInput (system-level injection) which targets the foreground window.
+        // This is far more reliable than PostMessage for background windows.
+        SendKeyGlobal(keyCode, modifiers);
+    }
+
+    /// <summary>
+    /// Finds a visible window belonging to <paramref name="processName"/>.
+    /// When <paramref name="windowTitle"/> is also provided, only windows
+    /// whose title contains that substring are considered.
+    /// </summary>
+    private static IntPtr FindTargetWindow(string? windowTitle, string? processName)
+    {
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            // No process specified — fall back to title-only search
+            if (string.IsNullOrWhiteSpace(windowTitle))
+            {
+                return IntPtr.Zero;
+            }
+
+            IntPtr titleMatch = IntPtr.Zero;
+            EnumWindows((hWnd, _) =>
+            {
+                if (!IsWindowVisible(hWnd)) return true;
+                var title = GetWindowTextString(hWnd);
+                if (!string.IsNullOrWhiteSpace(title) && title.Contains(windowTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    titleMatch = hWnd;
+                    return false;
+                }
+                return true;
+            }, IntPtr.Zero);
+            return titleMatch;
+        }
+
+        // Primary search: process name. Find the first visible window of that process.
+        // If windowTitle is provided, additionally filter by title substring.
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((hWnd, _) =>
+        {
+            if (!IsWindowVisible(hWnd))
+            {
+                return true;
+            }
+
+            GetWindowThreadProcessId(hWnd, out var pid);
+            try
+            {
+                using var proc = Process.GetProcessById((int)pid);
+                if (!proc.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                return true;
+            }
+
+            // If a title filter is specified, check it
+            if (!string.IsNullOrWhiteSpace(windowTitle))
+            {
+                var title = GetWindowTextString(hWnd);
+                if (string.IsNullOrWhiteSpace(title) || !title.Contains(windowTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            found = hWnd;
+            return false; // stop — first match wins
+        }, IntPtr.Zero);
+
+        return found;
+    }
+
+    private static string GetWindowTextString(IntPtr hWnd)
+    {
+        var sb = new System.Text.StringBuilder(256);
+        GetWindowText(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    private static INPUT CreateKeyDownInput(ushort vk)
+    {
+        var isExtended = IsExtendedKey(vk);
+        return new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion
+            {
+                ki = new KEYBDINPUT
+                {
+                    wVk = vk,
+                    wScan = 0,
+                    dwFlags = isExtended ? (uint)KEYEVENTF_EXTENDEDKEY : 0u,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero
+                }
+            }
+        };
+    }
+
+    private static INPUT CreateKeyUpInput(ushort vk)
+    {
+        var isExtended = IsExtendedKey(vk);
+        return new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            u = new InputUnion
+            {
+                ki = new KEYBDINPUT
+                {
+                    wVk = vk,
+                    wScan = 0,
+                    dwFlags = (uint)KEYEVENTF_KEYUP | (isExtended ? (uint)KEYEVENTF_EXTENDEDKEY : 0u),
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero
+                }
+            }
+        };
+    }
+
+    private static bool IsExtendedKey(ushort vk) => vk switch
+    {
+        0x2D => true, // VK_INSERT
+        0x2E => true, // VK_DELETE
+        0x21 => true, // VK_PRIOR (Page Up)
+        0x22 => true, // VK_NEXT (Page Down)
+        0x23 => true, // VK_END
+        0x24 => true, // VK_HOME
+        0x25 => true, // VK_LEFT
+        0x26 => true, // VK_UP
+        0x27 => true, // VK_RIGHT
+        0x28 => true, // VK_DOWN
+        0x2F => true, // VK_HELP
+        0x90 => true, // VK_NUMLOCK
+        0x91 => true, // VK_SCROLL
+        0xA2 => true, // VK_LCONTROL
+        0xA3 => true, // VK_RCONTROL
+        0xA4 => true, // VK_LMENU
+        0xA5 => true, // VK_RMENU
+        _ => false
+    };
 }

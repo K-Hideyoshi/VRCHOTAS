@@ -324,9 +324,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await Task.Run(() =>
             {
-                _deviceRefreshCancellation.Token.ThrowIfCancellationRequested();
                 _joystickService.RefreshDevices();
-                _deviceRefreshCancellation.Token.ThrowIfCancellationRequested();
                 _joystickService.TryAcquireDisconnectedDevices();
             }, _deviceRefreshCancellation.Token);
         }

@@ -53,6 +53,11 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private bool _wasAboveThresholdRaw;
     private bool _triggerInvert;
     private bool _thresholdBidirectional = true;
+    private int _keyboardKey;
+    private int _keyboardModifiers;
+    private string _keyboardTargetWindowTitle = string.Empty;
+    private string _keyboardTargetProcessName = string.Empty;
+    private bool _isKeyboardCaptureActive;
 
     public MappingEditorViewModel(Func<RawJoystickState> stateProvider, MappingEntry? existing)
     {
@@ -94,6 +99,11 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         OutputInvert = existing.Invert;
         Description = existing.Description ?? string.Empty;
 
+        KeyboardKey = existing.KeyboardKey;
+        KeyboardModifiers = existing.KeyboardModifiers;
+        KeyboardTargetWindowTitle = existing.KeyboardTargetWindowTitle ?? string.Empty;
+        KeyboardTargetProcessName = existing.KeyboardTargetProcessName ?? string.Empty;
+
         RebuildCurvePlot();
     }
 
@@ -121,10 +131,18 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowStatePanel));
                 OnPropertyChanged(nameof(ShowTriggerOptions));
                 OnPropertyChanged(nameof(SourceSummary));
+                OnPropertyChanged(nameof(ShowHandSelection));
+                OnPropertyChanged(nameof(ShowKeyboardPicker));
+                OnPropertyChanged(nameof(ShowKeyboardWindowPicker));
 
                 if (value == MappingTargetKind.AxisInput)
                 {
                     SyncAxisRangeWithTarget();
+                }
+
+                if (value == MappingTargetKind.Keyboard)
+                {
+                    ToggleMode = false;
                 }
             }
         }
@@ -132,7 +150,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     /// <summary>True when the current target uses continuous shaping controls.</summary>
     public bool UsesAxisSource => IsSourceButtonDetected
-        ? SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction)
+        ? SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction or MappingTargetKind.Keyboard)
         : SelectedTargetKind is MappingTargetKind.AxisInput or MappingTargetKind.ControllerPose;
 
     public bool ShowAxisPicker => SelectedTargetKind == MappingTargetKind.AxisInput;
@@ -143,7 +161,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public bool ShowAxisActionPicker => SelectedTargetKind == MappingTargetKind.ControllerPoseAction;
 
-    public bool ShowToggleMode => HasDetectedSource && SelectedTargetKind == MappingTargetKind.Button;
+    public bool ShowToggleMode => HasDetectedSource && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction;
 
     public IReadOnlyList<VirtualTargetHand> HandTargets { get; } = new[] { VirtualTargetHand.Left, VirtualTargetHand.Right };
 
@@ -318,15 +336,96 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         set => SetProperty(ref _toggleMode, value);
     }
 
-    public bool ShowFullPressThreshold => (SelectedTargetKind == MappingTargetKind.AxisInput
+    public bool ShowFullPressThreshold => SelectedTargetKind != MappingTargetKind.Keyboard
+        && ((SelectedTargetKind == MappingTargetKind.AxisInput
         && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip)
-        || (!IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction);
+        || (!IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction));
 
     public bool ShowStatePanel => HasDetectedSource && (
-        SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction
+        SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction or MappingTargetKind.Keyboard
         || (SelectedTargetKind == MappingTargetKind.AxisInput && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip));
 
     public bool ShowTriggerOptions => !IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction;
+
+    public bool ShowHandSelection => SelectedTargetKind != MappingTargetKind.Keyboard;
+
+    public bool ShowKeyboardPicker => SelectedTargetKind == MappingTargetKind.Keyboard;
+
+    public bool ShowKeyboardWindowPicker => SelectedTargetKind == MappingTargetKind.Keyboard;
+
+    public int KeyboardKey
+    {
+        get => _keyboardKey;
+        set
+        {
+            if (SetProperty(ref _keyboardKey, value))
+            {
+                OnPropertyChanged(nameof(KeyboardKeyDisplay));
+            }
+        }
+    }
+
+    public int KeyboardModifiers
+    {
+        get => _keyboardModifiers;
+        set
+        {
+            if (SetProperty(ref _keyboardModifiers, value))
+            {
+                OnPropertyChanged(nameof(KeyboardKeyDisplay));
+                OnPropertyChanged(nameof(KeyboardCaptureButtonText));
+                OnPropertyChanged(nameof(KeyboardModifierCtrl));
+                OnPropertyChanged(nameof(KeyboardModifierShift));
+                OnPropertyChanged(nameof(KeyboardModifierAlt));
+            }
+        }
+    }
+
+    public bool KeyboardModifierCtrl
+    {
+        get => (_keyboardModifiers & 1) != 0;
+        set => KeyboardModifiers = value ? (_keyboardModifiers | 1) : (_keyboardModifiers & ~1);
+    }
+
+    public bool KeyboardModifierShift
+    {
+        get => (_keyboardModifiers & 2) != 0;
+        set => KeyboardModifiers = value ? (_keyboardModifiers | 2) : (_keyboardModifiers & ~2);
+    }
+
+    public bool KeyboardModifierAlt
+    {
+        get => (_keyboardModifiers & 4) != 0;
+        set => KeyboardModifiers = value ? (_keyboardModifiers | 4) : (_keyboardModifiers & ~4);
+    }
+
+    public string KeyboardKeyDisplay => MappingDisplayHelper.GetKeyboardKeyDisplay(_keyboardKey, _keyboardModifiers);
+
+    public bool IsKeyboardCaptureActive
+    {
+        get => _isKeyboardCaptureActive;
+        set
+        {
+            if (SetProperty(ref _isKeyboardCaptureActive, value))
+            {
+                OnPropertyChanged(nameof(KeyboardCaptureButtonText));
+            }
+        }
+    }
+
+    public string KeyboardCaptureButtonText => IsKeyboardCaptureActive ? "Press a key..." : (KeyboardKey == 0 ? "Click to capture key" : KeyboardKeyDisplay);
+
+    public string KeyboardTargetWindowTitle
+    {
+        get => _keyboardTargetWindowTitle;
+        set => SetProperty(ref _keyboardTargetWindowTitle, value ?? string.Empty);
+    }
+
+    public string KeyboardTargetProcessName
+    {
+        get => _keyboardTargetProcessName;
+        set => SetProperty(ref _keyboardTargetProcessName, value ?? string.Empty);
+    }
 
     public string SourceButtonDisplay => $"Button {SourceButtonIndex + 1}";
 

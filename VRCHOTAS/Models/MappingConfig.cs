@@ -51,6 +51,22 @@ public sealed partial class MappingEntry : ObservableObject
     public bool InputInvert { get; set; }
     public bool Invert { get; set; }
 
+    /// <summary>Virtual-key code for Keyboard target mappings.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int KeyboardKey { get; set; }
+
+    /// <summary>Modifier bitmask for Keyboard target mappings (0=None, 1=Ctrl, 2=Shift, 4=Alt).</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int KeyboardModifiers { get; set; }
+
+    /// <summary>Optional window title substring to target for keyboard events.</summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? KeyboardTargetWindowTitle { get; set; }
+
+    /// <summary>Optional process name to target for keyboard events.</summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string? KeyboardTargetProcessName { get; set; }
+
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public string? Description { get; set; }
 
@@ -88,6 +104,7 @@ public sealed partial class MappingEntry : ObservableObject
         MappingTargetKind.Button => $"{TargetHand}|Button|{TargetButton}",
         MappingTargetKind.ControllerPose => $"{TargetHand}|ControllerPose|{ResolvedControllerPoseTarget}",
         MappingTargetKind.ControllerPoseAction => $"{TargetHand}|ControllerPoseAction|{TargetControllerPoseAction}",
+        MappingTargetKind.Keyboard => $"Keyboard|{KeyboardKey}|{KeyboardModifiers}",
         _ => $"{TargetHand}|{NormalizedTargetKind}"
     };
 
@@ -99,8 +116,12 @@ public sealed partial class MappingEntry : ObservableObject
     {
         get
         {
+            if (NormalizedTargetKind == MappingTargetKind.Keyboard)
+            {
+                return $"Keyboard / {TargetControlDisplay}";
+            }
+
             var hand = TargetHand == VirtualTargetHand.Right ? "Right" : "Left";
-            var k = NormalizedTargetKind;
             return $"{hand} / {TargetControlDisplay}";
         }
     }

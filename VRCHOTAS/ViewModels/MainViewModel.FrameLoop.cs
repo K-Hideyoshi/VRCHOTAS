@@ -222,7 +222,7 @@ public sealed partial class MainViewModel
         var previousState = _lastSelectionDetectionState;
         var now = DateTime.UtcNow;
 
-        if (!IsLocateMappingEnabled)
+        if (!IsLocateMappingEnabled || HotkeyRuntime.IsSuspended)
         {
             _lastSelectionDetectionState = latestState;
             _lastSelectionDetectionUtc = now;
