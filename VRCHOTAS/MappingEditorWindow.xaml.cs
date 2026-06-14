@@ -48,7 +48,11 @@ public partial class MappingEditorWindow : Window
         _detectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _detectTimer.Tick += (_, _) => DetectTick();
         _detectTimer.Start();
-        Closed += (_, _) => _detectTimer.Stop();
+        Closed += (_, _) =>
+        {
+            _detectTimer.Stop();
+            _hotkeySuspendScope.Dispose();
+        };
     }
 
     public MappingEntry? MappingResult { get; private set; }
