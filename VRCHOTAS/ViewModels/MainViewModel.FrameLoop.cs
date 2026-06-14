@@ -164,6 +164,20 @@ public sealed partial class MainViewModel
             {
                 var mappings = Volatile.Read(ref _mappingSnapshot);
                 mapped = _mappingEngine.Map(latestState, mappings, _lastMappedState);
+
+                // Detect anchor state changes and schedule a debounced save.
+                // This avoids writing to disk on every frame while anchors are continuously changing.
+                var currentLeft = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Left);
+                var currentRight = _mappingEngine.GetAnchorSnapshot(VirtualTargetHand.Right);
+                if (!currentLeft.EqualsAnchor(_lastSavedAnchorLeft) || !currentRight.EqualsAnchor(_lastSavedAnchorRight))
+                {
+                    _lastSavedAnchorLeft = currentLeft;
+                    _lastSavedAnchorRight = currentRight;
+                    if (!string.IsNullOrWhiteSpace(CurrentConfigurationFileName))
+                    {
+                        _anchorPointsService.ScheduleSave(CurrentConfigurationFileName, currentLeft, currentRight);
+                    }
+                }
             }
 
             mapped.PoseSource = ResolveVirtualPoseSource(isMappingEnabled);

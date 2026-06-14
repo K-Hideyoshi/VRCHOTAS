@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly OpenVrNativeLibraryService _openVrNativeLibraryService;
     private readonly VrOverlayService _vrOverlayService;
     private readonly SteamVrDriverDeploymentService _steamVrDriverDeploymentService;
+    private readonly AnchorPointsService _anchorPointsService;
     private readonly HotkeyRuntime _hotkeyRuntime = new();
     private HotkeyPreferences _hotkeyPreferences = new();
     private EulerAnglePreferences _eulerAnglePreferences = new();
@@ -60,6 +61,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _vrOverlayLastErrorDisplay = string.Empty;
     private MappingEntry? _lastAutoSelectedMapping;
     private bool _isLocateMappingEnabled = true;
+    private HandAnchorData _lastSavedAnchorLeft = new();
+    private HandAnchorData _lastSavedAnchorRight = new();
 
     public ObservableCollection<MappingEntry> Mappings { get; } = new();
     public ObservableCollection<DeviceMonitorGroup> DeviceGroups { get; } = new();
@@ -244,6 +247,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _openVrNativeLibraryService = new OpenVrNativeLibraryService(_logger);
         _vrOverlayService = new VrOverlayService(_logger, _openVrNativeLibraryService);
         _vrOverlayService.StatusChanged += OnVrOverlayStatusChanged;
+        _anchorPointsService = new AnchorPointsService(_logger);
         _steamVrDriverDeploymentService = new SteamVrDriverDeploymentService(_logger);
         _preferencesService.EnsurePreferencesFileReady();
         _hotkeyPreferences = _preferencesService.LoadHotkeys();
@@ -746,6 +750,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _joystickService.Dispose();
         _ipc?.Dispose();
         _vrOverlayService.Dispose();
+        _anchorPointsService.FlushPendingSave();
         _logger.Info(nameof(MainViewModel), "Application stopped.");
     }
 }

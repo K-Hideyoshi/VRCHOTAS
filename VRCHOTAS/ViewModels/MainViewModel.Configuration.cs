@@ -26,6 +26,8 @@ public sealed partial class MainViewModel
             Mappings = Mappings.ToList()
         });
 
+        _anchorPointsService.FlushPendingSave();
+
         CurrentConfigurationFileName = normalizedFileName;
         IsConfigurationDirty = false;
         RefreshAvailableConfigurations();
@@ -82,6 +84,8 @@ public sealed partial class MainViewModel
         {
             Mappings = Mappings.ToList()
         });
+
+        _anchorPointsService.FlushPendingSave();
 
         IsConfigurationDirty = false;
     }
@@ -145,6 +149,21 @@ public sealed partial class MainViewModel
         }
 
         UpdateMappingSourceDeviceStates(_joystickService.GetDeviceStatesSnapshot());
+
+        // Restore saved anchor points for this configuration, if any.
+        var savedAnchors = _anchorPointsService.LoadAnchorPoints(normalized);
+        if (savedAnchors is not null)
+        {
+            _mappingEngine.SetAnchorState(VirtualTargetHand.Left, savedAnchors.Left);
+            _mappingEngine.SetAnchorState(VirtualTargetHand.Right, savedAnchors.Right);
+            _lastSavedAnchorLeft = savedAnchors.Left.Clone();
+            _lastSavedAnchorRight = savedAnchors.Right.Clone();
+        }
+        else
+        {
+            _lastSavedAnchorLeft = new HandAnchorData();
+            _lastSavedAnchorRight = new HandAnchorData();
+        }
 
         CurrentConfigurationFileName = normalized;
         IsConfigurationDirty = false;

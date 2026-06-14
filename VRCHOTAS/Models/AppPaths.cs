@@ -12,6 +12,7 @@ public static class AppPaths
 
     public static readonly string ConfigDirectory = Path.Combine(AppDataDirectory, "configs");
     public static readonly string PreferencesFilePath = Path.Combine(AppDataDirectory, "preferences.json");
+    public static readonly string AnchorPointsFilePath = Path.Combine(ConfigDirectory, "anchor_points.json");
     public const string DefaultConfigFileName = "default-config.json";
 
     public static string EnsureJsonExtension(string fileName)

@@ -31,6 +31,39 @@ public sealed class MappingEngine
         _eulerAnglePreferences = preferences?.Clone() ?? new EulerAnglePreferences();
     }
 
+    /// <summary>
+    /// Returns a snapshot of the current anchor state for a given hand.
+    /// Used to detect changes for debounced anchor persistence.
+    /// </summary>
+    public HandAnchorData GetAnchorSnapshot(VirtualTargetHand targetHand)
+    {
+        var anchor = GetAnchorState(targetHand);
+        return new HandAnchorData
+        {
+            X = anchor.X,
+            Y = anchor.Y,
+            Z = anchor.Z,
+            PitchDeg = anchor.PitchDeg,
+            YawDeg = anchor.YawDeg,
+            RollDeg = anchor.RollDeg
+        };
+    }
+
+    /// <summary>
+    /// Restores saved anchor values into the engine's persistent anchor state.
+    /// Used when loading a configuration that has associated anchor data.
+    /// </summary>
+    public void SetAnchorState(VirtualTargetHand targetHand, HandAnchorData data)
+    {
+        var anchor = GetAnchorState(targetHand);
+        anchor.X = data.X;
+        anchor.Y = data.Y;
+        anchor.Z = data.Z;
+        anchor.PitchDeg = data.PitchDeg;
+        anchor.YawDeg = data.YawDeg;
+        anchor.RollDeg = data.RollDeg;
+    }
+
     public VirtualControllerState Map(RawJoystickState rawState, IEnumerable<MappingEntry> mappings, VirtualControllerState? previousState = null)
     {
         var mappingList = mappings as IList<MappingEntry> ?? mappings.ToList();

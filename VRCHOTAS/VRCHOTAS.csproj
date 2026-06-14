@@ -62,6 +62,24 @@
         <Message Importance="high" Text="Copied overlay helper icons from $(HelperIconsPath) to $(OutputPath)icons\" />
   </Target>
 
+  <!-- Copy overlay helper outputs to publish directory (dotnet publish does not
+       automatically include files manually copied to OutputPath by custom targets) -->
+  <Target Name="CopyOverlayHelperOutputsToPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <_OverlayHelperPublishSrc>..\VRCHOTAS.OverlayHelper\bin\$(Configuration)\net10.0-windows\win-x64\</_OverlayHelperPublishSrc>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_OverlayHelperPublishFiles Include="$(_OverlayHelperPublishSrc)**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_OverlayHelperPublishFiles)"
+          DestinationFiles="@(_OverlayHelperPublishFiles->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <Message Importance="high" Text="Copied overlay helper outputs to publish directory: $(PublishDir)" />
+  </Target>
+
   <!-- Register helper files for clean -->
   <Target Name="RegisterHelperFilesForClean" BeforeTargets="Clean">
     <PropertyGroup>
