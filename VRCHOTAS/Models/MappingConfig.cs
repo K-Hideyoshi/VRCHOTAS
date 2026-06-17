@@ -51,6 +51,14 @@ public sealed partial class MappingEntry : ObservableObject
     public bool InputInvert { get; set; }
     public bool Invert { get; set; }
 
+    /// <summary>Compass angle in degrees for ThumbstickVector target (0 = Up, 90 = Right, CW).</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public double VectorAngle { get; set; }
+
+    /// <summary>Vector magnitude (0.0 – 1.0) for ThumbstickVector target.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public double VectorMagnitude { get; set; } = 1.0;
+
     /// <summary>Virtual-key code for Keyboard target mappings.</summary>
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public int KeyboardKey { get; set; }

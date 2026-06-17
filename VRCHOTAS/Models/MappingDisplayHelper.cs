@@ -25,6 +25,7 @@ public static class MappingDisplayHelper
         VirtualAxisTarget.ThumbstickY => "Thumbstick Y",
         VirtualAxisTarget.Trigger => "Trigger",
         VirtualAxisTarget.Grip => "Grip",
+        VirtualAxisTarget.ThumbstickVector => "Thumbstick Vector",
         _ => target.ToString()
     };
 

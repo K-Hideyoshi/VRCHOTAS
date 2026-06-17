@@ -449,6 +449,74 @@ public partial class MappingEditorWindow : Window
         RevertNumericValueEditor(textBox);
     }
 
+    // ── Vector Widget Mouse Handlers ──────────────────────────────
+
+    private bool _isVectorDragActive;
+
+    private void VectorWidgetMouseDown(object sender, WpfMouseButtonEventArgs e)
+    {
+        var canvas = sender as System.Windows.Controls.Canvas;
+        if (canvas is null) return;
+
+        var pos = e.GetPosition(canvas);
+        UpdateVectorFromMouse(canvas, pos);
+        _isVectorDragActive = true;
+        canvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void VectorWidgetMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_isVectorDragActive) return;
+
+        var canvas = sender as System.Windows.Controls.Canvas;
+        if (canvas is null) return;
+
+        var pos = e.GetPosition(canvas);
+        UpdateVectorFromMouse(canvas, pos);
+    }
+
+    private void VectorWidgetMouseUp(object sender, WpfMouseButtonEventArgs e)
+    {
+        _isVectorDragActive = false;
+        if (sender is System.Windows.Controls.Canvas canvas)
+        {
+            canvas.ReleaseMouseCapture();
+        }
+    }
+
+    private void UpdateVectorFromMouse(System.Windows.Controls.Canvas canvas, System.Windows.Point mousePos)
+    {
+        const double cx = 100.0;
+        const double cy = 100.0;
+        const double r = 90.0;
+
+        var dx = mousePos.X - cx;
+        var dy = mousePos.Y - cy; // canvas Y is down
+
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+
+        // Clamp to the outer ring
+        if (distance > r)
+        {
+            dx = dx / distance * r;
+            dy = dy / distance * r;
+            distance = r;
+        }
+
+        // Compute magnitude from distance (0 at center, 1 at outer ring)
+        var magnitude = Math.Clamp(distance / r, 0.0, 1.0);
+
+        // Compute compass angle: 0° = Up (+Y → canvas -Y), CW
+        // atan2 returns angle from +X axis; we want angle from +Y (up) CW
+        var angleRad = Math.Atan2(dx, -dy); // -dy because canvas Y is inverted
+        var angleDeg = angleRad * 180.0 / Math.PI;
+        if (angleDeg < 0) angleDeg += 360.0;
+
+        _viewModel.VectorAngle = angleDeg;
+        _viewModel.VectorMagnitude = magnitude;
+    }
+
     private void RevertNumericValueEditor(Controls.TextBox textBox)
     {
         if (!_numericEditorOriginalTexts.TryGetValue(textBox, out var originalText))

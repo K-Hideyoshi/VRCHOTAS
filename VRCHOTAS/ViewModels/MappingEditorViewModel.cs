@@ -59,6 +59,12 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     private string _keyboardTargetProcessName = string.Empty;
     private bool _isKeyboardCaptureActive;
 
+    // Thumbstick Vector
+    private double _vectorAngle;
+    private double _vectorMagnitude = 1.0;
+    private double _vectorOutputX;
+    private double _vectorOutputY;
+
     public MappingEditorViewModel(Func<RawJoystickState> stateProvider, MappingEntry? existing)
     {
         _stateProvider = stateProvider;
@@ -97,6 +103,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         Saturation = existing.Saturation;
         InputInvert = existing.InputInvert;
         OutputInvert = existing.Invert;
+        _vectorAngle = existing.VectorAngle % 360.0;
+        if (_vectorAngle < 0) _vectorAngle += 360.0;
+        VectorMagnitude = Math.Clamp(existing.VectorMagnitude, 0.0, 1.0);
         Description = existing.Description ?? string.Empty;
 
         KeyboardKey = existing.KeyboardKey;
@@ -105,6 +114,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         KeyboardTargetProcessName = existing.KeyboardTargetProcessName ?? string.Empty;
 
         RebuildCurvePlot();
+        RebuildVectorArrow();
     }
 
     public IReadOnlyList<TargetKindOption> TargetKindOptions { get; }
@@ -134,6 +144,8 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowHandSelection));
                 OnPropertyChanged(nameof(ShowKeyboardPicker));
                 OnPropertyChanged(nameof(ShowKeyboardWindowPicker));
+                OnPropertyChanged(nameof(ShowVectorPanel));
+                OnPropertyChanged(nameof(ShowCurvesPanel));
 
                 if (value == MappingTargetKind.AxisInput)
                 {
@@ -151,6 +163,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     /// <summary>True when the current target uses continuous shaping controls.</summary>
     public bool UsesAxisSource => IsSourceButtonDetected
         ? SelectedTargetKind is not (MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction or MappingTargetKind.Keyboard)
+            && (SelectedTargetKind != MappingTargetKind.AxisInput || TargetAxis != VirtualAxisTarget.ThumbstickVector)
         : SelectedTargetKind is MappingTargetKind.AxisInput or MappingTargetKind.ControllerPose;
 
     public bool ShowAxisPicker => SelectedTargetKind == MappingTargetKind.AxisInput;
@@ -161,7 +174,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public bool ShowAxisActionPicker => SelectedTargetKind == MappingTargetKind.ControllerPoseAction;
 
-    public bool ShowToggleMode => HasDetectedSource && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction;
+    public bool ShowToggleMode => HasDetectedSource && (SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction || ShowVectorPanel);
 
     public IReadOnlyList<VirtualTargetHand> HandTargets { get; } = new[] { VirtualTargetHand.Left, VirtualTargetHand.Right };
 
@@ -202,6 +215,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowAxisActionPicker));
                 OnPropertyChanged(nameof(ShowToggleMode));
                 OnPropertyChanged(nameof(ShowFullPressThreshold));
+                OnPropertyChanged(nameof(AvailableAxisTargetOptions));
+                OnPropertyChanged(nameof(ShowVectorPanel));
+                OnPropertyChanged(nameof(ShowCurvesPanel));
             }
         }
     }
@@ -288,11 +304,18 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(ShowFullPressThreshold));
                 OnPropertyChanged(nameof(ShowStatePanel));
+                OnPropertyChanged(nameof(ShowVectorPanel));
+                OnPropertyChanged(nameof(ShowCurvesPanel));
+                OnPropertyChanged(nameof(UsesAxisSource));
+                OnPropertyChanged(nameof(ShowToggleMode));
 
                 if (SelectedTargetKind == MappingTargetKind.AxisInput)
                 {
                     SyncAxisRangeWithTarget();
-                    ResetAxisShapingParameters();
+                    if (value != VirtualAxisTarget.ThumbstickVector)
+                    {
+                        ResetAxisShapingParameters();
+                    }
                 }
             }
         }
@@ -343,7 +366,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
 
     public bool ShowStatePanel => HasDetectedSource && (
         SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction or MappingTargetKind.Keyboard
-        || (SelectedTargetKind == MappingTargetKind.AxisInput && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip));
+        || (SelectedTargetKind == MappingTargetKind.AxisInput && TargetAxis is VirtualAxisTarget.Trigger or VirtualAxisTarget.Grip or VirtualAxisTarget.ThumbstickVector));
 
     public bool ShowTriggerOptions => !IsSourceButtonDetected && SelectedTargetKind is MappingTargetKind.Button or MappingTargetKind.ControllerPoseAction;
 
@@ -400,6 +423,112 @@ public sealed partial class MappingEditorViewModel : ObservableObject
     }
 
     public string KeyboardKeyDisplay => MappingDisplayHelper.GetKeyboardKeyDisplay(_keyboardKey, _keyboardModifiers);
+
+    // ── Thumbstick Vector ──────────────────────────────────────────
+
+    public double VectorAngle
+    {
+        get => _vectorAngle;
+        set
+        {
+            var clamped = value % 360.0;
+            if (clamped < 0) clamped += 360.0;
+            if (SetProperty(ref _vectorAngle, clamped))
+            {
+                OnPropertyChanged(nameof(VectorAngleDisplay));
+                OnPropertyChanged(nameof(VectorOutputX));
+                OnPropertyChanged(nameof(VectorOutputY));
+                RebuildVectorArrow();
+            }
+        }
+    }
+
+    public double VectorMagnitude
+    {
+        get => _vectorMagnitude;
+        set
+        {
+            if (SetProperty(ref _vectorMagnitude, Math.Clamp(value, 0.0, 1.0)))
+            {
+                OnPropertyChanged(nameof(VectorMagnitudeDisplay));
+                OnPropertyChanged(nameof(VectorOutputX));
+                OnPropertyChanged(nameof(VectorOutputY));
+                RebuildVectorArrow();
+            }
+        }
+    }
+
+    public string VectorAngleDisplay => $"{VectorAngle:F0}°";
+    public string VectorMagnitudeDisplay => $"{VectorMagnitude:F2}";
+
+    public double VectorOutputX
+    {
+        get => _vectorOutputX;
+        private set => SetProperty(ref _vectorOutputX, value);
+    }
+
+    public double VectorOutputY
+    {
+        get => _vectorOutputY;
+        private set => SetProperty(ref _vectorOutputY, value);
+    }
+
+    // Arrow geometry for the vector widget (200×200 canvas, center 100,100, outer radius 90)
+    public double ArrowEndX { get; private set; } = 100;
+    public double ArrowEndY { get; private set; } = 10; // default: pointing up with magnitude 1
+    public double ArrowHeadLeftX { get; private set; }
+    public double ArrowHeadLeftY { get; private set; }
+    public double ArrowHeadRightX { get; private set; }
+    public double ArrowHeadRightY { get; private set; }
+
+    private void RebuildVectorArrow()
+    {
+        const double cx = 100.0;
+        const double cy = 100.0;
+        const double r = 90.0;
+        const double headLen = 12.0;
+        const double headAngleDeg = 20.0;
+
+        var angleRad = VectorAngle * Math.PI / 180.0;
+        var mag = Math.Max(VectorMagnitude, 0.001);
+
+        // Compass convention: 0° = Up (+Y, canvas -Y)
+        var dx = mag * Math.Sin(angleRad);
+        var dy = -mag * Math.Cos(angleRad); // negate because canvas Y is down
+
+        ArrowEndX = cx + dx * r;
+        ArrowEndY = cy + dy * r;
+
+        // Arrowhead: two lines from tip back toward center
+        var tipDirRad = Math.Atan2(dy, dx); // direction of the arrow tip from center
+        var headRad = headAngleDeg * Math.PI / 180.0;
+        var leftRad = tipDirRad + Math.PI - headRad;
+        var rightRad = tipDirRad + Math.PI + headRad;
+
+        ArrowHeadLeftX = ArrowEndX + headLen * Math.Cos(leftRad);
+        ArrowHeadLeftY = ArrowEndY + headLen * Math.Sin(leftRad);
+        ArrowHeadRightX = ArrowEndX + headLen * Math.Cos(rightRad);
+        ArrowHeadRightY = ArrowEndY + headLen * Math.Sin(rightRad);
+
+        OnPropertyChanged(nameof(ArrowEndX));
+        OnPropertyChanged(nameof(ArrowEndY));
+        OnPropertyChanged(nameof(ArrowHeadLeftX));
+        OnPropertyChanged(nameof(ArrowHeadLeftY));
+        OnPropertyChanged(nameof(ArrowHeadRightX));
+        OnPropertyChanged(nameof(ArrowHeadRightY));
+    }
+
+    public bool ShowVectorPanel =>
+        IsSourceButtonDetected &&
+        SelectedTargetKind == MappingTargetKind.AxisInput &&
+        TargetAxis == VirtualAxisTarget.ThumbstickVector;
+
+    public bool ShowCurvesPanel => UsesAxisSource && !ShowVectorPanel;
+
+    public IReadOnlyList<AxisTargetOption> AvailableAxisTargetOptions =>
+        IsSourceButtonDetected
+            ? AxisTargetOptions
+            : AxisTargetOptions.Where(o => o.Target != VirtualAxisTarget.ThumbstickVector).ToList();
 
     public bool IsKeyboardCaptureActive
     {
@@ -675,6 +804,9 @@ public sealed partial class MappingEditorViewModel : ObservableObject
             case nameof(Saturation):
                 Saturation = value;
                 return true;
+            case nameof(VectorAngle):
+                VectorAngle = value;
+                return true;
             default:
                 return false;
         }
@@ -686,12 +818,14 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         nameof(Deadzone) => Deadzone,
         nameof(Curve) => Curve,
         nameof(Saturation) => Saturation,
+        nameof(VectorAngle) => VectorAngle,
         _ => 0.0
     };
 
     private static string GetNumericFieldFormat(string fieldName) => fieldName switch
     {
         nameof(Deadzone) or nameof(Curve) or nameof(Saturation) => "F3",
+        nameof(VectorAngle) => "F0",
         _ => "F2"
     };
 
@@ -701,6 +835,7 @@ public sealed partial class MappingEditorViewModel : ObservableObject
         nameof(Deadzone) => (0.0, 0.8),
         nameof(Curve) => (-1.0, 1.0),
         nameof(Saturation) => (0.0, double.MaxValue),
+        nameof(VectorAngle) => (0.0, 359.0),
         _ => (double.NaN, double.NaN)
     };
 

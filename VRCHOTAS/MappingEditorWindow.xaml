@@ -89,7 +89,7 @@
                 <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Axis Target:" Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="2" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
                           Visibility="{Binding ShowAxisPicker, Converter={StaticResource BooleanToVisibilityConverter}}"
-                           ItemsSource="{Binding AxisTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetAxis}" />
+                          ItemsSource="{Binding AvailableAxisTargetOptions}" DisplayMemberPath="Label" SelectedValuePath="Target" SelectedValue="{Binding TargetAxis}" />
 
                 <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,6" Text="VR Button Target:" Visibility="{Binding ShowButtonPicker, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <ComboBox Grid.Row="3" Grid.Column="1" Width="300" HorizontalAlignment="Left" Margin="0,0,0,6"
@@ -163,7 +163,7 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Curves" Margin="0,0,0,10" Visibility="{Binding UsesAxisSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Curves" Margin="0,0,0,10" Visibility="{Binding ShowCurvesPanel, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid Margin="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="140" />
@@ -281,6 +281,159 @@
                     <TextBlock VerticalAlignment="Center" Margin="6,0,12,0" Text="{Binding CurrentInputValue, StringFormat=F3}" />
                     <TextBlock VerticalAlignment="Center" Text="Mapped Output:" />
                     <TextBlock VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding CurrentOutputValue, StringFormat=F3}" />
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Vector" Margin="0,0,0,10"
+                  Visibility="{Binding ShowVectorPanel, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Row 0: Vector Direction Widget + Angle text input -->
+                <TextBlock Grid.Row="0" VerticalAlignment="Top" Margin="0,0,0,6" Text="Vector Direction:" />
+                <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Circular vector widget -->
+                    <Border Grid.Column="0"
+                            BorderBrush="Gray"
+                            BorderThickness="1"
+                            Width="200" Height="200"
+                            HorizontalAlignment="Left"
+                            PreviewMouseLeftButtonDown="VectorWidgetMouseDown"
+                            PreviewMouseMove="VectorWidgetMouseMove"
+                            PreviewMouseLeftButtonUp="VectorWidgetMouseUp"
+                            Background="Transparent">
+                        <Canvas Width="200" Height="200" ClipToBounds="True">
+                            <!-- Radial gradient background circle -->
+                            <Ellipse Width="180" Height="180" Canvas.Left="10" Canvas.Top="10">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush GradientOrigin="0.5,0.5" Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                                        <GradientStop Color="#1A1A2E" Offset="0.0" />
+                                        <GradientStop Color="#16213E" Offset="0.7" />
+                                        <GradientStop Color="#0F3460" Offset="1.0" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                                <Ellipse.Stroke>
+                                    <SolidColorBrush Color="#4A6FA5" />
+                                </Ellipse.Stroke>
+                                <Ellipse.StrokeThickness>1.5</Ellipse.StrokeThickness>
+                            </Ellipse>
+
+                            <!-- Concentric rings -->
+                            <Ellipse Width="120" Height="120" Canvas.Left="40" Canvas.Top="40"
+                                     Stroke="#335577" StrokeThickness="0.8" StrokeDashArray="2,3" />
+                            <Ellipse Width="60" Height="60" Canvas.Left="70" Canvas.Top="70"
+                                     Stroke="#335577" StrokeThickness="0.8" StrokeDashArray="2,3" />
+
+                            <!-- Crosshairs -->
+                            <Line X1="10" Y1="100" X2="190" Y2="100" Stroke="#335577" StrokeThickness="0.5" />
+                            <Line X1="100" Y1="10" X2="100" Y2="190" Stroke="#335577" StrokeThickness="0.5" />
+
+                            <!-- 45° tick marks on outer ring -->
+                            <Line X1="100" Y1="14" X2="100" Y2="20" Stroke="#4A6FA5" StrokeThickness="1" />
+                            <Line X1="100" Y1="180" X2="100" Y2="186" Stroke="#4A6FA5" StrokeThickness="1" />
+                            <Line X1="14" Y1="100" X2="20" Y2="100" Stroke="#4A6FA5" StrokeThickness="1" />
+                            <Line X1="180" Y1="100" X2="186" Y2="100" Stroke="#4A6FA5" StrokeThickness="1" />
+                            <Line X1="36" Y1="36" X2="41" Y2="41" Stroke="#335577" StrokeThickness="0.8" />
+                            <Line X1="159" Y1="36" X2="164" Y2="41" Stroke="#335577" StrokeThickness="0.8" />
+                            <Line X1="36" Y1="159" X2="41" Y2="164" Stroke="#335577" StrokeThickness="0.8" />
+                            <Line X1="159" Y1="159" X2="164" Y2="164" Stroke="#335577" StrokeThickness="0.8" />
+
+                            <!-- Cardinal labels -->
+                            <TextBlock Canvas.Left="93" Canvas.Top="0" FontSize="10" Foreground="#88AACC" Text="N" />
+                            <TextBlock Canvas.Left="93" Canvas.Top="185" FontSize="10" Foreground="#88AACC" Text="S" />
+                            <TextBlock Canvas.Left="188" Canvas.Top="93" FontSize="10" Foreground="#88AACC" Text="E" />
+                            <TextBlock Canvas.Left="2" Canvas.Top="93" FontSize="10" Foreground="#88AACC" Text="W" />
+
+                            <!-- Arrow shaft -->
+                            <Line X1="100" Y1="100" X2="{Binding ArrowEndX}" Y2="{Binding ArrowEndY}"
+                                  Stroke="DeepSkyBlue" StrokeThickness="3" StrokeEndLineCap="Round" />
+
+                            <!-- Arrowhead lines -->
+                            <Line X1="{Binding ArrowEndX}" Y1="{Binding ArrowEndY}"
+                                  X2="{Binding ArrowHeadLeftX}" Y2="{Binding ArrowHeadLeftY}"
+                                  Stroke="DeepSkyBlue" StrokeThickness="2.5" StrokeEndLineCap="Round" />
+                            <Line X1="{Binding ArrowEndX}" Y1="{Binding ArrowEndY}"
+                                  X2="{Binding ArrowHeadRightX}" Y2="{Binding ArrowHeadRightY}"
+                                  Stroke="DeepSkyBlue" StrokeThickness="2.5" StrokeEndLineCap="Round" />
+                        </Canvas>
+                    </Border>
+
+                    <!-- Angle text input -->
+                    <StackPanel Grid.Column="1" Orientation="Vertical" Margin="10,0,0,0" VerticalAlignment="Top">
+                        <TextBlock Text="Angle:" Margin="0,0,0,4" />
+                        <TextBox Width="55"
+                                 Text="{Binding VectorAngle, StringFormat=F0, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center"
+                                 HorizontalContentAlignment="Right"
+                                 Tag="VectorAngle"
+                                 GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                                 LostKeyboardFocus="NumericValueEditorLostFocus"
+                                 PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
+                        <TextBlock Margin="0,2,0,0" FontSize="10" Foreground="Gray" Text="0–359°" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row 1: Magnitude slider -->
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8" Text="Magnitude:" />
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="60" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="1.0"
+                            Value="{Binding VectorMagnitude, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding VectorMagnitudeDisplay, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             IsReadOnly="True" />
+                </Grid>
+
+                <!-- Row 2: Saturation slider -->
+                <TextBlock Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8" Text="Saturation:" />
+                <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="60" />
+                    </Grid.ColumnDefinitions>
+                    <Slider Grid.Column="0" Minimum="0.0" Maximum="{Binding SaturationSliderMaximum}"
+                            Value="{Binding Saturation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            TickFrequency="0.01" IsSnapToTickEnabled="False" />
+                    <TextBox Grid.Column="1"
+                             Margin="10,0,0,0"
+                             Text="{Binding Saturation, StringFormat=F3, Mode=OneWay}"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Right"
+                             Tag="Saturation"
+                             GotKeyboardFocus="NumericValueEditorGotKeyboardFocus"
+                             LostKeyboardFocus="NumericValueEditorLostFocus"
+                             PreviewKeyDown="NumericValueEditorPreviewKeyDown" />
+                </Grid>
+
+                <!-- Row 3: Output readout -->
+                <TextBlock Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,6" Text="Output:" />
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                    <TextBlock VerticalAlignment="Center" Text="X:" />
+                    <TextBlock VerticalAlignment="Center" Margin="6,0,12,0" Text="{Binding VectorOutputX, StringFormat=F3}" />
+                    <TextBlock VerticalAlignment="Center" Text="Y:" />
+                    <TextBlock VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding VectorOutputY, StringFormat=F3}" />
                 </StackPanel>
             </Grid>
         </GroupBox>

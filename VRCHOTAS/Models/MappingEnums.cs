@@ -24,7 +24,8 @@ public enum VirtualAxisTarget
     ThumbstickX = 0,
     ThumbstickY = 1,
     Trigger = 2,
-    Grip = 3
+    Grip = 3,
+    ThumbstickVector = 4
 }
 
 public enum VirtualButtonTarget

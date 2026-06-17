@@ -119,6 +119,12 @@ public sealed class MappingEngine
             return;
         }
 
+        if (context.TargetKind == MappingTargetKind.AxisInput && context.Mapping.TargetAxis == VirtualAxisTarget.ThumbstickVector)
+        {
+            ApplyThumbstickVectorMapping(context);
+            return;
+        }
+
         ProcessNonButtonTarget(context);
     }
 
@@ -416,6 +422,74 @@ public sealed class MappingEngine
 
         ApplyDerivedAxisTouch(context.Mapping.TargetAxis, corrected, ref context.Hand);
         ApplyDerivedAxisButtons(context.Mapping, corrected, ref context.Hand);
+    }
+
+    private void ApplyThumbstickVectorMapping(ActiveMappingContext context)
+    {
+        // Read button state (0 or 1) via the existing axis-like input path
+        if (!TryGetAxisLikeInput(context, out var rawValue))
+        {
+            return;
+        }
+
+        var isPressed = rawValue >= 0.5;
+
+        // Handle Toggle Mode
+        if (context.Mapping.ToggleMode)
+        {
+            if (!_toggleStates.TryGetValue(context.Mapping, out var toggleState))
+            {
+                toggleState = new ToggleState();
+                _toggleStates[context.Mapping] = toggleState;
+            }
+
+            var justPressed = isPressed && !toggleState.WasPressed;
+            if (justPressed)
+            {
+                toggleState.IsActive = !toggleState.IsActive;
+            }
+
+            toggleState.WasPressed = isPressed;
+            isPressed = toggleState.IsActive;
+        }
+
+        if (!isPressed)
+        {
+            // Inactive: set both axes to 0 (additive with CombineAxisValue → existingValue + 0)
+            context.Hand.EnsureInitialized();
+            context.Hand.Axes[VirtualInputLayout.ThumbstickXAxis] = CombineAxisValue(
+                context.Hand.Axes[VirtualInputLayout.ThumbstickXAxis], 0.0, isAxisSource: false);
+            context.Hand.Axes[VirtualInputLayout.ThumbstickYAxis] = CombineAxisValue(
+                context.Hand.Axes[VirtualInputLayout.ThumbstickYAxis], 0.0, isAxisSource: false);
+            return;
+        }
+
+        // Compute vector from angle and magnitude
+        var angleRad = context.Mapping.VectorAngle * Math.PI / 180.0;
+        var magnitude = Math.Clamp(context.Mapping.VectorMagnitude, 0.0, 1.0);
+
+        // Apply Saturation as a scalar (only curve param that applies to ThumbstickVector)
+        var sat = Math.Max(context.Mapping.Saturation, 0.0);
+
+        // Compass convention: 0° = Up (+Y), CW
+        var x = magnitude * Math.Sin(angleRad) * sat;
+        var y = magnitude * Math.Cos(angleRad) * sat;
+
+        context.Hand.EnsureInitialized();
+
+        // Apply to both axes using additive composition (isAxisSource: false)
+        context.Hand.Axes[VirtualInputLayout.ThumbstickXAxis] = CombineAxisValue(
+            context.Hand.Axes[VirtualInputLayout.ThumbstickXAxis], x, isAxisSource: false);
+        context.Hand.Axes[VirtualInputLayout.ThumbstickYAxis] = CombineAxisValue(
+            context.Hand.Axes[VirtualInputLayout.ThumbstickYAxis], y, isAxisSource: false);
+
+        // Apply derived touch based on vector magnitude
+        var touchThreshold = magnitude * sat > 0.01;
+        var touchButtonIndex = VirtualInputLayout.ThumbstickTouchButton;
+        if (touchButtonIndex >= 0 && touchButtonIndex < context.Hand.Buttons.Length)
+        {
+            context.Hand.Buttons[touchButtonIndex] = touchThreshold;
+        }
     }
 
     private void ApplyControllerPoseTargetMapping(ActiveMappingContext context, double axisValue)

@@ -36,6 +36,8 @@ public sealed partial class MappingEditorViewModel
             Saturation = Saturation,
             InputInvert = InputInvert,
             Invert = OutputInvert,
+            VectorAngle = VectorAngle,
+            VectorMagnitude = VectorMagnitude,
             KeyboardKey = KeyboardKey,
             KeyboardModifiers = KeyboardModifiers,
             KeyboardTargetWindowTitle = string.IsNullOrWhiteSpace(KeyboardTargetWindowTitle) ? null : KeyboardTargetWindowTitle.Trim(),
@@ -53,6 +55,30 @@ public sealed partial class MappingEditorViewModel
 
         // Always update state panel properties regardless of target kind
         UpdateStatePanelProperties(device);
+
+        // Update ThumbstickVector preview output
+        if (ShowVectorPanel)
+        {
+            var angleRad = VectorAngle * Math.PI / 180.0;
+            var sat = Math.Max(Saturation, 0.0);
+            var active = _previewToggleActive;
+            if (!ToggleMode)
+            {
+                active = SourceButtonPressed;
+            }
+
+            if (active)
+            {
+                var mag = VectorMagnitude * sat;
+                VectorOutputX = mag * Math.Sin(angleRad);
+                VectorOutputY = mag * Math.Cos(angleRad);
+            }
+            else
+            {
+                VectorOutputX = 0;
+                VectorOutputY = 0;
+            }
+        }
 
         if (!UsesAxisSource)
         {
@@ -227,7 +253,8 @@ public sealed partial class MappingEditorViewModel
             new AxisTargetOption("Thumbstick X", VirtualAxisTarget.ThumbstickX),
             new AxisTargetOption("Thumbstick Y", VirtualAxisTarget.ThumbstickY),
             new AxisTargetOption("Trigger", VirtualAxisTarget.Trigger),
-            new AxisTargetOption("Grip", VirtualAxisTarget.Grip)
+            new AxisTargetOption("Grip", VirtualAxisTarget.Grip),
+            new AxisTargetOption("Thumbstick Vector", VirtualAxisTarget.ThumbstickVector)
         };
     }
 
